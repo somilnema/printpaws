@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #A87B62;
+  --color-primary-dark: #8B624D;
+  --color-secondary: #2F2F2F;
+  --color-background: #FFFFFF;
+  --color-accent-blue: #007bff;
+  --color-accent-green: #25D366;
+  
+  --font-montserrat: "Montserrat", sans-serif;
+  --font-poppins: "Poppins", sans-serif;
+}
+
+:root {
+  --background: #ffffff;
+  --foreground-base: #2F2F2F;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground-base);
+  font-family: var(--font-poppins);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-montserrat);
+  font-weight: 700;
+}
+
+@keyframes wave-motion {
+  0% { transform: translateX(0) translateZ(0) scaleY(1); }
+  50% { transform: translateX(-25%) translateZ(0) scaleY(0.8); }
+  100% { transform: translateX(0) translateZ(0) scaleY(1); }
+}
+
+.animate-wave {
+  animation: wave-motion 15s cubic-bezier(0.36, 0.45, 0.63, 0.53) infinite;
+}
+
+.animate-wave-slow {
+  animation: wave-motion 20s cubic-bezier(0.36, 0.45, 0.63, 0.53) -2s infinite;
+}
+
+.animate-wave-slower {
+  animation: wave-motion 25s cubic-bezier(0.36, 0.45, 0.63, 0.53) -4s infinite;
+}
