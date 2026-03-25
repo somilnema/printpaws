@@ -19,12 +19,13 @@ export function ProductGallery() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.05 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
-            className="w-full h-full"
+            className="relative w-full h-full"
           >
             <Image
               src={images[activeImage]}
               alt={`Pet Portrait ${activeImage + 1}`}
               fill
+              sizes="(max-width: 768px) 100vw, 50vw"
               className="object-cover"
               priority
             />
@@ -45,6 +46,7 @@ export function ProductGallery() {
               src={img}
               alt={`Thumbnail ${idx + 1}`}
               fill
+              sizes="80px"
               className="object-cover"
             />
           </button>

@@ -45,3 +45,7 @@ h1, h2, h3, h4, h5, h6 {
 .animate-wave-slower {
   animation: wave-motion 25s cubic-bezier(0.36, 0.45, 0.63, 0.53) -4s infinite;
 }
+
+.hover\:pause-animation:hover * {
+  animation-play-state: paused !important;
+}
