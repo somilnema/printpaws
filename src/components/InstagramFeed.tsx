@@ -11,7 +11,7 @@ const INSTA_IMAGES = [
 
 export function InstagramFeed() {
   return (
-    <section className="py-0 bg-white border-t border-gray-100">
+    <section className="py-16 bg-white border-t border-gray-100">
       <div className="flex flex-col lg:flex-row min-h-[400px]">
         {/* Left Content */}
         <div className="lg:w-[40%] flex flex-col items-center justify-center p-12 lg:p-20 space-y-8 bg-[#F9F9F9]">
@@ -30,7 +30,7 @@ export function InstagramFeed() {
           {INSTA_IMAGES.map((img, i) => (
             <div 
               key={i} 
-              className="relative flex-1 min-h-[300px] lg:min-h-full group cursor-pointer border-l border-gray-100"
+              className="relative flex-1 min-h-[300px] lg:min-h-full group cursor-pointer border-l border-gray-100 overflow-hidden"
             >
               <Image 
                 src={img.src} 
