@@ -14,37 +14,48 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 
-const SIZES = ["8\"x10\"", "12\"x16\"", "18\"x24\""];
-const TYPES = ["Poster", "Black Frame", "White Frame"];
-const PETS = ["1 Pet", "2 Pets", "3 Pets"];
+const SIZES = ["8x10 (20 x 25 cm)", "12x16 (30 x 40 cm)"];
+const FRAMES = [
+  { id: "no-frame", name: "No Frame", color: "transparent" },
+  { id: "black-frame", name: "Black Frame", color: "#000000" },
+  { id: "white-frame", name: "White Frame", color: "#FFFFFF" },
+  { id: "oak-frame", name: "Oak Frame", color: "#D2B48C" },
+];
+const PETS = ["1 Pet", "2 Pets", "3 Pets", "Custom"];
+
+const FONTS = [
+  { id: "classic", name: "CLASSIC", className: "font-montserrat font-black" },
+  { id: "simple", name: "SIMPLE", className: "font-poppins font-light tracking-[0.2em]" },
+  { id: "elegant", name: "Elegant", className: "font-elegant text-xl leading-none" },
+];
 
 const BACKGROUNDS = [
-  { name: "White", type: "color", value: "#FFFFFF" },
-  { name: "Black", type: "color", value: "#000000" },
-  { name: "Dusty Pink", type: "color", value: "#E9B7B7" },
-  { name: "Heart", type: "pattern", value: "/thumb1.png", price: 199 },
-  { name: "Wiggles", type: "pattern", value: "/thumb2.png", price: 199 },
-  { name: "Bloom", type: "pattern", value: "/dog_portrait_closeup_1773940826280.png", price: 199 },
+  { name: "Off White", value: "#F5F5F5" },
+  { name: "Soft Pink", value: "#F4C2C2" },
+  { name: "Sky Blue", value: "#AED9E0" },
+  { name: "Sage Green", value: "#C8D5B9" },
+  { name: "Charcoal", value: "#363636" },
 ];
 
 export function ProductInfo() {
-  const [selectedSize, setSelectedSize] = useState("12\"x16\"");
-  const [selectedType, setSelectedType] = useState("Poster");
+  const [selectedSize, setSelectedSize] = useState("12x16 (30 x 40 cm)");
+  const [selectedFrame, setSelectedFrame] = useState("no-frame");
   const [selectedPets, setSelectedPets] = useState("1 Pet");
-  const [selectedBg, setSelectedBg] = useState("White");
+  const [selectedBg, setSelectedBg] = useState("Off White");
+  const [selectedFont, setSelectedFont] = useState("classic");
   const [giftWrap, setGiftWrap] = useState(false);
 
   return (
     <div className="flex flex-col gap-8">
       {/* Header Info */}
       <div className="space-y-4">
-        <div className="flex items-center gap-1">
+        <div className="hidden lg:flex items-center gap-1">
           {[...Array(5)].map((_, i) => (
             <Star key={i} size={14} className="fill-[#FFB800] text-[#FFB800]" />
           ))}
           <span className="text-sm font-medium text-gray-400 ml-2">542 Reviews</span>
         </div>
-        <h1 className="text-4xl font-extrabold text-[#1a1a1b] leading-tight tracking-tight uppercase italic">
+        <h1 className="hidden lg:block text-4xl font-extrabold text-[#1a1a1b] leading-tight tracking-tight uppercase italic">
           Custom Pet Portrait
         </h1>
         <div className="flex items-center gap-4">
@@ -60,11 +71,129 @@ export function ProductInfo() {
 
       {/* Selectors */}
       <div className="space-y-8">
-        {/* Size & Type & Pets */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <DropdownSelector label="Poster Size" options={SIZES} selected={selectedSize} onChange={setSelectedSize} />
-          <DropdownSelector label="Display Type" options={TYPES} selected={selectedType} onChange={setSelectedType} />
-          <DropdownSelector label="No. of Pets" options={PETS} selected={selectedPets} onChange={setSelectedPets} />
+        {/* Size Selection */}
+        <div className="space-y-3">
+          <label className="block text-sm font-bold text-[#1a1a1b] uppercase tracking-wider">
+            Size
+          </label>
+          <div className="flex flex-wrap gap-3">
+            {SIZES.map((size) => (
+              <button
+                key={size}
+                onClick={() => setSelectedSize(size)}
+                className={`px-6 py-3 rounded-xl border-2 font-bold transition-all text-sm ${
+                  selectedSize === size
+                    ? "border-accent-blue bg-accent-blue/5 text-accent-blue shadow-sm"
+                    : "border-gray-200 text-gray-500 hover:border-gray-300"
+                }`}
+              >
+                {size}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Frame Selection */}
+        <div className="space-y-3">
+          <label className="block text-sm font-bold text-[#1a1a1b] uppercase tracking-wider">
+            Frame
+          </label>
+          <div className="flex flex-wrap gap-4">
+            {FRAMES.map((frame) => (
+              <button
+                key={frame.id}
+                onClick={() => setSelectedFrame(frame.id)}
+                className={`group relative w-12 h-12 rounded-lg border-2 transition-all p-1 ${
+                  selectedFrame === frame.id
+                    ? "border-accent-blue scale-110 shadow-md"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+                title={frame.name}
+              >
+                <div 
+                  className="w-full h-full rounded-md border border-gray-100 flex items-center justify-center overflow-hidden"
+                  style={{ backgroundColor: frame.color }}
+                >
+                  {frame.id === "no-frame" && <Check className="text-gray-300" size={16} />}
+                </div>
+                {selectedFrame === frame.id && (
+                  <div className="absolute -top-1 -right-1 bg-accent-blue text-white rounded-full p-0.5 border-2 border-white">
+                    <Check size={8} strokeWidth={4} />
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Pets Selection */}
+        <div className="space-y-3">
+          <label className="block text-sm font-bold text-[#1a1a1b] uppercase tracking-wider">
+            No. of Pets
+          </label>
+          <div className="flex flex-wrap gap-3">
+            {PETS.map((pet) => (
+              <button
+                key={pet}
+                onClick={() => setSelectedPets(pet)}
+                className={`px-6 py-3 rounded-xl border-2 font-bold transition-all text-sm ${
+                  selectedPets === pet
+                    ? "border-accent-blue bg-accent-blue/5 text-accent-blue shadow-sm"
+                    : "border-gray-200 text-gray-500 hover:border-gray-300"
+                }`}
+              >
+                {pet}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Background Selection */}
+        <div className="space-y-3">
+          <label className="block text-sm font-bold text-[#1a1a1b] uppercase tracking-wider">
+            Background Colour
+          </label>
+          <div className="flex flex-wrap gap-4">
+            {BACKGROUNDS.map((bg) => (
+              <button
+                key={bg.name}
+                onClick={() => setSelectedBg(bg.name)}
+                className={`relative w-12 h-12 rounded-full border-2 transition-all p-0.5 ${
+                  selectedBg === bg.name
+                    ? "border-accent-blue scale-110 shadow-md"
+                    : "border-gray-100 hover:border-gray-200"
+                }`}
+                title={bg.name}
+              >
+                <div 
+                  className="w-full h-full rounded-full border border-gray-100 shadow-inner"
+                  style={{ backgroundColor: bg.value }}
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Font Selection */}
+        <div className="space-y-3">
+          <label className="block text-sm font-bold text-[#1a1a1b] uppercase tracking-wider">
+            Font
+          </label>
+          <div className="flex flex-wrap gap-3">
+            {FONTS.map((font) => (
+              <button
+                key={font.id}
+                onClick={() => setSelectedFont(font.id)}
+                className={`px-8 py-3 rounded-xl border-2 transition-all min-w-[120px] ${
+                  selectedFont === font.id
+                    ? "border-accent-blue bg-accent-blue/5 text-accent-blue shadow-sm"
+                    : "border-gray-100 text-gray-500 hover:border-gray-300"
+                } ${font.className}`}
+              >
+                {font.name}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Pet Name */}
@@ -86,59 +215,9 @@ export function ProductInfo() {
           </label>
           <div className="border-2 border-dashed border-[#E5E7EB] rounded-2xl p-6 bg-gray-50/30">
             <button className="w-full sm:w-auto mx-auto flex items-center justify-center gap-3 px-10 py-4 bg-white hover:bg-gray-50 text-[#1a1a1b] border-2 border-gray-100 rounded-xl font-bold transition-all shadow-sm">
+              <Upload size={20} />
               CHOOSE IMAGE
             </button>
-          </div>
-        </div>
-        
-        {/* Background Selection */}
-        <div>
-          <label className="block text-sm font-bold text-[#1a1a1b] uppercase tracking-wider mb-4">
-            Background <span className="text-primary">*</span>
-          </label>
-          <div className="grid grid-cols-2 gap-4">
-            {BACKGROUNDS.map((bg) => (
-              <button
-                key={bg.name}
-                onClick={() => setSelectedBg(bg.name)}
-                className={`flex items-center gap-4 p-3 rounded-2xl border-2 transition-all ${
-                  selectedBg === bg.name 
-                    ? "border-primary bg-primary/5 shadow-md scale-[1.02]" 
-                    : "border-gray-100 hover:border-gray-200"
-                }`}
-              >
-                <div className="relative w-[3.5rem] h-[3.5rem] rounded-xl overflow-hidden border border-gray-100 flex-shrink-0">
-                  {bg.type === "color" ? (
-                    <div className="w-full h-full" style={{ backgroundColor: bg.value }} />
-                  ) : (
-                    <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                      <Image 
-                        src={bg.value} 
-                        alt={bg.name} 
-                        fill 
-                        sizes="60px"
-                        className="object-cover" 
-                        onError={(e: any) => { e.target.style.display = 'none'; }}
-                      />
-                      <span className="text-[10px] text-gray-400 font-bold uppercase">{bg.name[0]}</span>
-                    </div>
-                  )}
-                  {selectedBg === bg.name && (
-                    <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                      <Check size={20} className="text-primary" />
-                    </div>
-                  )}
-                </div>
-                <div className="flex flex-col items-start text-left">
-                  <span className="text-sm font-bold text-[#1a1a1b]">{bg.name}</span>
-                  {bg.price && (
-                    <span className="text-[11px] text-gray-500 font-medium">
-                      (Rs. {bg.price}.00)
-                    </span>
-                  )}
-                </div>
-              </button>
-            ))}
           </div>
         </div>
 
@@ -269,25 +348,6 @@ export function ProductInfo() {
   );
 }
 
-function DropdownSelector({ label, options, selected, onChange }: any) {
-  return (
-    <div className="space-y-2">
-      <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400">{label}</label>
-      <div className="relative group">
-        <select 
-          value={selected} 
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full appearance-none bg-white border-2 border-gray-100 rounded-xl px-4 py-3 text-sm font-bold text-[#1a1a1b] cursor-pointer outline-none focus:border-primary/20 transition-all"
-        >
-          {options.map((opt: string) => (
-            <option key={opt} value={opt}>{opt}</option>
-          ))}
-        </select>
-        <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 group-hover:text-primary transition-colors pointer-events-none" />
-      </div>
-    </div>
-  );
-}
 
 function Accordion({ label, icon, children, isOpenDefault = false }: any) {
   const [isOpen, setIsOpen] = useState(isOpenDefault);
