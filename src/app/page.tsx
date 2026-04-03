@@ -17,7 +17,7 @@ import { Star } from "lucide-react";
 
 export default function Page() {
   return (
-    <div className="min-h-screen flex flex-col bg-white overflow-x-hidden">
+    <div className="min-h-screen flex flex-col bg-white">
       <AnnouncementBar />
       <Navbar />
       
@@ -36,10 +36,11 @@ export default function Page() {
              </h1>
           </div>
 
-          {/* Hero Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-start pb-20 relative">
-            <div className="lg:sticky lg:top-24 z-10 w-full">
-              <ProductGallery />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 pb-20 relative">
+            <div className="relative h-full">
+              <div className="lg:sticky lg:top-24 z-10 w-full self-start">
+                <ProductGallery />
+              </div>
             </div>
             <ProductInfo />
           </div>
