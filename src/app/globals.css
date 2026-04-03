@@ -10,6 +10,7 @@
   
   --font-montserrat: "Montserrat", sans-serif;
   --font-poppins: "Poppins", sans-serif;
+  --font-elegant: var(--font-great-vibes), cursive;
 }
 
 :root {
