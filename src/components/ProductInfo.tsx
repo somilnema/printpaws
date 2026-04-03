@@ -21,7 +21,12 @@ const FRAMES = [
   { id: "white-frame", name: "White Frame", color: "#FFFFFF" },
   { id: "oak-frame", name: "Oak Frame", color: "#D2B48C" },
 ];
-const PETS = ["1 Pet", "2 Pets", "3 Pets", "Custom"];
+const PET_OPTIONS = [
+  { id: "one", label: "One", image: "/pet_select_1.png" },
+  { id: "two", label: "Two", image: "/pet_select_2.png" },
+  { id: "three", label: "Three", image: "/pet_select_3.png" },
+  { id: "four", label: "Four", image: "/pet_select_4.png" },
+];
 
 const FONTS = [
   { id: "classic", name: "CLASSIC", className: "font-montserrat font-black" },
@@ -40,7 +45,7 @@ const BACKGROUNDS = [
 export function ProductInfo() {
   const [selectedSize, setSelectedSize] = useState("12x16 (30 x 40 cm)");
   const [selectedFrame, setSelectedFrame] = useState("no-frame");
-  const [selectedPets, setSelectedPets] = useState("1 Pet");
+  const [selectedPets, setSelectedPets] = useState("one");
   const [selectedBg, setSelectedBg] = useState("Off White");
   const [selectedFont, setSelectedFont] = useState("classic");
   const [giftWrap, setGiftWrap] = useState(false);
@@ -127,22 +132,45 @@ export function ProductInfo() {
         </div>
 
         {/* Pets Selection */}
-        <div className="space-y-3">
+        <div className="space-y-4">
           <label className="block text-sm font-bold text-[#1a1a1b] uppercase tracking-wider">
-            No. of Pets
+            Number of Pets: <span className="text-primary font-black ml-1">{PET_OPTIONS.find(p => p.id === selectedPets)?.label}</span>
           </label>
-          <div className="flex flex-wrap gap-3">
-            {PETS.map((pet) => (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {PET_OPTIONS.map((pet) => (
               <button
-                key={pet}
-                onClick={() => setSelectedPets(pet)}
-                className={`px-6 py-3 rounded-xl border-2 font-bold transition-all text-sm ${
-                  selectedPets === pet
-                    ? "border-accent-blue bg-accent-blue/5 text-accent-blue shadow-sm"
-                    : "border-gray-200 text-gray-500 hover:border-gray-300"
+                key={pet.id}
+                onClick={() => setSelectedPets(pet.id)}
+                className={`group relative aspect-[4/3] rounded-2xl border-[3px] transition-all overflow-hidden ${
+                  selectedPets === pet.id
+                    ? "border-primary shadow-xl scale-[1.02] z-10"
+                    : "border-gray-100 hover:border-gray-200"
                 }`}
+                aria-label={`Select ${pet.label} pet`}
               >
-                {pet}
+                <Image 
+                  src={pet.image} 
+                  alt={`${pet.label} pet portrait selection`}
+                  fill 
+                  sizes="(max-width: 768px) 50vw, 25vw"
+                  className={`object-cover transition-transform duration-500 ${
+                    selectedPets === pet.id ? "scale-105" : "group-hover:scale-105"
+                  }`}
+                />
+                
+                {/* Selection Check Circle */}
+                {selectedPets === pet.id && (
+                  <div className="absolute inset-0 bg-primary/5 pointer-events-none">
+                    <div className="absolute top-3 right-3 bg-primary text-white rounded-full p-1 shadow-lg border-2 border-white animate-in zoom-in-50 duration-300">
+                      <Check size={12} strokeWidth={4} />
+                    </div>
+                  </div>
+                )}
+                
+                {/* Visual Overlay for Non-Selected */}
+                {selectedPets !== pet.id && (
+                   <div className="absolute inset-0 bg-white/20 group-hover:bg-transparent transition-colors duration-300" />
+                )}
               </button>
             ))}
           </div>
