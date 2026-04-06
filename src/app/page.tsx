@@ -24,16 +24,31 @@ export default function Page() {
       <main className="flex-1">
         <div className="container mx-auto px-4 pt-8 md:pt-12">
           {/* Mobile Only Hero Title */}
-          <div className="lg:hidden mb-6 space-y-3 text-center">
-             <div className="flex items-center justify-center gap-1">
-               {[...Array(5)].map((_, i) => (
-                 <Star key={i} size={14} className="fill-[#FFB800] text-[#FFB800]" />
-               ))}
-               <span className="text-sm font-medium text-gray-400 ml-2">542 Reviews</span>
-             </div>
-             <h1 className="text-3xl font-extrabold text-[#1a1a1b] leading-tight tracking-tight uppercase italic">
-               Custom Pet Portrait
+          <div className="lg:hidden mb-4 space-y-4 text-center pt-2">
+             <h1 className="text-[24px] md:text-3xl font-extrabold text-[#3a4443] leading-snug tracking-tight">
+               Your Pet's Moment to Shine
              </h1>
+             <p className="text-[12px] md:text-lg text-[#6b7b7a] px-2 leading-relaxed">
+               Free Shipping Across Australia & New<br/>Zealand
+             </p>
+             <div className="flex items-center justify-center gap-2 mt-1">
+               {/* Trustpilot stars */}
+               <div className="flex items-center gap-[2px]">
+                 {[...Array(4)].map((_, i) => (
+                   <div key={i} className="bg-[#b3a394] w-[22px] h-[22px] flex items-center justify-center">
+                     <Star size={13} className="fill-white text-white" />
+                   </div>
+                 ))}
+                 <div className="bg-[#b3a394] w-[22px] h-[22px] flex items-center justify-center relative overflow-hidden">
+                   <div className="absolute right-0 top-0 bottom-0 w-1/2 bg-[#e0d8d2]"></div>
+                   <Star size={13} className="fill-white text-white relative z-10" />
+                 </div>
+               </div>
+               <div className="flex items-center gap-1 ml-1">
+                 <Star size={18} className="fill-[#b3a394] text-[#b3a394]" />
+                 <span className="font-bold text-[#1a1a1b] text-[15px] tracking-tight">Trustpilot</span>
+               </div>
+             </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 pb-20 relative">
