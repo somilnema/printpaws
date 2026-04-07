@@ -39,7 +39,7 @@ const CARDS = [
 
 export function UnboxingCarousel() {
   return (
-    <section className="py-16 md:py-24 overflow-hidden bg-white">
+    <section className="pt-16 md:pt-24 pb-8 md:pb-10 overflow-hidden bg-white">
       <div className="container mx-auto px-6 mb-12 text-center space-y-4">
         <h2 className="text-3xl md:text-5xl font-black text-[#1a1a1b] font-montserrat tracking-tight text-center uppercase">
           Pet Portraits <span className="text-primary italic px-2">&gt;</span> Regular Gifts <span className="inline-block animate-bounce">😎</span>
@@ -55,19 +55,19 @@ export function UnboxingCarousel() {
           <motion.div 
             className="flex gap-4 md:gap-8 whitespace-nowrap"
             animate={{
-              x: [0, "-100%"],
+              x: [0, "-50%"],
             }}
             transition={{
               x: {
                 repeat: Infinity,
                 repeatType: "loop",
-                duration: 40,
+                duration: 20,
                 ease: "linear",
               },
             }}
           >
             {/* Double the cards for seamless loop */}
-            {[...CARDS, ...CARDS, ...CARDS].map((card, idx) => (
+            {[...CARDS, ...CARDS].map((card, idx) => (
               <div 
                 key={idx} 
                 className="relative group/card flex-shrink-0 w-[240px] md:w-[320px] aspect-[9/16] rounded-[2rem] overflow-hidden border-4 border-white shadow-xl bg-gray-100"
@@ -130,7 +130,7 @@ export function UnboxingCarousel() {
       </div>
 
       {/* Pagination dots (Visual only) */}
-      <div className="flex justify-center gap-2 mt-12">
+      <div className="flex justify-center gap-2 mt-6">
         <div className="w-3 h-3 rounded-full bg-primary" />
         <div className="w-3 h-3 rounded-full bg-gray-200" />
       </div>

@@ -20,7 +20,7 @@ const STEPS = [
 
 export function HowItWorks() {
   return (
-    <section className="py-12 md:py-20 bg-white">
+    <section className="pt-6 pb-12 md:pt-8 md:pb-20 bg-white">
       <div className="container mx-auto px-4">
         <div className="bg-white lg:bg-[#f8f9fa] rounded-[2rem] lg:rounded-[3rem] overflow-hidden flex flex-col lg:flex-row shadow-sm border border-gray-100 lg:border-none">
           {/* Left: Image Section */}
