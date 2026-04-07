@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 
-const SIZES = ['8"x10"', '12"x16"', '18"x24"'];
+const SIZES = ['8"x10"', '12"x16"', '18"x24"', '24"x24"'];
 const FRAMES = [
   { id: "black", label: "the Black", image: "/frame_black.png" },
   { id: "white", label: "pure White", image: "/frame_white.png" },
@@ -32,6 +32,7 @@ const FONTS = [
   { id: "classic", name: "CLASSIC", className: "font-montserrat font-black" },
   { id: "simple", name: "SIMPLE", className: "font-poppins font-light tracking-[0.2em]" },
   { id: "elegant", name: "Elegant", className: "font-elegant text-xl leading-none" },
+   { id: "custom", name: "custom", className: "font-elegant text-xl leading-none" },
 ];
 
 const BACKGROUNDS = [
@@ -40,7 +41,18 @@ const BACKGROUNDS = [
   { name: "Serenity", value: "#f0e9f9", textColor: "#c4b5d4" },
   { name: "Celadon", value: "#b8cfc1", textColor: "#ffffff" },
   { name: "Tea Rosé", value: "#f3ccc6", textColor: "#ffffff" },
-  { name: "Cloud", value: "#d9e4f5", textColor: "#a1b8d6" },
+  { name: "marooon", value: "#d9e4f5", textColor: "#a1b8d6" },
+   { name: "babypink", value: "#f0e9f9", textColor: "#c4b5d4" },
+  { name: "Celadonn", value: "#b8cfc1", textColor: "#ffffff" },
+  { name: "Tea Rosée", value: "#f3ccc6", textColor: "#ffffff" },
+ 
+];
+
+const ADD_ONS = [
+  { id: "crown", label: "Royal Crown", image: "/addon_crown.png" },
+  { id: "floral", label: "Floral Wreath", image: "/addon_floral.png" },
+  { id: "bowtie", label: "Bow Tie", image: "/addon_bowtie.png" },
+  { id: "digital", label: "Digital File", image: "/addon_digital.png" },
 ];
 
 export function ProductInfo() {
@@ -49,10 +61,11 @@ export function ProductInfo() {
   const [selectedPets, setSelectedPets] = useState("one");
   const [selectedBg, setSelectedBg] = useState("Pearl");
   const [selectedFont, setSelectedFont] = useState("classic");
+  const [selectedAddOn, setSelectedAddOn] = useState("crown");
   const [giftWrap, setGiftWrap] = useState(false);
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-0">
       {/* Header Info */}
       <div className="space-y-4">
         <div className="hidden lg:flex items-center gap-1">
@@ -73,10 +86,10 @@ export function ProductInfo() {
         </div>
       </div>
 
-      <hr className="border-gray-100" />
+      <hr className="border-gray-100 my-2" />
 
       {/* Selectors */}
-      <div className="space-y-8">
+      <div className="space-y-7">
         {/* Size Selection */}
         <div className="space-y-3">
           <label className="block text-sm font-bold text-[#1a1a1b] uppercase tracking-wider">
@@ -218,6 +231,40 @@ export function ProductInfo() {
                   } ${font.className}`}
               >
                 {font.name}
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        {/* Add-Ons Selection */}
+        <div className="space-y-4">
+          <label className="block text-sm font-bold text-[#1a1a1b] tracking-wider uppercase">
+            Add-Ons: <span className="text-[#1a1a1b] font-black ml-1">{ADD_ONS.find(a => a.id === selectedAddOn)?.label}</span>
+          </label>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {ADD_ONS.map((addon) => (
+              <button
+                key={addon.id}
+                onClick={() => setSelectedAddOn(addon.id)}
+                className={`group relative aspect-[4/3] rounded-2xl border-[3px] transition-all overflow-hidden ${selectedAddOn === addon.id
+                    ? "border-[#1a1a1b] shadow-xl scale-[1.02] z-10"
+                    : "border-gray-100 hover:border-gray-200"
+                  }`}
+                aria-label={`Select ${addon.label} add-on`}
+              >
+                <Image
+                  src={addon.image}
+                  alt={`${addon.label} add-on selection`}
+                  fill
+                  sizes="(max-width: 768px) 50vw, 25vw"
+                  className={`object-cover transition-transform duration-500 ${selectedAddOn === addon.id ? "scale-105" : "group-hover:scale-105"
+                    }`}
+                />
+                
+                {/* Visual Overlay for Non-Selected */}
+                {selectedAddOn !== addon.id && (
+                   <div className="absolute inset-0 bg-white/20 group-hover:bg-transparent transition-colors duration-300" />
+                )}
               </button>
             ))}
           </div>
