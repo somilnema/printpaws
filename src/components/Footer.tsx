@@ -54,18 +54,21 @@ export function Footer() {
             <div>
               <h4 className="font-bold uppercase mb-6 tracking-wide">Quick Links</h4>
               <ul className="space-y-4 text-sm font-poppins text-white/70">
-                {["Shop All", "Reviews", "How it Works", "FAQ", "Contact Us"].map((link) => (
-                  <li key={link}><Link href="#" className="hover:text-white transition-colors">{link}</Link></li>
-                ))}
+                <li><Link href="/" className="hover:text-white transition-colors font-poppins">Shop All</Link></li>
+                <li><Link href="#" className="hover:text-white transition-colors font-poppins">Reviews</Link></li>
+                <li><Link href="#" className="hover:text-white transition-colors font-poppins">How it Works</Link></li>
+                <li><Link href="#" className="hover:text-white transition-colors font-poppins">FAQ</Link></li>
+                <li><Link href="/contact" className="hover:text-white transition-colors font-poppins">Contact Us</Link></li>
               </ul>
             </div>
 
             <div>
               <h4 className="font-bold uppercase mb-6 tracking-wide">Policies</h4>
               <ul className="space-y-4 text-sm font-poppins text-white/70">
-                {["Refund Policy", "Shipping Policy", "Privacy Policy", "Terms of Service"].map((link) => (
-                  <li key={link}><Link href="#" className="hover:text-white transition-colors">{link}</Link></li>
-                ))}
+                <li><Link href="/refund-policy" className="hover:text-white transition-colors font-poppins">Refund Policy</Link></li>
+                <li><Link href="/shipping-policy" className="hover:text-white transition-colors font-poppins">Shipping Policy</Link></li>
+                <li><Link href="/privacy-policy" className="hover:text-white transition-colors font-poppins">Privacy Policy</Link></li>
+                <li><Link href="/terms-of-service" className="hover:text-white transition-colors font-poppins">Terms of Service</Link></li>
               </ul>
             </div>
 
