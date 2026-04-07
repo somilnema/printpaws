@@ -12,6 +12,7 @@ import { IllustratedCarousel } from "@/components/IllustratedCarousel";
 import { InstagramFeed } from "@/components/InstagramFeed";
 import { TrustFeatures } from "@/components/TrustFeatures";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
+import { ScrollingTicker } from "@/components/ScrollingTicker";
 import { Footer } from "@/components/Footer";
 import { Star } from "lucide-react";
 
@@ -61,6 +62,7 @@ export default function Page() {
           </div>
 
           <UnboxingCarousel />
+          <ScrollingTicker />
           
           {/* Social Proof / Process */}
           <HowItWorks />
