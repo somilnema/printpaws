@@ -39,8 +39,8 @@ const CARDS = [
 
 export function UnboxingCarousel() {
   return (
-    <section className="pt-16 md:pt-24 pb-8 md:pb-10 overflow-hidden bg-white">
-      <div className="container mx-auto px-6 mb-12 text-center space-y-4">
+    <section className="pt-0 md:pt-24 pb-8 md:pb-10 overflow-hidden bg-white">
+      <div className="container mx-auto px-6 mb-6 md:mb-12 text-center space-y-4">
         <h2 className="text-3xl md:text-5xl font-black text-[#1a1a1b] font-montserrat tracking-tight text-center uppercase">
           Pet Portraits <span className="text-primary italic px-2">&gt;</span> Regular Gifts <span className="inline-block animate-bounce">😎</span>
         </h2>

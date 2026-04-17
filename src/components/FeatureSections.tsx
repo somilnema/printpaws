@@ -16,6 +16,12 @@ const FEATURES = [
     image: "/feature-detail.png",
     reverse: true,
   },
+  {
+    title: "Premium Quality Prints",
+    description: "Printed on high-quality museum-grade art paper with vibrant fade-resistant inks to ensure your pet's portrait lasts for generations.",
+    image: "/feature-premium.png",
+    reverse: false,
+  },
 ];
 
 export function FeatureSections() {

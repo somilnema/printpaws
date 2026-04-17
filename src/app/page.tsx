@@ -52,7 +52,7 @@ export default function Page() {
              </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 pb-20 relative">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 pb-8 lg:pb-20 relative">
             <div className="relative h-full">
               <div className="lg:sticky lg:top-24 z-10 w-full self-start">
                 <ProductGallery />
