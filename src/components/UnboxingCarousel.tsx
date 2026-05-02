@@ -6,133 +6,128 @@ import { Play, ChevronLeft, ChevronRight } from "lucide-react";
 
 const CARDS = [
   {
-    image: "/thumb1.png",
+    video: "/IMG_3777.MOV",
     text: "Unboxing & Final Reveal",
-    subtext: "Parcel",
+    subtext: "Pure Joy",
     hasPlay: true,
   },
   {
-    image: "/thumb2.png",
-    text: "And every",
-    subtext: "PET MOM Must have!",
+    video: "/IMG_3780.MOV",
+    text: "Capturing Every",
+    subtext: "Detail",
     hasPlay: true,
   },
   {
-    image: "/dog_portrait_closeup_1773940826280.png",
-    text: "Simple, beautiful",
-    subtext: "Personal gifts",
-    hasPlay: false,
-  },
-  {
-    image: "/main.png",
-    text: "Duggu",
-    subtext: "Final Portrait",
+    video: "/IMG_3784.MOV",
+    text: "A Gift That",
+    subtext: "Lasts Forever",
     hasPlay: true,
   },
   {
-    image: "/feature-gift.png",
-    text: "Unboxing joy",
-    subtext: "Every detail matters",
+    video: "/IMG_3791.MOV",
+    text: "The Perfect",
+    subtext: "Memory",
+    hasPlay: true,
+  },
+  {
+    video: "/IMG_3825.MOV",
+    text: "Watch them",
+    subtext: "React",
     hasPlay: true,
   },
 ];
 
 export function UnboxingCarousel() {
+  const [currentIndex, setCurrentIndex] = React.useState(0);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  const next = () => {
+    setCurrentIndex((prev) => (prev + 1) % CARDS.length);
+  };
+
+  const prev = () => {
+    setCurrentIndex((prev) => (prev - 1 + CARDS.length) % CARDS.length);
+  };
+
   return (
     <section className="pt-0 md:pt-24 pb-8 md:pb-10 overflow-hidden bg-white">
       <div className="container mx-auto px-6 mb-6 md:mb-12 text-center space-y-4">
-        <h2 className="text-3xl md:text-5xl font-black text-[#1a1a1b] font-montserrat tracking-tight text-center uppercase">
-          Pet Portraits <span className="text-primary italic px-2">&gt;</span> Regular Gifts <span className="inline-block animate-bounce">😎</span>
+        <h2 className="text-3xl md:text-5xl font-black text-[#1a1a1b] font-playfair tracking-tight text-center uppercase">
+          Pet Portraits <span className="text-primary italic px-2">&gt;</span> Forgettable Gifts
         </h2>
-        <p className="text-gray-500 font-poppins text-sm md:text-lg max-w-2xl mx-auto leading-relaxed">
-          See why pet parents are obsessed. These unboxings might just be cuter than your dog's Zoomies
+        <p className="text-gray-500 font-inter text-sm md:text-lg max-w-2xl mx-auto leading-relaxed">
+          Because the ones who mean the most deserve something that actually feels like them - not something they’ll forget.
         </p>
       </div>
 
-      <div className="relative group">
+      <div className="relative max-w-6xl mx-auto px-4 group">
         {/* Carousel Container */}
-        <div className="flex gap-4 md:gap-8 hover:pause-animation overflow-hidden select-none">
+        <div className="overflow-hidden rounded-[2.5rem]">
           <motion.div 
-            className="flex gap-4 md:gap-8 whitespace-nowrap"
+            className="flex gap-4 md:gap-6"
             animate={{
-              x: [0, "-50%"],
+              x: `-${currentIndex * (100 / 1.5)}%`,
             }}
             transition={{
-              x: {
-                repeat: Infinity,
-                repeatType: "loop",
-                duration: 20,
-                ease: "linear",
-              },
+              type: "spring",
+              stiffness: 300,
+              damping: 30
             }}
+            style={{ width: `${(CARDS.length * 100) / 1.5}%` }}
           >
-            {/* Double the cards for seamless loop */}
-            {[...CARDS, ...CARDS].map((card, idx) => (
+            {CARDS.map((card, idx) => (
               <div 
                 key={idx} 
-                className="relative group/card flex-shrink-0 w-[240px] md:w-[320px] aspect-[9/16] rounded-[2rem] overflow-hidden border-4 border-white shadow-xl bg-gray-100"
+                className="relative flex-shrink-0 w-[240px] md:w-[320px] aspect-[9/16] rounded-[2rem] overflow-hidden border-4 border-white shadow-xl bg-gray-100"
               >
-                <Image 
-                  src={card.image} 
-                  alt="Unboxing preview" 
-                  fill 
-                  sizes="(max-width: 768px) 240px, 320px"
-                  className="object-cover transition-transform duration-700 group-hover/card:scale-110"
-                />
-                
-                {/* Overlays */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80" />
-                
-                {/* Specific Text Overlays (Matching Screenshots) */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 whitespace-normal">
-                  <p className="text-white font-black text-lg md:text-xl drop-shadow-lg leading-tight uppercase italic mb-1 font-montserrat">
-                    {card.text}
-                  </p>
-                  <p className="text-[#FFD700] font-black text-2xl md:text-3xl drop-shadow-xl uppercase tracking-tighter font-montserrat">
-                    {card.subtext}
-                  </p>
-                  
-                  {card.hasPlay && (
-                    <div className="mt-8 relative">
-                      <div className="absolute inset-0 bg-white/20 blur-xl rounded-full animate-pulse" />
-                      <div className="relative w-12 h-12 md:w-16 md:h-16 flex items-center justify-center bg-white/30 backdrop-blur-md rounded-full border-2 border-white/50 group-hover/card:bg-white/50 transition-all duration-300">
-                        <Play className="text-white fill-white ml-2" size={24} />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Brand Logo Overlay (matching screenshot 2nd card) */}
-                {idx % 5 === 1 && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-white">
-                    <div className="flex flex-col items-center gap-2">
-                       <span className="text-2xl font-black text-[#1a1a1b] flex items-center gap-2">
-                         <span className="text-primary tracking-tighter">🐾</span> Printsbypaws
-                       </span>
-                       <div className="w-10 h-10 flex items-center justify-center bg-gray-200 rounded-full">
-                         <Play className="text-gray-400 fill-gray-400 ml-1" size={20} />
-                       </div>
-                    </div>
-                  </div>
+                {card.video ? (
+                  <video
+                    src={card.video}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                ) : (
+                  <Image 
+                    src={(card as any).image || ""} 
+                    alt="Unboxing preview" 
+                    fill 
+                    className="object-cover"
+                  />
                 )}
               </div>
             ))}
           </motion.div>
         </div>
 
-        {/* Navigation Arrows (Visual only in this scroll mode) */}
-        <button className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-black/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-lg">
+        {/* Navigation Arrows */}
+        <button 
+          onClick={prev}
+          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-12 h-12 flex items-center justify-center bg-white text-black rounded-full shadow-2xl z-20 border border-gray-100 hover:bg-gray-50 transition-colors"
+        >
           <ChevronLeft size={24} />
         </button>
-        <button className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 flex items-center justify-center bg-black/80 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-lg">
+        <button 
+          onClick={next}
+          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-12 h-12 flex items-center justify-center bg-white text-black rounded-full shadow-2xl z-20 border border-gray-100 hover:bg-gray-50 transition-colors"
+        >
           <ChevronRight size={24} />
         </button>
       </div>
 
-      {/* Pagination dots (Visual only) */}
-      <div className="flex justify-center gap-2 mt-6">
-        <div className="w-3 h-3 rounded-full bg-primary" />
-        <div className="w-3 h-3 rounded-full bg-gray-200" />
+      {/* Pagination dots */}
+      <div className="flex justify-center gap-2 mt-10">
+        {CARDS.map((_, idx) => (
+          <button
+            key={idx}
+            onClick={() => setCurrentIndex(idx)}
+            className={`h-2 rounded-full transition-all duration-300 ${
+              currentIndex === idx ? "w-8 bg-primary" : "w-2 bg-gray-200"
+            }`}
+          />
+        ))}
       </div>
     </section>
   );

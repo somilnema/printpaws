@@ -5,20 +5,20 @@ import { motion } from "framer-motion";
 
 const FEATURES = [
   {
-    title: "One of a kind gift",
-    description: "It's personal, it's thoughtful, and it might just make them tear up a little",
+    title: "Not Just a Gift. It’s Them.",
+    description: "It’s personal. It’s emotional. And the moment they see it - they don’t just smile - they feel it",
     image: "/feature-gift.png",
     reverse: false,
   },
   {
-    title: "Attention to every detail",
-    description: "We treat every portrait like it's our own pet, because yours deserves nothing less",
+    title: "We Don’t Just Draw Them. We Get Them Right.",
+    description: "Every expression, every little detail - crafted until it doesn’t just look like your pet - it feels like them.",
     image: "/feature-detail.png",
     reverse: true,
   },
   {
-    title: "Premium Quality Prints",
-    description: "Printed on high-quality museum-grade art paper with vibrant fade-resistant inks to ensure your pet's portrait lasts for generations.",
+    title: "Made to Stay With You",
+    description: "Crafted with premium materials so your pet’s portrait doesn’t just look beautiful today - it stays with you for years to come.",
     image: "/feature-premium.png",
     reverse: false,
   },
@@ -36,7 +36,7 @@ export function FeatureSections() {
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                className="text-3xl md:text-4xl lg:text-5xl font-black text-[#1a1a1b] font-montserrat leading-tight"
+                className="text-3xl md:text-4xl lg:text-5xl font-black text-[#1a1a1b] font-playfair leading-tight"
               >
                 {feature.title}
               </motion.h2>
@@ -45,7 +45,7 @@ export function FeatureSections() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.1 }}
-                className="text-base md:text-lg text-gray-500 font-poppins leading-relaxed max-w-md"
+                className="text-base md:text-lg text-gray-500 font-inter leading-relaxed max-w-md"
               >
                 {feature.description}
               </motion.p>

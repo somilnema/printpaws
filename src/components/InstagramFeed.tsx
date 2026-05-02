@@ -14,13 +14,16 @@ export function InstagramFeed() {
     <section className="py-16 bg-white border-t border-gray-100">
       <div className="flex flex-col lg:flex-row min-h-[400px]">
         {/* Left Content */}
-        <div className="lg:w-[40%] flex flex-col items-center justify-center p-12 lg:p-20 space-y-8 bg-[#F9F9F9]">
-          <h2 className="text-4xl md:text-4xl font-black text-[#1a1a1b] leading-tight tracking-tight text-center lg:text-left max-w-xs">
-            Follow Us on Instagram
+        <div className="lg:w-[40%] flex flex-col items-center justify-center p-12 lg:p-20 space-y-6 bg-[#F9F9F9]">
+          <h2 className="text-3xl md:text-4xl font-black text-[#1a1a1b] leading-tight tracking-tight text-center lg:text-left">
+            For Every Portrait, A Pet Gets Fed
           </h2>
-          <div className="w-full flex justify-center lg:justify-end pr-0 lg:pr-12 md:pl-20">
-            <button className="bg-[#A87B62] hover:bg-[#8B624D] text-white px-8 py-3 rounded-xl font-black text-xs tracking-widest transition-all shadow-md hover:-translate-y-1">
-              #PRINTSBTPAWS
+          <p className="text-gray-500 font-inter text-sm md:text-base text-center lg:text-left max-w-sm leading-relaxed">
+            Every time you turn your pet into a memory, you help another pet get a meal. Because love for animals shouldn’t stop at just one.
+          </p>
+          <div className="w-full flex justify-center lg:justify-start">
+            <button className="bg-primary hover:bg-primary-dark text-white px-10 py-4 rounded-xl font-black text-xs tracking-widest transition-all shadow-md hover:-translate-y-1 uppercase">
+              Make It Count
             </button>
           </div>
         </div>

@@ -31,7 +31,7 @@ export default function ContactUs() {
               <h2 className="text-2xl md:text-3xl font-black text-[#1a1a1b] uppercase italic tracking-tight leading-tight">
                 Have a question about your pet's portrait? We're here to help!
               </h2>
-              <p className="text-gray-500 leading-relaxed font-poppins text-sm md:text-base">
+              <p className="text-gray-500 leading-relaxed font-inter text-sm md:text-base">
                  Whether it's about a current order or if you're just looking for some advice, get in touch with our friendly team!
               </p>
             </div>

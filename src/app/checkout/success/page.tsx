@@ -11,7 +11,7 @@ function SuccessContent() {
   const orderId = searchParams.get('orderId') || 'PBP-' + Math.random().toString(36).substr(2, 9).toUpperCase();
 
   return (
-    <div className="min-h-screen bg-white font-poppins pt-20 pb-16 px-6 relative overflow-hidden">
+    <div className="min-h-screen bg-white font-inter pt-20 pb-16 px-6 relative overflow-hidden">
       {/* Premium Background Elements */}
       <div className="absolute top-0 left-0 w-full h-full opacity-[0.03] pointer-events-none">
         <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(#A87B62 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>

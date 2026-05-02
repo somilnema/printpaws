@@ -38,8 +38,8 @@ export function Footer() {
         <div className="container mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
             <div className="space-y-6">
-              <span className="text-2xl font-black italic uppercase italic tracking-tighter">PrintsByPaws</span>
-              <p className="text-white/80 text-sm font-poppins leading-relaxed">
+              <span className="text-2xl font-black italic uppercase italic tracking-tighter">Peternity</span>
+              <p className="text-white/80 text-sm font-inter leading-relaxed">
                 We're on a mission to celebrate the bond between pets and their humans through high-quality, custom artwork.
               </p>
               <div className="flex gap-4">
@@ -53,35 +53,35 @@ export function Footer() {
 
             <div>
               <h4 className="font-bold uppercase mb-6 tracking-wide">Quick Links</h4>
-              <ul className="space-y-4 text-sm font-poppins text-white/70">
-                <li><Link href="/" className="hover:text-white transition-colors font-poppins">Shop All</Link></li>
-                <li><Link href="#" className="hover:text-white transition-colors font-poppins">Reviews</Link></li>
-                <li><Link href="#" className="hover:text-white transition-colors font-poppins">How it Works</Link></li>
-                <li><Link href="#" className="hover:text-white transition-colors font-poppins">FAQ</Link></li>
-                <li><Link href="/contact" className="hover:text-white transition-colors font-poppins">Contact Us</Link></li>
+              <ul className="space-y-4 text-sm font-inter text-white/70">
+                <li><Link href="/" className="hover:text-white transition-colors font-inter">Shop All</Link></li>
+                <li><Link href="#" className="hover:text-white transition-colors font-inter">Reviews</Link></li>
+                <li><Link href="#" className="hover:text-white transition-colors font-inter">How it Works</Link></li>
+                <li><Link href="#" className="hover:text-white transition-colors font-inter">FAQ</Link></li>
+                <li><Link href="/contact" className="hover:text-white transition-colors font-inter">Contact Us</Link></li>
               </ul>
             </div>
 
             <div>
               <h4 className="font-bold uppercase mb-6 tracking-wide">Policies</h4>
-              <ul className="space-y-4 text-sm font-poppins text-white/70">
-                <li><Link href="/refund-policy" className="hover:text-white transition-colors font-poppins">Refund Policy</Link></li>
-                <li><Link href="/shipping-policy" className="hover:text-white transition-colors font-poppins">Shipping Policy</Link></li>
-                <li><Link href="/privacy-policy" className="hover:text-white transition-colors font-poppins">Privacy Policy</Link></li>
-                <li><Link href="/terms-of-service" className="hover:text-white transition-colors font-poppins">Terms of Service</Link></li>
+              <ul className="space-y-4 text-sm font-inter text-white/70">
+                <li><Link href="/refund-policy" className="hover:text-white transition-colors font-inter">Refund Policy</Link></li>
+                <li><Link href="/shipping-policy" className="hover:text-white transition-colors font-inter">Shipping Policy</Link></li>
+                <li><Link href="/privacy-policy" className="hover:text-white transition-colors font-inter">Privacy Policy</Link></li>
+                <li><Link href="/terms-of-service" className="hover:text-white transition-colors font-inter">Terms of Service</Link></li>
               </ul>
             </div>
 
             <div>
               <h4 className="font-bold uppercase mb-6 tracking-wide italic">Join the Pack</h4>
-              <p className="text-sm font-poppins text-white/70 mb-6">
+              <p className="text-sm font-inter text-white/70 mb-6">
                 Get exclusive offers, pup-dates, and more!
               </p>
               <div className="flex bg-white/10 rounded-xl overflow-hidden focus-within:ring-2 ring-white/20 transition-all">
                 <input
                   type="email"
                   placeholder="Email address"
-                  className="bg-transparent border-none px-4 py-3 flex-1 text-sm outline-none placeholder:text-white/40 font-poppins"
+                  className="bg-transparent border-none px-4 py-3 flex-1 text-sm outline-none placeholder:text-white/40 font-inter"
                 />
                 <button className="px-4 bg-white text-primary hover:bg-white/90 transition-colors">
                   <ArrowRight size={20} />
@@ -93,8 +93,8 @@ export function Footer() {
           <hr className="border-white/10 mb-8" />
 
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <p className="text-xs font-poppins text-white/50">
-              © 2026, Prints By Paws. All rights reserved.
+            <p className="text-xs font-inter text-white/50">
+              © 2026, Peternity. All rights reserved.
             </p>
             <div className="flex gap-4 opacity-50 grayscale transition-all hover:grayscale-0 hover:opacity-100 cursor-pointer">
               {/* Payment Icon Placeholders */}

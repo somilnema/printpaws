@@ -3,11 +3,11 @@
 import { Check, X } from "lucide-react";
 
 const COMPARISON_DATA = [
-  { feature: "See it before we print it", printsByPaws: true, others: false },
-  { feature: "High Cost", printsByPaws: false, others: true },
-  { feature: "Approve your portrait", printsByPaws: true, others: false },
-  { feature: "One Free Revision", printsByPaws: true, others: false },
-  { feature: "Free shipping", printsByPaws: true, others: false },
+  { feature: "Preview Before Printing", printsByPaws: true, others: false },
+  { feature: "Unlimited Revisions", printsByPaws: true, others: false },
+  { feature: "Feels Like Them", printsByPaws: true, others: false },
+  { feature: "Made to Last", printsByPaws: true, others: false },
+  { feature: "Free Shipping Across India", printsByPaws: true, others: false },
 ];
 
 export function Comparison() {
@@ -17,8 +17,8 @@ export function Comparison() {
         <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-24">
           {/* Header */}
           <div className="w-full lg:w-1/3 text-center lg:text-left">
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-[#1a1a1b] font-montserrat leading-tight tracking-tight uppercase">
-              Why Pet Parents Choose Us
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-[#1a1a1b] font-playfair leading-tight tracking-tight uppercase">
+              Why Pet Parents Choose Peternity
             </h2>
           </div>
 
@@ -30,7 +30,7 @@ export function Comparison() {
                   <tr className="text-[9px] md:text-xs font-black uppercase tracking-widest text-[#1a1a1b]">
                     <th className="py-3 md:py-4 px-2 md:px-4 w-[40%]"></th>
                     <th className="py-3 md:py-4 px-3 md:px-6 text-center bg-primary text-white rounded-t-2xl shadow-[0_-5px_15px_rgba(168,123,98,0.1)] w-[30%]">
-                      Prints By Paws
+                      Peternity
                     </th>
                     <th className="py-3 md:py-4 px-3 md:px-6 text-center text-gray-400 w-[30%]">Others</th>
                   </tr>

@@ -1,16 +1,18 @@
 @import "tailwindcss";
 
-@theme {
-  --color-primary: #A87B62;
-  --color-primary-dark: #8B624D;
-  --color-secondary: #2F2F2F;
-  --color-background: #FFFFFF;
-  --color-accent-blue: #007bff;
-  --color-accent-green: #25D366;
-  
-  --font-montserrat: "Montserrat", sans-serif;
-  --font-poppins: "Poppins", sans-serif;
-  --font-elegant: var(--font-great-vibes), cursive;
+@layer base {
+  @theme {
+    --color-primary: #A87B62;
+    --color-primary-dark: #8B624D;
+    --color-secondary: #2F2F2F;
+    --color-background: #FFFFFF;
+    --color-accent-blue: #007bff;
+    --color-accent-green: #25D366;
+    
+    --font-playfair: var(--font-playfair), "Playfair Display", serif;
+    --font-inter: var(--font-inter), "Inter", sans-serif;
+    --font-elegant: var(--font-great-vibes), cursive;
+  }
 }
 
 :root {
@@ -21,12 +23,12 @@
 body {
   background: var(--background);
   color: var(--foreground-base);
-  font-family: var(--font-poppins);
+  font-family: var(--font-inter);
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-montserrat);
-  font-weight: 700;
+  font-family: var(--font-playfair);
+  font-weight: 500;
 }
 
 @keyframes wave-motion {

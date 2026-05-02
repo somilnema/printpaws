@@ -34,7 +34,7 @@ export function ProcessSteps() {
               {step.icon}
             </div>
             <h3 className="text-lg font-bold uppercase mb-2">{step.title}</h3>
-            <p className="text-sm text-gray-500 font-poppins px-4">{step.desc}</p>
+            <p className="text-sm text-gray-500 font-inter px-4">{step.desc}</p>
           </div>
         ))}
       </div>

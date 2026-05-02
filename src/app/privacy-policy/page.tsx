@@ -4,7 +4,7 @@ import { PolicyLayout } from '@/components/PolicyLayout';
 export default function PrivacyPolicy() {
   return (
     <PolicyLayout title="Privacy Policy">
-      <div className="prose prose-slate max-w-none space-y-12 text-gray-700 leading-relaxed font-poppins">
+      <div className="prose prose-slate max-w-none space-y-12 text-gray-700 leading-relaxed font-inter">
         <section className="space-y-4">
           <p className="text-lg italic font-medium text-primary">Your privacy is important to us. It is PrintsByPaws' policy to respect your privacy regarding any information we may collect from you across our website.</p>
         </section>

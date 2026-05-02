@@ -5,7 +5,7 @@ import { Mail, CheckCircle2 } from "lucide-react";
 export default function RefundPolicy() {
   return (
     <PolicyLayout title="Refund Policy">
-      <div className="prose prose-slate max-w-none space-y-12 text-gray-700 leading-relaxed font-poppins">
+      <div className="prose prose-slate max-w-none space-y-12 text-gray-700 leading-relaxed font-inter">
         <section className="space-y-4">
           <p className="text-xl italic font-bold text-primary">At PrintsByPaws, your satisfaction is our mission. If you're not perfectly happy with your custom pet art, we're here to help.</p>
         </section>

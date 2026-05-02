@@ -5,7 +5,7 @@ import { Truck, Clock, MapPin } from "lucide-react";
 export default function ShippingPolicy() {
   return (
     <PolicyLayout title="Shipping Policy">
-      <div className="prose prose-slate max-w-none space-y-12 text-gray-700 leading-relaxed font-poppins">
+      <div className="prose prose-slate max-w-none space-y-12 text-gray-700 leading-relaxed font-inter">
         <section className="space-y-4">
           <p className="text-xl italic font-bold text-primary">Free Tracking All Over India. We're on a mission to get your pet portraits to you as quickly and safely as possible!</p>
         </section>

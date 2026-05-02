@@ -9,31 +9,31 @@ const PORTRAITS = [
     name: "COOPER", 
     image: "/dog_portrait_closeup_1773940826280.png", 
     bgColor: "#FDFBF7",
-    font: "font-montserrat tracking-[0.2em] font-light text-gray-400"
+    font: "font-playfair tracking-[0.2em] font-light text-gray-400"
   },
   { 
     name: "Stella", 
     image: "/thumb1.png", 
     bgColor: "#F3F6F4",
-    font: "font-montserrat font-black text-gray-700"
+    font: "font-playfair font-black text-gray-700"
   },
   { 
     name: "Logan", 
     image: "/thumb2.png", 
     bgColor: "#F5E6D3",
-    font: "font-montserrat font-bold text-gray-600"
+    font: "font-playfair font-bold text-gray-600"
   },
   { 
     name: "LOKI", 
     image: "/thumb_pet_portrait_1_1773940327175.png", 
     bgColor: "#EEF2F1",
-    font: "font-montserrat tracking-widest font-light text-gray-500"
+    font: "font-playfair tracking-widest font-light text-gray-500"
   },
   { 
     name: "DAISY", 
     image: "/thumb_pet_portrait_2_1773940346421.png", 
     bgColor: "#F1E9FA",
-    font: "font-montserrat tracking-[0.1em] font-medium text-gray-400"
+    font: "font-playfair tracking-[0.1em] font-medium text-gray-400"
   },
 ];
 
@@ -44,10 +44,10 @@ export function IllustratedCarousel() {
         {/* Header */}
         <div className="text-center mb-10 space-y-3">
           <h2 className="text-3xl md:text-5xl font-black text-[#1a1a1b] italic uppercase tracking-tight">
-            Moments That Matter, Illustrated
+            The Moments That Meant Everything, Made to Stay
           </h2>
           <p className="text-xs md:text-sm text-gray-400 font-medium max-w-2xl mx-auto uppercase tracking-widest">
-            Real artists. Real pets. Hand-crafted portraits made from your photos.
+            Real pets. Real memories. Thoughtfully crafted from your photos to feel exactly like them.
           </p>
         </div>
 

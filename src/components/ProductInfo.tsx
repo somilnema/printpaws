@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import {
@@ -25,7 +25,7 @@ const FRAMES = [
   { id: "black", label: "the Black", image: "/frame_black.png" },
   { id: "white", label: "pure White", image: "/frame_white.png" },
   { id: "wood", label: "premium Wood", image: "/frame_wood.png" },
-  { id: "metal", label: "thin Métal", image: "/frame_metal.png" },
+  { id: "canva", label: "Canvas", image: "/frame_metal.png" },
 ];
 const PET_OPTIONS = [
   { id: "one", label: "One", image: "/pet_select_1.png" },
@@ -41,12 +41,7 @@ const BACKGROUNDS = [
   { name: "Serenity", value: "#f0e9f9", textColor: "#c4b5d4" },
   { name: "Celadon", value: "#b8cfc1", textColor: "#ffffff" },
   { name: "Tea Rosé", value: "#f3ccc6", textColor: "#ffffff" },
-  { name: "marooon", value: "#d9e4f5", textColor: "#a1b8d6" },
-  { name: "babypink", value: "#f0e9f9", textColor: "#c4b5d4" },
-  { name: "Celadonn", value: "#b8cfc1", textColor: "#ffffff" },
-  { name: "Tea Rosée", value: "#f3ccc6", textColor: "#ffffff" },
-  { name: "Tea Rose", value: "#f3ccc6", textColor: "#ffffff" }
-
+  { name: "Black", value: "#000000", textColor: "#ffffff" }
 ];
 
 const ADD_ONS = [
@@ -60,10 +55,10 @@ export function ProductInfo() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedSize, setSelectedSize] = useState('12"x16"');
-  const [selectedFrame, setSelectedFrame] = useState("metal");
+  const [selectedFrame, setSelectedFrame] = useState("black");
   const [selectedPets, setSelectedPets] = useState("one");
   const [selectedBg, setSelectedBg] = useState("Pearl");
-  const [selectedAddOn, setSelectedAddOn] = useState("crown");
+  const [selectedAddOn, setSelectedAddOn] = useState("none");
   const [giftWrap, setGiftWrap] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderStatus, setOrderStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -71,6 +66,13 @@ export function ProductInfo() {
   const [petName, setPetName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [currentStep]);
 
   const calculatePrice = () => {
     let price = 699;
@@ -176,7 +178,7 @@ export function ProductInfo() {
   };
 
   return (
-    <div className="flex flex-col gap-0">
+    <div ref={containerRef} className="flex flex-col gap-0 scroll-mt-24">
       {/* Header Info */}
       <div className="space-y-4">
         <div className="hidden lg:flex items-center gap-1">
@@ -185,14 +187,14 @@ export function ProductInfo() {
           ))}
           <span className="text-sm font-medium text-gray-400 ml-2">542 Reviews</span>
         </div>
-        <h1 className="hidden lg:block text-2xl font-extrabold text-[#1a1a1b] leading-tight tracking-tight uppercase italic">
-          Your Pet's Moment to shine
+        <h1 className="hidden lg:block text-5xl lg:text-[56px] font-normal text-[#1a1a1b] leading-tight font-playfair tracking-tight">
+          Custom Pet Portrait
         </h1>
-        <div className="flex items-center gap-4">
-          <span className="text-2xl font-bold text-primary italic">Rs. {totalPrice}.00</span>
-          <span className="text-lg text-gray-300 line-through">Rs. {totalPrice + 300}.00</span>
-          <span className="bg-[#FFF1F1] text-primary text-xs font-bold px-3 py-1 rounded-full border border-primary/10">
-            SALE
+        <div className="flex items-center gap-4 mt-2">
+          <span className="text-xl font-medium text-[#1a1a1b] font-inter">Rs. {totalPrice}.00</span>
+          <span className="text-lg text-gray-400 line-through font-inter">Rs. {totalPrice + 300}.00</span>
+          <span className="bg-[#FF9494] text-white text-[10px] font-bold px-2 py-1 rounded-full tracking-wider">
+            30% OFF
           </span>
         </div>
       </div>
@@ -254,7 +256,7 @@ export function ProductInfo() {
       </div>
 
       {/* Selectors with Transitions */}
-      <div className="relative">
+      <div className="relative min-h-[460px] md:min-h-[400px]">
         <AnimatePresence mode="wait">
           {currentStep === 1 && (
             <motion.div
@@ -266,7 +268,7 @@ export function ProductInfo() {
             >
               <div className="space-y-4">
                 <div className="flex justify-between items-end">
-                  <label className="block text-sm font-bold text-[#1a1a1b] tracking-wider uppercase">
+                  <label className="block text-base font-medium text-[#1a1a1b]">
                     Step 1: Number of Pets
                   </label>
                 </div>
@@ -276,7 +278,7 @@ export function ProductInfo() {
                       key={pet.id}
                       onClick={() => {
                         setSelectedPets(pet.id);
-                        nextStep();
+                        window.dispatchEvent(new CustomEvent('petSelectionChanged', { detail: pet.id }));
                       }}
                       className={`group relative aspect-square rounded-xl border-[2.5px] transition-all overflow-hidden ${selectedPets === pet.id
                         ? "border-[#1a1a1b] shadow-xl scale-[1.02] z-10"
@@ -295,6 +297,12 @@ export function ProductInfo() {
                     </button>
                   ))}
                 </div>
+                <button 
+                  onClick={nextStep}
+                  className="w-full py-4 bg-[#1a1a1b] text-white rounded-xl font-bold uppercase tracking-widest text-sm mt-4 hover:bg-[#2F2F2F] transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
+                >
+                  Continue <ArrowRight size={18} />
+                </button>
               </div>
             </motion.div>
           )}
@@ -312,7 +320,7 @@ export function ProductInfo() {
                   <button onClick={prevStep} className="flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-black transition-colors uppercase">
                     <ArrowLeft size={14} /> Back
                   </button>
-                  <label className="block text-sm font-bold text-[#1a1a1b] tracking-wider uppercase">
+                  <label className="block text-base font-medium text-[#1a1a1b]">
                     Step 2: Frame Style
                   </label>
                 </div>
@@ -322,7 +330,7 @@ export function ProductInfo() {
                       key={frame.id}
                       onClick={() => {
                         setSelectedFrame(frame.id);
-                        nextStep();
+                        window.dispatchEvent(new CustomEvent('frameSelectionChanged', { detail: frame.id }));
                       }}
                       className={`group relative aspect-square rounded-xl border-[2.5px] transition-all overflow-hidden ${selectedFrame === frame.id
                         ? "border-[#1a1a1b] shadow-xl scale-[1.02] z-10"
@@ -341,6 +349,12 @@ export function ProductInfo() {
                     </button>
                   ))}
                 </div>
+                <button 
+                  onClick={nextStep}
+                  className="w-full py-4 bg-[#1a1a1b] text-white rounded-xl font-bold uppercase tracking-widest text-sm mt-4 hover:bg-[#2F2F2F] transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
+                >
+                  Continue <ArrowRight size={18} />
+                </button>
               </div>
             </motion.div>
           )}
@@ -358,7 +372,7 @@ export function ProductInfo() {
                   <button onClick={prevStep} className="flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-black transition-colors uppercase">
                     <ArrowLeft size={14} /> Back
                   </button>
-                  <label className="block text-sm font-bold text-[#1a1a1b] tracking-wider uppercase">
+                  <label className="block text-base font-medium text-[#1a1a1b]">
                     Step 3: Background Colour
                   </label>
                 </div>
@@ -368,7 +382,7 @@ export function ProductInfo() {
                       key={bg.name}
                       onClick={() => {
                         setSelectedBg(bg.name);
-                        nextStep();
+                        window.dispatchEvent(new CustomEvent('backgroundSelectionChanged', { detail: bg.name }));
                       }}
                       className={`group relative aspect-square rounded-xl border-[1.5px] transition-all overflow-hidden flex items-center justify-center shadow-sm ${selectedBg === bg.name
                         ? "border-[#1a1a1b] scale-[1.02] z-10 shadow-md"
@@ -382,6 +396,12 @@ export function ProductInfo() {
                     </button>
                   ))}
                 </div>
+                <button 
+                  onClick={nextStep}
+                  className="w-full py-4 bg-[#1a1a1b] text-white rounded-xl font-bold uppercase tracking-widest text-sm mt-4 hover:bg-[#2F2F2F] transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
+                >
+                  Continue <ArrowRight size={18} />
+                </button>
               </div>
             </motion.div>
           )}
@@ -399,7 +419,7 @@ export function ProductInfo() {
                   <button onClick={prevStep} className="flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-black transition-colors uppercase">
                     <ArrowLeft size={14} /> Back
                   </button>
-                  <label className="block text-sm font-bold text-[#1a1a1b] tracking-wider uppercase">
+                  <label className="block text-base font-medium text-[#1a1a1b]">
                     Step 4: Background Add-ons
                   </label>
                 </div>
@@ -407,10 +427,7 @@ export function ProductInfo() {
                   {ADD_ONS.map((addon) => (
                     <button
                       key={addon.id}
-                      onClick={() => {
-                        setSelectedAddOn(addon.id);
-                        nextStep();
-                      }}
+                      onClick={() => setSelectedAddOn(addon.id)}
                       className={`group relative aspect-square rounded-xl border-[2.5px] transition-all overflow-hidden ${selectedAddOn === addon.id
                         ? "border-[#1a1a1b] shadow-xl scale-[1.02] z-10"
                         : "border-gray-100 hover:border-gray-200"
@@ -427,6 +444,23 @@ export function ProductInfo() {
                       </div>
                     </button>
                   ))}
+                </div>
+                <div className="flex gap-3 mt-4">
+                  <button 
+                    onClick={() => {
+                      setSelectedAddOn("none");
+                      nextStep();
+                    }}
+                    className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-xl font-bold uppercase tracking-widest text-[10px] md:text-sm hover:bg-gray-200 transition-all shadow-sm active:scale-[0.98]"
+                  >
+                    Skip
+                  </button>
+                  <button 
+                    onClick={nextStep}
+                    className="flex-[2] py-4 bg-[#1a1a1b] text-white rounded-xl font-bold uppercase tracking-widest text-[10px] md:text-sm hover:bg-[#2F2F2F] transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
+                  >
+                    Continue <ArrowRight size={18} />
+                  </button>
                 </div>
               </div>
             </motion.div>
@@ -445,7 +479,7 @@ export function ProductInfo() {
                   <button onClick={prevStep} className="flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-black transition-colors uppercase">
                     <ArrowLeft size={14} /> Back
                   </button>
-                  <label className="block text-sm font-bold text-[#1a1a1b] tracking-wider uppercase">
+                  <label className="block text-base font-medium text-[#1a1a1b]">
                     Step 5: Frame Size
                   </label>
                 </div>
@@ -453,10 +487,7 @@ export function ProductInfo() {
                   {SIZES.map((size) => (
                     <button
                       key={size}
-                      onClick={() => {
-                        setSelectedSize(size);
-                        nextStep();
-                      }}
+                      onClick={() => setSelectedSize(size)}
                       className={`w-full py-2.5 rounded-lg border-[1.5px] font-bold transition-all text-[13px] flex justify-between px-4 items-center ${selectedSize === size
                         ? "border-[#1a1a1b] bg-[#f7f7f7] text-[#1a1a1b] shadow-sm scale-[1.01]"
                         : "border-gray-200 text-gray-600 bg-white hover:border-gray-300"
@@ -467,6 +498,12 @@ export function ProductInfo() {
                     </button>
                   ))}
                 </div>
+                <button 
+                  onClick={nextStep}
+                  className="w-full py-4 bg-[#1a1a1b] text-white rounded-xl font-bold uppercase tracking-widest text-sm mt-4 hover:bg-[#2F2F2F] transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
+                >
+                  Continue <ArrowRight size={18} />
+                </button>
               </div>
             </motion.div>
           )}
@@ -484,7 +521,7 @@ export function ProductInfo() {
                   <button onClick={prevStep} className="flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-black transition-colors uppercase">
                     <ArrowLeft size={14} /> Back
                   </button>
-                  <label className="block text-sm font-bold text-[#1a1a1b] tracking-wider uppercase">
+                  <label className="block text-base font-medium text-[#1a1a1b]">
                     Step 6: Final Details
                   </label>
                 </div>
@@ -499,7 +536,7 @@ export function ProductInfo() {
                     value={petName}
                     onChange={(e) => setPetName(e.target.value)}
                     placeholder="Enter pet name..."
-                    className="w-full px-4 py-3 border-[1.5px] border-gray-200 rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-poppins text-xs"
+                    className="w-full px-4 py-3 border-[1.5px] border-gray-200 rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-xs"
                   />
                 </div>
 
@@ -513,7 +550,7 @@ export function ProductInfo() {
                     value={customerEmail}
                     onChange={(e) => setCustomerEmail(e.target.value)}
                     placeholder="order@example.com"
-                    className="w-full px-4 py-3 border-[1.5px] border-gray-200 rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-poppins text-xs"
+                    className="w-full px-4 py-3 border-[1.5px] border-gray-200 rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-xs"
                   />
                 </div>
 
@@ -643,10 +680,10 @@ export function ProductInfo() {
           </div>
           <div className="space-y-2">
             <p className="text-[13px] font-medium text-gray-700 leading-relaxed italic">
-              "I can't tell you how much I love my pet portrait! It makes me so happy when I see it on my wall everyday. My dog was my baby and looking at his precious little face everyday makes me smile!"
+              "I didn’t expect it to feel this personal. It’s not just a portrait - it’s them. The way they look at me, the warmth, everything… it’s all there. Now every time I pass by it, I pause. It feels like they’re still right here with me."
             </p>
             <p className="text-[12px] font-bold text-[#1a1a1b] uppercase tracking-wider">
-              — Tania Chawla
+              — Verified Customer
             </p>
           </div>
         </div>
@@ -678,25 +715,39 @@ export function ProductInfo() {
           icon={<PawPrint size={18} />}
           isOpenDefault
         >
-          <p className="text-sm text-gray-600 leading-relaxed font-poppins">
-            Transform your pet's photo into a stunning masterpiece! Our professional artists design every portrait with love and care to capture your pet's unique personality.
-          </p>
+          <div className="text-sm text-gray-600 leading-relaxed font-inter space-y-4">
+            <p>Your pet isn’t just part of your life — they are your life in a thousand little moments. The way they wait for you. The way they look at you. The quiet comfort of just having them close.</p>
+            <p>At Peternity, we turn your pet’s photo into a portrait that captures all of that — not just how they look, but how they feel to you.</p>
+            <p>Every piece is carefully created to reflect their personality, so when you see it… it feels like they’re right there, exactly as you know them.</p>
+            <ul className="list-disc pl-5 space-y-1 mt-2">
+              <li>Preview your artwork before it’s printed</li>
+              <li>Unlimited revisions until it feels perfect</li>
+              <li>Ready to hang, made to stay with you</li>
+            </ul>
+            <p className="font-bold italic">Because some bonds don’t fade. They deserve to be remembered, beautifully.</p>
+          </div>
         </Accordion>
         <Accordion
           label="Shipping"
           icon={<Truck size={18} />}
         >
-          <p className="text-sm text-gray-600 leading-relaxed font-poppins">
-            Free shipping across India. Your custom portrait will be ready for review within 2-3 business days.
-          </p>
+          <div className="text-sm text-gray-600 leading-relaxed font-inter space-y-4">
+            <p>Within 48 hours, you’ll receive your pet’s portrait preview — the first moment it starts to feel real.</p>
+            <p>We refine every detail with you, until it doesn’t just look right… it feels like them.</p>
+            <p>The moment you approve, we begin printing within 24 hours — carefully, thoughtfully, as something that truly matters.</p>
+            <p><strong>Delivery across India:</strong> 4–7 working days after approval.</p>
+            <p>From a photo you love… to a memory you can live with, every single day.</p>
+          </div>
         </Accordion>
         <Accordion
           label="Satisfaction Guarantee"
           icon={<HeartIcon size={18} />}
         >
-          <p className="text-sm text-gray-600 leading-relaxed font-poppins">
-            We're not happy until you are. We offer unlimited revisions to ensure your portrait is perfect.
-          </p>
+          <div className="text-sm text-gray-600 leading-relaxed font-inter space-y-4">
+            <p>You’ll receive your portrait preview within 48 hours — and we don’t print until it feels right to you.</p>
+            <p>We refine every detail with you, from expression to mood, until it truly feels like <em>them</em>.</p>
+            <p>Because this isn’t something you should “settle” for. It should feel personal, emotional… and exactly right.</p>
+          </div>
         </Accordion>
       </div>
     </div>

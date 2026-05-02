@@ -5,16 +5,16 @@ import { Check } from "lucide-react";
 
 const STEPS = [
   {
-    title: "Upload a pet photo",
-    description: "Choose a size, frame, and upload a photo of your fur baby. Then, place your order.",
+    title: "Upload your pet’s photo",
+    description: "Choose your size, frame, and share the photo you love the most. We’ll take it from there.",
   },
   {
-    title: "Preview your custom pet art",
-    description: "In 2 days we'll send you a proof of your pet art. Request edits or approve it for printing and shipping. 100% satisfaction guarantee!",
+    title: "See them come to life",
+    description: "Within 48 hours, you’ll receive your portrait preview. We refine every detail with you - until it truly feels like them.",
   },
   {
-    title: "Cherish them forever!",
-    description: "Unwrap your pet portrait, cry some happy tears, do a happy dance and remember those happy memories forever.",
+    title: "Keep them close, forever",
+    description: "Once approved, we print and deliver your portrait to your doorstep - ready to become a part of your everyday life.",
   },
 ];
 
@@ -37,7 +37,7 @@ export function HowItWorks() {
 
           {/* Right: Steps Section */}
           <div className="w-full lg:w-1/2 px-6 py-12 md:p-12 lg:p-20 bg-white">
-            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-10 text-[#1a1a1b] font-montserrat">
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-10 text-[#1a1a1b] font-playfair">
               How it works?
             </h2>
 
@@ -48,10 +48,10 @@ export function HowItWorks() {
                     <Check className="w-5 h-5 md:w-6 md:h-6 text-gray-800 stroke-[3]" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-1 lg:mb-2 font-montserrat uppercase tracking-tight">
+                    <h3 className="text-lg md:text-xl font-bold text-gray-900 mb-1 lg:mb-2 font-playfair uppercase tracking-tight">
                       {step.title}
                     </h3>
-                    <p className="text-gray-600 text-sm md:text-base leading-relaxed font-poppins">
+                    <p className="text-gray-600 text-sm md:text-base leading-relaxed font-inter">
                       {step.description}
                     </p>
                   </div>
