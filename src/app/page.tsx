@@ -15,6 +15,7 @@ import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { ScrollingTicker } from "@/components/ScrollingTicker";
 import { Footer } from "@/components/Footer";
 import { Star } from "lucide-react";
+import SplitText from "@/components/SplitText";
 
 export default function Page() {
   return (
@@ -30,12 +31,18 @@ export default function Page() {
             <span className="text-gray-400 font-bold text-[10px]">&gt;</span>
             <span>Custom Pet Portrait</span>
           </div>
-
+          
           {/* Mobile Only Hero Title */}
           <div className="lg:hidden mb-4 space-y-3 text-center pt-2">
-             <h1 className="text-3xl md:text-4xl font-normal text-[#1a1a1b] leading-tight font-playfair tracking-tight">
-               Turn Your Pet Into a Memory That Lasts Forever
-             </h1>
+             <SplitText
+               text="Turn Your Pet Into a Memory That Lasts Forever"
+               className="text-3xl md:text-4xl font-normal text-[#1a1a1b] leading-tight font-playfair tracking-tight"
+               delay={30}
+               duration={1.5}
+               ease="power4.out"
+               textAlign="center"
+               tag="h1"
+             />
              <p className="text-[13px] md:text-base text-gray-500 px-2 leading-relaxed font-inter">
                Free shipping across India
              </p>
@@ -59,7 +66,7 @@ export default function Page() {
              </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 pb-8 lg:pb-20 relative">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 lg:gap-20 pb-8 lg:pb-20 relative">
             <div className="relative h-full">
               <div className="lg:sticky lg:top-24 z-10 w-full self-start">
                 <ProductGallery />
