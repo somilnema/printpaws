@@ -59,7 +59,7 @@ export function FeatureSections() {
               transition={{ duration: 0.8, ease: "easeOut" }}
               className="w-full lg:w-1/2"
             >
-              <div className="relative aspect-[16/11] rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.1)]">
+              <div className="relative aspect-[4/5] md:aspect-[16/13] rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.1)]">
                 <Image
                   src={feature.image}
                   alt={feature.title}
