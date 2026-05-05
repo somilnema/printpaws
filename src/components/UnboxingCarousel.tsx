@@ -2,7 +2,6 @@
 import React from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
-import { Play, ChevronLeft, ChevronRight } from "lucide-react";
 
 const CARDS = [
   {
@@ -56,8 +55,12 @@ export function UnboxingCarousel() {
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {CARDS.map((card, idx) => (
-            <div 
+            <motion.div 
               key={idx} 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.1 }}
+              viewport={{ once: true }}
               className="relative flex-shrink-0 w-[85vw] md:w-[320px] aspect-[9/16] rounded-[2rem] overflow-hidden border-4 border-white shadow-xl bg-gray-100 snap-center first:ml-0"
             >
               {card.video ? (
@@ -77,7 +80,7 @@ export function UnboxingCarousel() {
                   className="object-cover"
                 />
               )}
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>
