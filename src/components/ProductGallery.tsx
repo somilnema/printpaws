@@ -99,7 +99,7 @@ export function ProductGallery() {
         </AnimatePresence>
         
         {/* Mobile Pagination Dots */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2.5 md:hidden z-20">
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2.5 md:hidden z-20">
           {currentImages.map((_, idx) => (
             <button
               key={idx}
