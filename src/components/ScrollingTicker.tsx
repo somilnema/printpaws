@@ -14,7 +14,7 @@ export function ScrollingTicker() {
   ];
 
   return (
-    <div className="w-full bg-[#A87B62] overflow-hidden py-2 my-0">
+    <div className="w-full bg-[#ff5959] overflow-hidden py-2 my-0">
       <div className="flex animate-marquee whitespace-nowrap w-max">
         {/* Doubling items for seamless looping */}
         {[...items, ...items].map((item, index) => (
