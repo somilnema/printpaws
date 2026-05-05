@@ -6,9 +6,9 @@ import Image from "next/image";
 
 const GALLERY_IMAGES: Record<string, string[]> = {
   // Pets (Section 1)
-  one: ["/Section 1/1.jpg", "/Section 1/2.jpg", "/Section 1/3.jpg", "/Section 1/4.jpg"],
-  two: ["/Section 1/5.jpg", "/Section 1/6.jpg", "/Section 1/7.jpg", "/Section 1/8.jpg"],
-  three: ["/Section 1/9.jpg", "/Section 1/10.jpg", "/Section 1/11.jpg", "/Section 1/12.jpg"],
+  one: ["/Section 1/1.jpg", "/Section 1/2.jpg", "/Section 1/3.jpg", "/Section 1/4.jpg", "/Section 1/5.jpg"],
+  two: ["/Section 1/6.jpg", "/Section 1/7.jpg", "/Section 1/8.jpg", "/Section 1/9.jpg"],
+  three: ["/Section 1/10.jpg", "/Section 1/11.jpg", "/Section 1/12.jpg"],
   four: ["/Section 1/13.jpg", "/Section 1/14.jpg", "/Section 1/11.jpg", "/Section 1/8.jpg"],
   
   // Frames (Section 2)
