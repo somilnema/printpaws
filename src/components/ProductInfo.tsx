@@ -180,7 +180,7 @@ export function ProductInfo() {
   return (
     <div ref={containerRef} className="flex flex-col gap-0 scroll-mt-24">
       {/* Header Info */}
-      <div className="space-y-4">
+      <div className="lg:space-y-4 space-y-1">
         <div className="hidden lg:flex items-center gap-1">
           {[...Array(5)].map((_, i) => (
             <Star key={i} size={14} className="fill-[#FFB800] text-[#FFB800]" />
@@ -190,9 +190,9 @@ export function ProductInfo() {
         <h1 className="hidden lg:block text-5xl lg:text-[56px] font-normal text-[#1a1a1b] leading-tight font-playfair tracking-tight">
           Custom Pet Portrait
         </h1>
-        <div className="flex items-center gap-4 mt-2">
+        <div className="flex items-center gap-4">
           <span className="text-xl font-medium text-[#1a1a1b] font-inter">Rs. {totalPrice}.00</span>
-          <span className="text-lg text-gray-400 line-through font-inter">Rs. {totalPrice + 300}.00</span>
+          <span className="text-[20px] font-medium text-[#A87B62] line-through font-inter opacity-80">Rs. {totalPrice + 300}.00</span>
           <span className="bg-[#FF9494] text-white text-[10px] font-bold px-2 py-1 rounded-full tracking-wider">
             30% OFF
           </span>
@@ -635,35 +635,35 @@ export function ProductInfo() {
       </div>
 
       {/* Trust & Features Icons */}
-      <div className="grid grid-cols-3 gap-2 pt-6 border-t border-gray-100">
-        <div className="flex flex-col items-center text-center space-y-2">
-          <div className="w-8 h-8 bg-gray-50 rounded-full flex items-center justify-center">
-            <Undo2 size={18} className="text-[#1a1a1b]" strokeWidth={1.5} />
+      <div className="grid grid-cols-3 gap-6 pt-12 pb-6 border-t border-gray-100">
+        <div className="flex flex-col items-center text-center space-y-3">
+          <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center">
+            <Undo2 size={18} className="text-[#A87B62]" strokeWidth={1.5} />
           </div>
-          <span className="text-[10px] font-bold uppercase text-[#1a1a1b] leading-tight tracking-tighter">
+          <span className="text-[10px] font-bold uppercase text-[#A87B62] leading-tight tracking-tighter">
             Unlimited<br />Revisions
           </span>
         </div>
-        <div className="flex flex-col items-center text-center space-y-2">
-          <div className="w-8 h-8 bg-gray-50 rounded-full flex items-center justify-center">
-            <Truck size={18} className="text-[#1a1a1b]" strokeWidth={1.2} />
+        <div className="flex flex-col items-center text-center space-y-3">
+          <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center">
+            <Truck size={18} className="text-[#A87B62]" strokeWidth={1.2} />
           </div>
-          <span className="text-[10px] font-bold uppercase text-[#1a1a1b] leading-tight tracking-tighter">
+          <span className="text-[10px] font-bold uppercase text-[#A87B62] leading-tight tracking-tighter">
             Free Tracked<br />Shipping
           </span>
         </div>
-        <div className="flex flex-col items-center text-center space-y-2">
-          <div className="w-8 h-8 bg-gray-50 rounded-full flex items-center justify-center">
-            <Star size={18} className="text-[#1a1a1b]" strokeWidth={1.5} />
+        <div className="flex flex-col items-center text-center space-y-3">
+          <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center">
+            <Star size={18} className="text-[#A87B62]" strokeWidth={1.5} />
           </div>
-          <span className="text-[10px] font-bold uppercase text-[#1a1a1b] leading-tight tracking-tighter">
+          <span className="text-[10px] font-bold uppercase text-[#A87B62] leading-tight tracking-tighter">
             100% Love<br />Guarantee
           </span>
         </div>
       </div>
 
       {/* Testimonial Card */}
-      <div className="bg-[#fcf8f5] rounded-2xl p-6 border border-[#f0e4db] relative overflow-hidden">
+      <div className="bg-[#fcf8f5] rounded-2xl p-8 border border-[#f0e4db] relative overflow-hidden mt-8">
         <div className="absolute top-0 right-0 p-3 text-[#f0e4db]">
           <PawPrint size={40} className="rotate-12 opacity-20" />
         </div>
@@ -713,7 +713,6 @@ export function ProductInfo() {
         <Accordion
           label="Description"
           icon={<PawPrint size={18} />}
-          isOpenDefault
         >
           <div className="text-sm text-gray-600 leading-relaxed font-inter space-y-4">
             <p>Your pet isn’t just part of your life — they are your life in a thousand little moments. The way they wait for you. The way they look at you. The quiet comfort of just having them close.</p>
