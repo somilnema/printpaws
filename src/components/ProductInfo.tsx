@@ -68,6 +68,28 @@ export function ProductInfo() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const [testimonialIndex, setTestimonialIndex] = useState(0);
+
+  const testimonials = [
+    {
+      content: "Didn’t think I’d get emotional over a portrait honestly… but they captured him so perfectly. My family loved it instantly.",
+      author: "Vaidehi",
+      avatar: "https://ui-avatars.com/api/?name=Vaidehi&background=A87B62&color=fff"
+    },
+    {
+      content: "My whole family loved it",
+      author: "Nandini",
+      avatar: "https://ui-avatars.com/api/?name=Nandini&background=A87B62&color=fff"
+    }
+  ];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTestimonialIndex((prev) => (prev + 1) % testimonials.length);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, []);
+
   useEffect(() => {
     if (containerRef.current) {
       containerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -663,29 +685,39 @@ export function ProductInfo() {
       </div>
 
       {/* Testimonial Card */}
-      <div className="bg-[#fcf8f5] rounded-2xl p-8 border border-[#f0e4db] relative overflow-hidden mt-8">
+      <div className="bg-[#fcf8f5] rounded-2xl p-8 border border-[#f0e4db] relative overflow-hidden mt-8 min-h-[190px] sm:min-h-[160px]">
         <div className="absolute top-0 right-0 p-3 text-[#f0e4db]">
           <PawPrint size={40} className="rotate-12 opacity-20" />
         </div>
-        <div className="flex gap-4 items-start relative z-10">
-          <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-sm flex-shrink-0">
-            <Image
-              src="/thumb1.png"
-              alt="Tania Chawla"
-              fill
-              sizes="64px"
-              className="object-cover"
-              onError={(e: any) => { e.target.src = "https://ui-avatars.com/api/?name=Tania+Chawla&background=A87B62&color=fff"; }}
-            />
-          </div>
-          <div className="space-y-2">
-            <p className="text-[13px] font-medium text-gray-700 leading-relaxed italic">
-              "I didn’t expect it to feel this personal. It’s not just a portrait - it’s them. The way they look at me, the warmth, everything… it’s all there. Now every time I pass by it, I pause. It feels like they’re still right here with me."
-            </p>
-            <p className="text-[12px] font-bold text-[#1a1a1b] uppercase tracking-wider">
-              — Verified Customer
-            </p>
-          </div>
+        <div className="relative z-10">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={testimonialIndex}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+              className="flex gap-4 items-start"
+            >
+              <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-sm flex-shrink-0 bg-[#A87B62]">
+                <Image
+                  src={testimonials[testimonialIndex].avatar}
+                  alt={testimonials[testimonialIndex].author}
+                  fill
+                  sizes="64px"
+                  className="object-cover"
+                />
+              </div>
+              <div className="space-y-2">
+                <p className="text-[13px] font-medium text-gray-700 leading-relaxed italic">
+                  "{testimonials[testimonialIndex].content}"
+                </p>
+                <p className="text-[12px] font-bold text-[#1a1a1b] uppercase tracking-wider">
+                  — Verified Customer ({testimonials[testimonialIndex].author})
+                </p>
+              </div>
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
 
@@ -704,7 +736,7 @@ export function ProductInfo() {
           ))}
         </div>
         <p className="text-[13px] font-bold text-[#1a1a1b]">
-          Ishita <Check size={12} className="inline-block text-blue-500 fill-blue-500" /> and 3,000+ happy parents
+          Trusted By 1,378+ Happy Pet Parents
         </p>
       </div>
 
