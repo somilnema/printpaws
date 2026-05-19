@@ -5,12 +5,12 @@ import { Star } from 'lucide-react';
 
 export function ScrollingTicker() {
   const items = [
-    "Extra 10% Off On All Prepaid Orders",
-    "Free Shipping All Over India",
-    "Extra 10% Off On All Prepaid Orders",
-    "Free Shipping All Over India",
-    "Extra 10% Off On All Prepaid Orders",
-    "Free Shipping All Over India",
+    "Forever Starts Here",
+    "REFINED UNTIL PERFECT",
+    "10% Off (Prepaid Orders)",
+    "Forever Starts Here",
+    "REFINED UNTIL PERFECT",
+    "10% Off (Prepaid Orders)",
   ];
 
   return (
