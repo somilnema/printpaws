@@ -1,58 +1,148 @@
 "use client";
 
-import Image from "next/image";
-
-const INSTA_IMAGES = [
-  { src: "/dog_portrait_closeup_1773940826280.png", name: "STAR" },
-  { src: "/thumb1.png", name: "ELSA" },
-  { src: "/thumb2.png", name: "BRUNO" },
-  { src: "/main.png", name: "SAM" },
-];
+import React, { useRef, useState } from "react";
+import { Heart, Volume2, VolumeX, Sparkles } from "lucide-react";
 
 export function InstagramFeed() {
-  return (
-    <section className="py-16 bg-white border-t border-gray-100">
-      <div className="flex flex-col lg:flex-row min-h-[400px]">
-        {/* Left Content */}
-        <div className="lg:w-[40%] flex flex-col items-center justify-center p-12 lg:p-20 space-y-6 bg-[#F9F9F9]">
-          <h2 className="text-3xl md:text-4xl font-black text-[#1a1a1b] leading-tight tracking-tight text-center lg:text-left">
-            For Every Portrait, A Pet Gets Fed
-          </h2>
-          <p className="text-gray-500 font-inter text-sm md:text-base text-center lg:text-left max-w-sm leading-relaxed">
-            Every time you turn your pet into a memory, you help another pet get a meal. Because love for animals shouldn’t stop at just one.
-          </p>
-          <div className="w-full flex justify-center lg:justify-start">
-            <button className="bg-primary hover:bg-primary-dark text-white px-10 py-4 rounded-xl font-black text-xs tracking-widest transition-all shadow-md hover:-translate-y-1 uppercase">
-              Make It Count
-            </button>
-          </div>
-        </div>
+  const videoRef1 = useRef<HTMLVideoElement>(null);
+  const videoRef2 = useRef<HTMLVideoElement>(null);
+  
+  const [isMuted1, setIsMuted1] = useState(true);
+  const [isMuted2, setIsMuted2] = useState(true);
 
-        {/* Right Content - Grid */}
-        <div className="lg:w-[60%] flex">
-          {INSTA_IMAGES.map((img, i) => (
-            <div 
-              key={i} 
-              className="relative flex-1 min-h-[300px] lg:min-h-full group cursor-pointer border-l border-gray-100 overflow-hidden"
-            >
-              <Image 
-                src={img.src} 
-                alt={img.name} 
-                fill 
-                className="object-cover transition-transform duration-700 group-hover:scale-110"
-                sizes="25vw"
-                onError={(e: any) => { e.target.style.display = 'none'; }}
-              />
-              {/* Pet Name Label Overlay */}
-              <div className="absolute top-8 left-1/2 -translate-x-1/2 z-10">
-                <span className="text-[10px] md:text-xs font-black tracking-[0.2em] text-[#1a1a1b] bg-white/90 backdrop-blur px-4 py-1.5 rounded-sm shadow-sm uppercase">
-                  {img.name}
-                </span>
-              </div>
-              {/* Subtle Overlay */}
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-500" />
+  const toggleMute1 = () => {
+    if (videoRef1.current) {
+      const newMuted = !videoRef1.current.muted;
+      videoRef1.current.muted = newMuted;
+      setIsMuted1(newMuted);
+      // Automatically mute the other video to avoid overlapping audio
+      if (!newMuted && videoRef2.current) {
+        videoRef2.current.muted = true;
+        setIsMuted2(true);
+      }
+    }
+  };
+
+  const toggleMute2 = () => {
+    if (videoRef2.current) {
+      const newMuted = !videoRef2.current.muted;
+      videoRef2.current.muted = newMuted;
+      setIsMuted2(newMuted);
+      // Automatically mute the other video to avoid overlapping audio
+      if (!newMuted && videoRef1.current) {
+        videoRef1.current.muted = true;
+        setIsMuted1(true);
+      }
+    }
+  };
+
+  return (
+    <section className="py-12 md:py-20 bg-white border-t border-gray-100">
+      <div className="container mx-auto px-4 max-w-7xl">
+        <div className="flex flex-col lg:flex-row rounded-[2.5rem] overflow-hidden border border-[#F0EBE0] shadow-sm">
+          {/* Left Content - Mission Section */}
+          <div className="lg:w-[40%] flex flex-col items-center lg:items-start justify-center p-8 md:p-16 lg:p-20 space-y-6 bg-[#FAF7F2] border-b lg:border-b-0 lg:border-r border-[#F0EBE0]">
+            <div className="w-12 h-12 rounded-full bg-[#A87B62]/10 flex items-center justify-center text-[#A87B62] animate-bounce">
+              <Heart size={22} className="fill-[#A87B62]" />
             </div>
-          ))}
+            
+            <h2 className="text-3xl md:text-5xl font-black text-[#1a1a1b] font-playfair tracking-tight text-center lg:text-left leading-[1.15] uppercase">
+              For Every <br className="hidden lg:block" />
+              Portrait, A Pet <br className="hidden lg:block" />
+              Gets Fed
+            </h2>
+            
+            <p className="text-gray-500 font-inter text-sm md:text-base text-center lg:text-left max-w-sm leading-relaxed">
+              Every time you turn your pet into a memory, we donate a portion of the proceeds to feed stray and shelter animals. Because love for animals shouldn’t stop at just one.
+            </p>
+
+            <div className="w-full flex flex-col sm:flex-row items-center gap-4 pt-2">
+              <button className="w-full sm:w-auto bg-[#1a1a1b] hover:bg-[#2A2A2B] text-white px-8 py-4 rounded-xl font-bold text-xs tracking-widest transition-all shadow-md hover:-translate-y-0.5 active:scale-[0.98] uppercase">
+                Make It Count
+              </button>
+              <div className="flex flex-col items-center lg:items-start">
+                <span className="text-xs font-bold text-[#A87B62] tracking-wider uppercase">Active Mission</span>
+                <span className="text-[10px] text-gray-400 font-medium font-inter">20,432+ Meals Donated</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Content - Split Reaction Videos */}
+          <div className="lg:w-[60%] p-6 md:p-12 lg:p-16 flex flex-col sm:flex-row gap-6 bg-white items-center justify-center">
+            {/* Video 1 Container */}
+            <div 
+              onClick={toggleMute1}
+              className="relative w-full sm:w-1/2 aspect-[9/16] max-w-[280px] rounded-[2rem] overflow-hidden cursor-pointer group shadow-lg hover:shadow-2xl transition-all duration-500 border-4 border-[#FAF7F2]"
+            >
+              <video
+                ref={videoRef1}
+                src="/socialproof/Social proof video -1.mp4"
+                autoPlay
+                muted
+                loop
+                playsInline
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+              />
+              
+              {/* Top Tag */}
+              <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-white text-[9px] font-bold uppercase tracking-wider flex items-center gap-1 z-10">
+                <Sparkles size={10} className="text-[#A87B62]" />
+                Real Reaction
+              </div>
+
+              {/* Mute and Caption Overlays */}
+              <div className="absolute inset-0 bg-black/10 group-hover:bg-black/25 transition-all duration-300 flex flex-col justify-between p-4">
+                <div className="flex justify-end">
+                  <button className="w-8 h-8 rounded-full bg-white/95 backdrop-blur-sm flex items-center justify-center text-gray-800 shadow-md transform transition-transform group-hover:scale-110">
+                    {isMuted1 ? <VolumeX size={14} /> : <Volume2 size={14} className="animate-pulse" />}
+                  </button>
+                </div>
+                
+                {/* Bottom Caption Pill */}
+                <div className="bg-black/75 backdrop-blur-sm p-4 rounded-2xl border border-white/10 transform transition-all duration-300 text-white">
+                  <p className="text-[10px] font-bold tracking-widest uppercase text-[#FAF7F2] mb-0.5">Luna's Reveal</p>
+                  <p className="text-[9px] text-gray-300 font-inter font-medium leading-tight">"Oh my god, it looks exactly like her!"</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Video 2 Container */}
+            <div 
+              onClick={toggleMute2}
+              className="relative w-full sm:w-1/2 aspect-[9/16] max-w-[280px] rounded-[2rem] overflow-hidden cursor-pointer group shadow-lg hover:shadow-2xl transition-all duration-500 border-4 border-[#FAF7F2] sm:-translate-y-4"
+            >
+              <video
+                ref={videoRef2}
+                src="/socialproof/Social proof video - 2.mp4"
+                autoPlay
+                muted
+                loop
+                playsInline
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+              />
+
+              {/* Top Tag */}
+              <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-white text-[9px] font-bold uppercase tracking-wider flex items-center gap-1 z-10">
+                <Heart size={10} className="text-red-400 fill-red-400" />
+                Pure Joy
+              </div>
+
+              {/* Mute and Caption Overlays */}
+              <div className="absolute inset-0 bg-black/10 group-hover:bg-black/25 transition-all duration-300 flex flex-col justify-between p-4">
+                <div className="flex justify-end">
+                  <button className="w-8 h-8 rounded-full bg-white/95 backdrop-blur-sm flex items-center justify-center text-gray-800 shadow-md transform transition-transform group-hover:scale-110">
+                    {isMuted2 ? <VolumeX size={14} /> : <Volume2 size={14} className="animate-pulse" />}
+                  </button>
+                </div>
+
+                {/* Bottom Caption Pill */}
+                <div className="bg-black/75 backdrop-blur-sm p-4 rounded-2xl border border-white/10 transform transition-all duration-300 text-white">
+                  <p className="text-[10px] font-bold tracking-widest uppercase text-[#FAF7F2] mb-0.5">Milo's Reaction</p>
+                  <p className="text-[9px] text-gray-300 font-inter font-medium leading-tight">"The best gift we have ever received."</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
