@@ -22,16 +22,16 @@ import { motion, AnimatePresence } from "framer-motion";
 
 const SIZES = ['8"x10"', '12"x16"', '18"x24"', '24"x24"'];
 const FRAMES = [
-  { id: "black", label: "the Black", image: "/frame_black.png" },
-  { id: "white", label: "pure White", image: "/frame_white.png" },
-  { id: "wood", label: "premium Wood", image: "/frame_wood.png" },
-  { id: "canva", label: "Canvas", image: "/frame_metal.png" },
+  { id: "black", label: "the Black", image: "/framestyle/black-frame.png" },
+  { id: "white", label: "pure White", image: "/framestyle/white-frame.png" },
+  { id: "wood", label: "premium Wood", image: "/framestyle/wooden-frame.png" },
+  { id: "canva", label: "Canvas", image: "/framestyle/canvas-frame.png" },
 ];
 const PET_OPTIONS = [
-  { id: "one", label: "One", image: "/pet_select_1.png" },
-  { id: "two", label: "Two", image: "/pet_select_2.png" },
-  { id: "three", label: "Three", image: "/pet_select_3.png" },
-  { id: "four", label: "Four", image: "/pet_select_4.png" },
+  { id: "one", label: "One", image: "/no-of-pets/one-pet.png" },
+  { id: "two", label: "Two", image: "/no-of-pets/two-pet.png" },
+  { id: "three", label: "Three", image: "/no-of-pets/three-pet.png" },
+  { id: "four", label: "Four", image: "/no-of-pets/four-pet.png" },
 ];
 
 
@@ -41,14 +41,16 @@ const BACKGROUNDS = [
   { name: "Serenity", value: "#f0e9f9", textColor: "#c4b5d4" },
   { name: "Celadon", value: "#b8cfc1", textColor: "#ffffff" },
   { name: "Tea Rosé", value: "#f3ccc6", textColor: "#ffffff" },
-  { name: "Black", value: "#000000", textColor: "#ffffff" }
+  { name: "Black", value: "#000000", textColor: "#ffffff" },
+  { name: "bg7", value: "/bg7.png", textColor: "#ffffff", isImage: true },
+  { name: "bg8", value: "/bg8.png", textColor: "#ffffff", isImage: true },
+  { name: "bg9", value: "/bg9.png", textColor: "#ffffff", isImage: true }
 ];
 
 const ADD_ONS = [
-  { id: "crown", label: "Royal Crown", image: "/addon_crown.png" },
-  { id: "floral", label: "Floral Wreath", image: "/addon_floral.png" },
-  { id: "bowtie", label: "Bow Tie", image: "/addon_bowtie.png" },
-  { id: "digital", label: "Digital File", image: "/addon_digital.png" },
+  { id: "bowtie_bonus", label: "Bow Tie (Bonus)", image: "/bonus-image/bow-tie.png" },
+  { id: "halo_effect", label: "Halo Effect", image: "/bonus-image/halo-effect.png" },
+  { id: "heart", label: "Heart", image: "/bonus-image/heart.png" },
 ];
 
 export function ProductInfo() {
@@ -306,13 +308,8 @@ export function ProductInfo() {
                         ? "border-[#1a1a1b] shadow-xl scale-[1.02] z-10"
                         : "border-gray-100 hover:border-gray-200"
                         }`}
+                      style={{ backgroundImage: `url(${pet.image})`, backgroundSize: "92%", backgroundRepeat: "no-repeat", backgroundPosition: "center" }}
                     >
-                      <Image
-                        src={pet.image}
-                        alt={pet.label}
-                        fill
-                        className="object-cover"
-                      />
                       <div className={`absolute inset-0 flex items-center justify-center bg-black/40 transition-opacity ${selectedPets === pet.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                         <span className="text-white font-bold uppercase tracking-widest text-[10px]">{pet.label}</span>
                       </div>
@@ -358,13 +355,8 @@ export function ProductInfo() {
                         ? "border-[#1a1a1b] shadow-xl scale-[1.02] z-10"
                         : "border-gray-100 hover:border-gray-200"
                         }`}
+                      style={{ backgroundImage: `url(${frame.image})`, backgroundSize: "92%", backgroundRepeat: "no-repeat", backgroundPosition: "center" }}
                     >
-                      <Image
-                        src={frame.image}
-                        alt={frame.label}
-                        fill
-                        className="object-cover"
-                      />
                       <div className={`absolute inset-0 flex items-center justify-center bg-black/40 transition-opacity ${selectedFrame === frame.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                         <span className="text-white font-bold uppercase tracking-widest text-[10px]">{frame.label}</span>
                       </div>
@@ -410,9 +402,20 @@ export function ProductInfo() {
                         ? "border-[#1a1a1b] scale-[1.02] z-10 shadow-md"
                         : "border-gray-100 hover:border-gray-200"
                         }`}
-                      style={{ backgroundColor: bg.value }}
+                      style={{ 
+                        backgroundColor: bg.isImage ? undefined : bg.value,
+                        backgroundImage: bg.isImage ? `url(${bg.value})` : undefined,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center'
+                      }}
                     >
-                      <span className="text-xs font-serif opacity-90 select-none tracking-tight" style={{ color: bg.textColor }}>
+                      <span 
+                        className="text-xs font-serif opacity-90 select-none tracking-tight font-bold" 
+                        style={{ 
+                          color: bg.textColor,
+                          textShadow: bg.isImage ? "0px 1px 3px rgba(0, 0, 0, 0.8)" : undefined 
+                        }}
+                      >
                         {bg.name}
                       </span>
                     </button>
@@ -442,10 +445,10 @@ export function ProductInfo() {
                     <ArrowLeft size={14} /> Back
                   </button>
                   <label className="block text-base font-medium text-[#1a1a1b]">
-                    Step 4: Background Add-ons
+                    Step 4: Bonus Icon Image
                   </label>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   {ADD_ONS.map((addon) => (
                     <button
                       key={addon.id}
