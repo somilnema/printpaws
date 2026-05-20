@@ -23,16 +23,17 @@ export function HowItWorks() {
     <section className="pt-6 pb-12 md:pt-8 md:pb-20 bg-white">
       <div className="container mx-auto px-4">
         <div className="bg-white lg:bg-[#f8f9fa] rounded-[2rem] lg:rounded-[3rem] overflow-hidden flex flex-col lg:flex-row shadow-sm border border-gray-100 lg:border-none">
-          {/* Left: Image Section */}
-          <div className="w-full lg:w-1/2 relative h-[350px] md:h-[450px] lg:h-[600px]">
-            <Image
-              src="/how-it-works.png"
-              alt="Custom pet portrait process"
-              fill
-              sizes="(max-width: 1024px) 100vw, 50vw"
-              className="object-cover"
-              priority
-            />
+          <div className="w-full lg:w-1/2 flex items-center justify-center p-6 md:p-10 lg:p-12 bg-[#f8f9fa]">
+            <div className="relative w-full shadow-lg rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden bg-white">
+              <Image
+                src="/how-it-works-new.png"
+                alt="Custom pet portrait process"
+                width={700}
+                height={500}
+                className="w-full h-auto object-cover"
+                priority
+              />
+            </div>
           </div>
 
           {/* Right: Steps Section */}
