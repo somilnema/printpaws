@@ -7,19 +7,19 @@ const FEATURES = [
   {
     title: "Not Just a Gift. It’s Them.",
     description: "It’s personal. It’s emotional. And the moment they see it - they don’t just smile - they feel it",
-    image: "/feature-gift.png",
+    image: "/Not just a image its them.png",
     reverse: false,
   },
   {
     title: "We Don’t Just Draw Them. We Get Them Right.",
     description: "Every expression, every little detail - crafted until it doesn’t just look like your pet - it feels like them.",
-    image: "/feature-detail.png",
+    video: "/we-dont-just-draw-them.mp4",
     reverse: true,
   },
   {
     title: "Made to Stay With You",
     description: "Crafted with premium materials so your pet’s portrait doesn’t just look beautiful today - it stays with you for years to come.",
-    image: "/feature-premium.png",
+    image: "/Made to stay with yiu final.webp",
     reverse: false,
   },
 ];
@@ -51,7 +51,7 @@ export function FeatureSections() {
               </motion.p>
             </div>
 
-            {/* Image Content */}
+            {/* Image/Video Content */}
             <motion.div 
               initial={{ opacity: 0, x: feature.reverse ? -30 : 30 }}
               whileInView={{ opacity: 1, x: 0 }}
@@ -59,15 +59,30 @@ export function FeatureSections() {
               transition={{ duration: 0.8, ease: "easeOut" }}
               className="w-full lg:w-1/2"
             >
-              <div className="relative aspect-[4/5] md:aspect-[16/13] rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.1)]">
-                <Image
-                  src={feature.image}
-                  alt={feature.title}
-                  fill
-                  sizes="(max-width: 1024px) 100vw, 50vw"
-                  className="object-cover"
-                />
-              </div>
+              {feature.video ? (
+                <div className="relative w-full h-[400px] md:h-[580px] rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.1)]">
+                  <video
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    className="absolute inset-0 w-full h-full object-cover"
+                  >
+                    <source src={feature.video} type="video/mp4" />
+                    Your browser does not support the video tag.
+                  </video>
+                </div>
+              ) : (
+                <div className="relative w-full h-[400px] md:h-[580px] rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.1)]">
+                  <Image
+                    src={feature.image || ""}
+                    alt={feature.title}
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 50vw"
+                    className="object-cover"
+                  />
+                </div>
+              )}
             </motion.div>
           </div>
         </section>
