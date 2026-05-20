@@ -6,43 +6,53 @@ import Image from "next/image";
 
 const PORTRAITS = [
   { 
-    name: "COOPER", 
-    image: "/dog_portrait_closeup_1773940826280.png", 
+    name: "Cooper", 
+    image: "/slideshowimage/Silde image -1.png", 
     bgColor: "#FDFBF7",
-    font: "font-playfair tracking-[0.2em] font-light text-gray-400"
   },
   { 
     name: "Stella", 
-    image: "/thumb1.png", 
+    image: "/slideshowimage/Slide image -2.png", 
     bgColor: "#F3F6F4",
-    font: "font-playfair font-black text-gray-700"
   },
   { 
-    name: "Logan", 
-    image: "/thumb2.png", 
+    name: "Charlie", 
+    image: "/slideshowimage/Slide image - 3.png", 
     bgColor: "#F5E6D3",
-    font: "font-playfair font-bold text-gray-600"
   },
   { 
-    name: "LOKI", 
-    image: "/thumb_pet_portrait_1_1773940327175.png", 
+    name: "Loki", 
+    image: "/slideshowimage/Slide image - 4.png", 
     bgColor: "#EEF2F1",
-    font: "font-playfair tracking-widest font-light text-gray-500"
   },
   { 
-    name: "DAISY", 
-    image: "/thumb_pet_portrait_2_1773940346421.png", 
+    name: "Daisy", 
+    image: "/slideshowimage/Slide image - 5.png", 
     bgColor: "#F1E9FA",
-    font: "font-playfair tracking-[0.1em] font-medium text-gray-400"
+  },
+  { 
+    name: "Coco", 
+    image: "/slideshowimage/Slide image -6.png", 
+    bgColor: "#FDF4F5",
+  },
+  { 
+    name: "Rocky", 
+    image: "/slideshowimage/Slide image - 7.png", 
+    bgColor: "#F4F7FD",
+  },
+  { 
+    name: "Bailey", 
+    image: "/slideshowimage/Slide imahe - 8.png", 
+    bgColor: "#FBF3EE",
   },
 ];
 
 export function IllustratedCarousel() {
   return (
-    <section className="py-8 md:py-12 bg-white overflow-hidden">
+    <section className="py-8 md:py-16 bg-white overflow-hidden">
       <div className="container mx-auto px-4">
         {/* Header */}
-        <div className="text-center mb-10 space-y-3">
+        <div className="text-center mb-12 space-y-3">
           <h2 className="text-3xl md:text-5xl font-black text-[#1a1a1b] italic uppercase tracking-tight">
             The Moments That Meant Everything, Made to Stay
           </h2>
@@ -72,23 +82,32 @@ export function IllustratedCarousel() {
               {[...PORTRAITS, ...PORTRAITS, ...PORTRAITS].map((pet, idx) => (
                 <div 
                   key={idx} 
-                  className="flex-shrink-0 w-[240px] md:w-[320px] aspect-[4/5] rounded-[2rem] md:rounded-[2.5rem] overflow-hidden group/card transition-all duration-500"
+                  className="flex-shrink-0 w-[240px] md:w-[320px] aspect-[4/5] rounded-[2rem] md:rounded-[2.5rem] overflow-hidden group/card transition-all duration-500 relative shadow-md hover:shadow-xl"
                   style={{ backgroundColor: pet.bgColor }}
                 >
-                  <div className="h-full flex flex-col pt-8 md:pt-12">
-                    <span className={`text-center mb-2 md:mb-4 text-lg md:text-xl uppercase ${pet.font}`}>
+                  {/* Full-bleed Portrait Image */}
+                  <div className="absolute inset-0 w-full h-full">
+                    <Image
+                      src={pet.image}
+                      alt={pet.name}
+                      fill
+                      className="object-cover transition-transform duration-700 group-hover/card:scale-105"
+                      sizes="(max-width: 768px) 240px, 320px"
+                      priority={idx < 8}
+                    />
+                  </div>
+
+                  {/* Gradient Overlay for Text Readability */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-300" />
+
+                  {/* Sleek bottom overlay for Pet Name */}
+                  <div className="absolute bottom-6 left-6 right-6 transform translate-y-2 opacity-0 group-hover/card:translate-y-0 group-hover/card:opacity-100 transition-all duration-300 flex items-center justify-between">
+                    <span className="text-white text-lg font-bold tracking-wider uppercase font-playfair drop-shadow-md">
                       {pet.name}
                     </span>
-                    <div className="relative flex-1 w-full mt-auto">
-                      <Image
-                        src={pet.image}
-                        alt={pet.name}
-                        fill
-                        className="object-contain object-bottom transition-transform duration-700 group-hover/card:scale-110"
-                        sizes="(max-width: 768px) 240px, 320px"
-                        onError={(e: any) => { e.target.style.display = 'none'; }}
-                      />
-                    </div>
+                    <span className="text-white/80 text-[10px] uppercase tracking-widest font-medium border border-white/20 px-3 py-1 rounded-full backdrop-blur-sm">
+                      Portrait
+                    </span>
                   </div>
                 </div>
               ))}
