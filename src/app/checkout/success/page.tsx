@@ -48,7 +48,7 @@ function SuccessContent() {
            className="space-y-4"
         >
           <span className="text-primary font-bold uppercase tracking-[0.4em] text-xs">A Moment to Remember</span>
-          <h1 className="text-4xl md:text-6xl font-black text-[#1a1a1b] uppercase italic tracking-tighter leading-none mb-6">
+          <h1 className="text-4xl md:text-6xl font-black text-[#1a1a1b] uppercase tracking-tighter leading-none mb-6">
             Thank You for<br />Testing the pack!
           </h1>
           <p className="text-gray-500 text-lg md:text-xl max-w-xl mx-auto leading-relaxed italic">
@@ -127,7 +127,7 @@ function SuccessContent() {
               <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
            </Link>
            <p className="text-[10px] font-bold uppercase text-gray-400 tracking-widest">
-             Follow us @printsbypaws
+             Follow us @Peternity
            </p>
         </motion.div>
       </div>
