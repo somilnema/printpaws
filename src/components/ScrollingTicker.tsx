@@ -19,7 +19,7 @@ export function ScrollingTicker() {
         {/* Doubling items for seamless looping */}
         {[...items, ...items].map((item, index) => (
           <div key={index} className="flex items-center px-6 md:px-10">
-            <span className="text-white font-black uppercase tracking-[0.15em] text-[13px] md:text-[15px] italic">
+            <span className="text-white font-black uppercase tracking-[0.15em] text-[13px] md:text-[15px]">
               {item}
             </span>
             <div className="ml-12 md:ml-20">
