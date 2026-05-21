@@ -34,7 +34,7 @@ export function FAQ() {
   return (
     <section className="py-12 md:py-20 bg-[#F9F9F9]">
       <div className="container mx-auto px-6 max-w-4xl">
-        <h2 className="text-3xl md:text-4xl font-black text-[#1a1a1b] font-playfair text-center mb-10 uppercase italic">
+        <h2 className="text-3xl md:text-4xl font-black text-[#1a1a1b] font-playfair text-center mb-10 uppercase">
           Questions Pet Parents Usually Have
         </h2>
 
