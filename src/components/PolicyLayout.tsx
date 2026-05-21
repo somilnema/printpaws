@@ -22,8 +22,8 @@ export function PolicyLayout({ title, children }: PolicyLayoutProps) {
           animate={{ opacity: 1, y: 0 }}
           className="container mx-auto space-y-4"
         >
-          <span className="text-primary font-bold uppercase tracking-[0.3em] text-xs">Printsbypaws Legal</span>
-          <h1 className="text-4xl md:text-6xl font-black text-[#1a1a1b] uppercase italic tracking-tighter leading-none">
+          <span className="text-primary font-bold uppercase tracking-[0.3em] text-xs">Peternity Legal</span>
+          <h1 className="text-4xl md:text-6xl font-black text-[#1a1a1b] uppercase tracking-tighter leading-none">
             {title}
           </h1>
           <div className="w-16 h-1 bg-primary mx-auto rounded-full mt-6 opacity-30"></div>
