@@ -78,33 +78,22 @@ const SplitText = ({
             : `+=${marginValue}${marginUnit}`;
       const start = `top ${startPct}%${sign}`;
 
-      gsap.set(targets, { opacity: 0 });
+      gsap.set(targets, { opacity: 0, y: 12 });
 
       const tl = gsap.timeline({
-        repeat: -1,
-        repeatDelay: 1,
         scrollTrigger: {
           trigger: el,
           start,
-          toggleActions: "play pause resume reset",
+          toggleActions: "play none none none",
         },
       });
 
       tl.to(targets, {
         opacity: 1,
-        duration: 0.1,
-        ease: "none",
-        stagger: 0.1,
-      })
-      .to({}, { duration: 3 }) // Pause at full text
-      .to(targets, {
-        opacity: 0,
-        duration: 0.1,
-        ease: "none",
-        stagger: {
-          each: 0.05,
-          from: "end" // Erase from the end for natural feel
-        }
+        y: 0,
+        duration: 0.25,
+        ease: "power2.out",
+        stagger: 0.025, // Sleek, snappy letter-by-letter speed (25ms per character)
       });
     },
     {
