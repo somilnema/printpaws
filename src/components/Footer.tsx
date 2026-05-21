@@ -1,6 +1,6 @@
 "use client";
 
-import { Instagram, Facebook, Twitter, Mail, ArrowRight } from "lucide-react";
+import { Instagram, Facebook, Twitter } from "lucide-react";
 import Link from "next/link";
 
 export function Footer() {
@@ -36,9 +36,9 @@ export function Footer() {
 
       <div className="bg-primary text-white pt-20 pb-10 px-8">
         <div className="container mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 mb-16">
             <div className="space-y-6">
-              <span className="text-2xl font-black italic uppercase italic tracking-tighter">Peternity</span>
+              <span className="text-2xl font-black uppercase tracking-tighter">Peternity</span>
               <p className="text-white/80 text-sm font-inter leading-relaxed">
                 We're on a mission to celebrate the bond between pets and their humans through high-quality, custom artwork.
               </p>
@@ -72,22 +72,7 @@ export function Footer() {
               </ul>
             </div>
 
-            <div>
-              <h4 className="font-bold uppercase mb-6 tracking-wide italic">Join the Pack</h4>
-              <p className="text-sm font-inter text-white/70 mb-6">
-                Get exclusive offers, pup-dates, and more!
-              </p>
-              <div className="flex bg-white/10 rounded-xl overflow-hidden focus-within:ring-2 ring-white/20 transition-all">
-                <input
-                  type="email"
-                  placeholder="Email address"
-                  className="bg-transparent border-none px-4 py-3 flex-1 text-sm outline-none placeholder:text-white/40 font-inter"
-                />
-                <button className="px-4 bg-white text-primary hover:bg-white/90 transition-colors">
-                  <ArrowRight size={20} />
-                </button>
-              </div>
-            </div>
+
           </div>
 
           <hr className="border-white/10 mb-8" />
