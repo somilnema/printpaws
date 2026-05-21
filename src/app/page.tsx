@@ -1,3 +1,5 @@
+"use client";
+
 import { AnnouncementBar } from "@/components/AnnouncementBar";
 import { Navbar } from "@/components/Navbar";
 import { ProductGallery } from "@/components/ProductGallery";
@@ -14,8 +16,8 @@ import { TrustFeatures } from "@/components/TrustFeatures";
 import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { ScrollingTicker } from "@/components/ScrollingTicker";
 import { Footer } from "@/components/Footer";
+import { RotatingHeadline } from "@/components/RotatingHeadline";
 import { Star } from "lucide-react";
-import SplitText from "@/components/SplitText";
 
 export default function Page() {
   return (
@@ -32,17 +34,9 @@ export default function Page() {
             <span>Custom Pet Portrait</span>
           </div>
           
-          {/* Mobile Only Hero Title */}
-          <div className="lg:hidden mb-4 space-y-3 text-center pt-2">
-             <SplitText
-               text="Turn Your Pet Into a Memory That Lasts Forever"
-               className="text-3xl md:text-4xl font-normal text-[#1a1a1b] leading-tight font-playfair tracking-tight"
-               delay={30}
-               duration={1.5}
-               ease="power4.out"
-               textAlign="center"
-               tag="h1"
-             />
+          {/* Mobile Only Hero Title - Dynamic Letter-by-Letter Transition */}
+          <div className="lg:hidden mb-4 text-center pt-2">
+            <RotatingHeadline />
              <p className="text-[13px] md:text-base text-gray-500 px-2 leading-relaxed font-inter">
                Free shipping across India
              </p>
