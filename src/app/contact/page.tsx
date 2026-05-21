@@ -13,7 +13,7 @@ export default function ContactUs() {
         
         <div className="container mx-auto space-y-4">
           <span className="text-primary font-bold uppercase tracking-[0.3em] text-[10px] md:text-xs">Get in touch with the pack</span>
-          <h1 className="text-4xl md:text-7xl font-black text-[#1a1a1b] uppercase italic tracking-tighter leading-none">
+          <h1 className="text-4xl md:text-7xl font-black text-[#1a1a1b] uppercase tracking-tighter leading-none">
             Contact Us
           </h1>
           <div className="flex items-center justify-center gap-2 mt-4">
@@ -28,7 +28,7 @@ export default function ContactUs() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 max-w-6xl mx-auto">
           <div className="space-y-12">
             <div className="space-y-6">
-              <h2 className="text-2xl md:text-3xl font-black text-[#1a1a1b] uppercase italic tracking-tight leading-tight">
+              <h2 className="text-2xl md:text-3xl font-black text-[#1a1a1b] uppercase tracking-tight leading-tight">
                 Have a question about your pet's portrait? We're here to help!
               </h2>
               <p className="text-gray-500 leading-relaxed font-inter text-sm md:text-base">
@@ -43,7 +43,7 @@ export default function ContactUs() {
                 </div>
                 <div>
                   <p className="text-xs font-bold uppercase text-gray-400 mb-1">Email Us</p>
-                  <p className="text-[#1a1a1b] font-bold">hello@printsbypaws.com</p>
+                  <p className="text-[#1a1a1b] font-bold">hello@Peternity.com</p>
                 </div>
               </div>
 
@@ -53,7 +53,7 @@ export default function ContactUs() {
                 </div>
                 <div>
                   <p className="text-xs font-bold uppercase text-gray-400 mb-1">WhatsApp</p>
-                  <p className="text-[#1a1a1b] font-bold">+91 999 999 999 0</p>
+                  <p className="text-[#1a1a1b] font-bold">+91 7999 5194 34</p>
                 </div>
               </div>
             </div>
@@ -70,7 +70,7 @@ export default function ContactUs() {
           </div>
           
           <div className="bg-white border-2 border-[#1a1a1b] rounded-3xl p-8 md:p-12 shadow-[12px_12px_0px_0px_rgba(168,123,98,0.1)]">
-            <h3 className="text-xl font-black text-[#1a1a1b] uppercase italic tracking-tight mb-8">Send us a message</h3>
+            <h3 className="text-xl font-black text-[#1a1a1b] uppercase tracking-tight mb-8">Send us a message</h3>
             <form className="space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 ml-1">Name</label>
