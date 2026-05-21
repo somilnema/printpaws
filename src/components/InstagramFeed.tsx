@@ -2,6 +2,7 @@
 
 import React, { useRef, useState } from "react";
 import { Heart, Volume2, VolumeX, Sparkles } from "lucide-react";
+import { getCloudinaryUrl } from "@/utils/cloudinary";
 
 export function InstagramFeed() {
   const videoRef1 = useRef<HTMLVideoElement>(null);
@@ -56,14 +57,9 @@ export function InstagramFeed() {
               Every time you turn your pet into a memory, we donate a portion of the proceeds to feed stray and shelter animals. Because love for animals shouldn’t stop at just one.
             </p>
 
-            <div className="w-full flex flex-col sm:flex-row items-center gap-4 pt-2">
-              <button className="w-full sm:w-auto bg-[#1a1a1b] hover:bg-[#2A2A2B] text-white px-8 py-4 rounded-xl font-bold text-xs tracking-widest transition-all shadow-md hover:-translate-y-0.5 active:scale-[0.98] uppercase">
-                Make It Count
-              </button>
-              <div className="flex flex-col items-center lg:items-start">
-                <span className="text-xs font-bold text-[#A87B62] tracking-wider uppercase">Active Mission</span>
-                <span className="text-[10px] text-gray-400 font-medium font-inter">20,432+ Meals Donated</span>
-              </div>
+            <div className="w-full flex flex-col items-center lg:items-start gap-1 pt-2">
+              <span className="text-xs font-bold text-[#A87B62] tracking-wider uppercase">Active Mission</span>
+              <span className="text-[10px] text-gray-400 font-medium font-inter">456+ Meals Donated</span>
             </div>
           </div>
 
@@ -76,7 +72,7 @@ export function InstagramFeed() {
             >
               <video
                 ref={videoRef1}
-                src="/socialproof/Social proof video -1.mp4"
+                src={getCloudinaryUrl("socialproof/Social proof video -1.mp4")}
                 autoPlay
                 muted
                 loop
@@ -100,8 +96,7 @@ export function InstagramFeed() {
                 
                 {/* Bottom Caption Pill */}
                 <div className="bg-black/75 backdrop-blur-sm p-4 rounded-2xl border border-white/10 transform transition-all duration-300 text-white">
-                  <p className="text-[10px] font-bold tracking-widest uppercase text-[#FAF7F2] mb-0.5">Luna's Reveal</p>
-                  <p className="text-[9px] text-gray-300 font-inter font-medium leading-tight">"Oh my god, it looks exactly like her!"</p>
+                  <p className="text-[9px] text-gray-300 font-inter font-medium leading-tight">"Every portrait ordered feeds a hungry shelter pup! 🐾"</p>
                 </div>
               </div>
             </div>
@@ -113,7 +108,7 @@ export function InstagramFeed() {
             >
               <video
                 ref={videoRef2}
-                src="/socialproof/Social proof video - 2.mp4"
+                src={getCloudinaryUrl("socialproof/Social proof video - 2.mp4")}
                 autoPlay
                 muted
                 loop
@@ -137,8 +132,7 @@ export function InstagramFeed() {
 
                 {/* Bottom Caption Pill */}
                 <div className="bg-black/75 backdrop-blur-sm p-4 rounded-2xl border border-white/10 transform transition-all duration-300 text-white">
-                  <p className="text-[10px] font-bold tracking-widest uppercase text-[#FAF7F2] mb-0.5">Milo's Reaction</p>
-                  <p className="text-[9px] text-gray-300 font-inter font-medium leading-tight">"The best gift we have ever received."</p>
+                  <p className="text-[9px] text-gray-300 font-inter font-medium leading-tight">"Helping stray & shelter animals, one meal at a time! ❤️"</p>
                 </div>
               </div>
             </div>
