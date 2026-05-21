@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
+import { getCloudinaryUrl } from "@/utils/cloudinary";
 
 const FEATURES = [
   {
@@ -26,7 +27,7 @@ const FEATURES = [
 
 export function FeatureSections() {
   return (
-    <div className="py-20 md:py-32 space-y-24 md:space-y-40">
+    <div className="pt-2 pb-20 md:pt-16 md:pb-32 space-y-16 md:space-y-40">
       {FEATURES.map((feature, i) => (
         <section key={i} className="container mx-auto px-6">
           <div className={`flex flex-col ${feature.reverse ? 'lg:flex-row-reverse' : 'lg:flex-row'} items-center gap-12 lg:gap-24`}>
@@ -68,14 +69,14 @@ export function FeatureSections() {
                     playsInline
                     className="absolute inset-0 w-full h-full object-cover"
                   >
-                    <source src={feature.video} type="video/mp4" />
+                    <source src={getCloudinaryUrl(feature.video)} type="video/mp4" />
                     Your browser does not support the video tag.
                   </video>
                 </div>
               ) : (
                 <div className="relative w-full h-[400px] md:h-[580px] rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.1)]">
                   <Image
-                    src={feature.image || ""}
+                    src={getCloudinaryUrl(feature.image || "")}
                     alt={feature.title}
                     fill
                     sizes="(max-width: 1024px) 100vw, 50vw"
