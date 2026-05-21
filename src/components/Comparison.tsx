@@ -3,11 +3,11 @@
 import { Check, X } from "lucide-react";
 
 const COMPARISON_DATA = [
-  { feature: "Preview Before Printing", printsByPaws: true, others: false },
-  { feature: "Unlimited Revisions", printsByPaws: true, others: false },
-  { feature: "Feels Like Them", printsByPaws: true, others: false },
-  { feature: "Made to Last", printsByPaws: true, others: false },
-  { feature: "Free Shipping Across India", printsByPaws: true, others: false },
+  { feature: "Preview Before Printing", Peternity: true, others: false },
+  { feature: "Unlimited Revisions", Peternity: true, others: false },
+  { feature: "Feels Like Them", Peternity: true, others: false },
+  { feature: "Made to Last", Peternity: true, others: false },
+  { feature: "Free Shipping Across India", Peternity: true, others: false },
 ];
 
 export function Comparison() {
@@ -46,7 +46,7 @@ export function Comparison() {
                       </td>
                       <td className="py-4 md:py-3 px-3 md:px-6 text-center bg-primary/90 text-white shadow-[5px_0_15px_rgba(168,123,98,0.05),-5px_0_15px_rgba(168,123,98,0.05)] border-b border-white/10">
                         <div className="flex justify-center scale-90 md:scale-90">
-                          {row.printsByPaws ? (
+                          {row.Peternity ? (
                             <div className="w-8 h-8 md:w-8 md:h-8 rounded-full bg-white/20 flex items-center justify-center">
                               <Check className="text-white" size={20} strokeWidth={3} />
                             </div>
