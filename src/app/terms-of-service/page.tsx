@@ -1,38 +1,82 @@
 import React from 'react';
 import { PolicyLayout } from '@/components/PolicyLayout';
+import { FileText, Award, Camera, UserCheck } from "lucide-react";
 
 export default function TermsOfService() {
   return (
     <PolicyLayout title="Terms of Service">
-      <div className="prose prose-slate max-w-none space-y-12 text-gray-700 leading-relaxed font-inter">
-        <section className="space-y-4">
-          <p className="text-xl italic font-bold text-primary">By using the PrintsByPaws website, you agree to be bound by these Terms of Service and all applicable laws and regulations.</p>
-        </section>
+      <div className="space-y-12 text-gray-700 leading-relaxed font-inter">
+        {/* Top Summary Banner */}
+        <div className="bg-[#fcf8f5] border border-[#f0e4db] rounded-[1.5rem] p-6 sm:p-8 flex flex-col sm:flex-row gap-6 items-center sm:items-start text-center sm:text-left">
+          <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center text-primary flex-shrink-0">
+             <FileText size={28} />
+          </div>
+          <div className="space-y-2">
+             <h3 className="text-[#1a1a1b] font-black uppercase text-base tracking-wider font-playfair">Agreement to Terms</h3>
+             <p className="text-gray-600 text-sm font-inter">
+                By purchasing from Peternity, you agree to comply with our Terms of Service. We promise to deliver high-quality, hand-drawn digital artwork under clear and fair terms.
+             </p>
+          </div>
+        </div>
 
+        {/* Visual Pillars */}
+        <div className="space-y-6">
+          <h3 className="text-xl font-black text-[#1a1a1b] uppercase tracking-tight font-playfair border-b border-gray-100 pb-2">
+            Terms Overview
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+              <div className="w-10 h-10 bg-[#A87B62]/10 text-primary rounded-xl flex items-center justify-center mb-4">
+                <Award size={20} />
+              </div>
+              <h4 className="font-bold text-[#1a1a1b] mb-2 uppercase text-xs font-playfair tracking-wider">Art Ownership</h4>
+              <p className="text-[11px] text-gray-500 leading-relaxed font-inter">
+                Your custom pet portrait is fully owned by you for personal use. Commercial resale or distribution of the design requires permission.
+              </p>
+            </div>
+
+            <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+              <div className="w-10 h-10 bg-[#A87B62]/10 text-primary rounded-xl flex items-center justify-center mb-4">
+                <Camera size={20} />
+              </div>
+              <h4 className="font-bold text-[#1a1a1b] mb-2 uppercase text-xs font-playfair tracking-wider">Photo Submissions</h4>
+              <p className="text-[11px] text-gray-500 leading-relaxed font-inter">
+                You confirm that you own the rights to the pet photos submitted. We will not use copyrighted photos without authorization.
+              </p>
+            </div>
+
+            <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+              <div className="w-10 h-10 bg-[#A87B62]/10 text-primary rounded-xl flex items-center justify-center mb-4">
+                <UserCheck size={20} />
+              </div>
+              <h4 className="font-bold text-[#1a1a1b] mb-2 uppercase text-xs font-playfair tracking-wider">Personal Use Only</h4>
+              <p className="text-[11px] text-gray-500 leading-relaxed font-inter">
+                Custom designs are built exclusively to decorate your home or be gifted to other pet parents, and cannot be trademarked.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Detailed Sections */}
         <section className="space-y-6">
           <div className="flex items-center gap-4 border-b border-gray-100 pb-2">
             <span className="text-2xl font-black text-[#1a1a1b] opacity-20 italic">01</span>
-            <h2 className="text-2xl font-black text-[#1a1a1b] uppercase italic tracking-tight font-playfair">Artwork Ownership</h2>
+            <h2 className="text-2xl font-black text-[#1a1a1b] uppercase tracking-tight">Artwork Rights & Licensing</h2>
           </div>
-          <p>We provide custom art services based on your photos. PrintsByPaws and its artists retain intellectual property rights to the final stylized designs. Your unique portrait is for personal use only and cannot be resold or used commercially without express written permission.</p>
+          <p className="font-inter text-sm md:text-base text-gray-600 leading-relaxed">
+             We provide custom hand-drawn stylized artwork based directly on your photo. Peternity and its artists retain secondary intellectual rights to use stylized designs for catalog/advertising purposes (excluding identifying details).
+          </p>
         </section>
 
         <section className="space-y-6">
           <div className="flex items-center gap-4 border-b border-gray-100 pb-2">
             <span className="text-2xl font-black text-[#1a1a1b] opacity-20 italic">02</span>
-            <h2 className="text-2xl font-black text-[#1a1a1b] uppercase italic tracking-tight font-playfair">Photo Submissions</h2>
+            <h2 className="text-2xl font-black text-[#1a1a1b] uppercase tracking-tight">Acceptable Photo Submissions</h2>
           </div>
-          <p>You confirm that you have the right to use and submit any photos you provide to us for customization. PrintsByPaws is not responsible for any copyright infringement resulting from user submissions.</p>
+          <p className="font-inter text-sm md:text-base text-gray-600 leading-relaxed">
+             To guarantee high print clarity, please provide high-resolution photos that are well-lit. We are not responsible for copyright violations arising from your submitted images.
+          </p>
         </section>
-
-        <section className="space-y-6 bg-gray-50 p-8 rounded-3xl border border-gray-100">
-           <h2 className="text-xl font-black text-[#1a1a1b] uppercase italic tracking-tight font-playfair mb-4">3. Limitation of Liability</h2>
-           <p className="text-sm font-inter">PrintsByPaws will not be liable for any direct, indirect, incidental, or consequential damages resulting from the use of our services.</p>
-        </section>
-
-        <div className="pt-10 flex flex-col items-center justify-center p-8 border-t border-gray-100">
-          <p className="text-xs font-bold uppercase tracking-widest text-[#1a1a1b] opacity-30 mt-4">Last Updated: April 2026</p>
-        </div>
       </div>
     </PolicyLayout>
   );
