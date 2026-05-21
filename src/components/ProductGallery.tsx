@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
+import { getCloudinaryUrl } from "@/utils/cloudinary";
 
 const GALLERY_IMAGES: Record<string, string[]> = {
   // Pets (Section 1)
@@ -77,6 +78,7 @@ export function ProductGallery() {
   }, []);
 
   const currentImages = GALLERY_IMAGES[selectedCategory] || GALLERY_IMAGES.one;
+  const isMultiPet = selectedCategory === "two" || selectedCategory === "three" || selectedCategory === "four";
 
   const handleDragEnd = (_: any, info: any) => {
     if (selectedCategory === "custom_bg") return;
@@ -122,7 +124,7 @@ export function ProductGallery() {
   return (
     <div className="flex flex-col gap-4">
       {/* Main Image Container */}
-      <div className="relative -mx-4 w-screen aspect-[3/4] md:mx-0 md:w-full md:aspect-square overflow-hidden bg-secondary/5 rounded-none md:rounded-3xl shadow-sm">
+      <div className="relative -mx-4 w-screen aspect-[3/4] md:mx-0 md:w-full md:aspect-square overflow-hidden bg-white rounded-none md:rounded-3xl shadow-sm">
         <AnimatePresence mode="wait">
           {selectedCategory === "custom_bg" ? (
             <motion.div
@@ -142,7 +144,7 @@ export function ProductGallery() {
                 <div 
                   className="w-full h-full p-4 md:p-8 flex items-center justify-center shadow-inner relative"
                   style={{
-                    backgroundImage: `url(${selectedBgImage})`,
+                    backgroundImage: `url(${getCloudinaryUrl(selectedBgImage)})`,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
                   }}
@@ -153,7 +155,7 @@ export function ProductGallery() {
                   {/* Pet Portrait overlay */}
                   <div className="relative w-full h-full flex items-center justify-center">
                     <Image
-                      src="/dog_portrait_closeup_1773940826280.png"
+                      src={getCloudinaryUrl("/dog_portrait_closeup_1773940826280.png")}
                       alt="Pet Portrait Overlay"
                       width={320}
                       height={400}
@@ -177,11 +179,11 @@ export function ProductGallery() {
               onDragEnd={handleDragEnd}
             >
               <Image
-                src={currentImages[activeImage]}
+                src={getCloudinaryUrl(currentImages[activeImage])}
                 alt={`Pet Portrait ${activeImage + 1}`}
                 fill
                 sizes="(max-width: 768px) 100vw, 50vw"
-                className="object-cover select-none"
+                className={`select-none ${isMultiPet ? "object-contain" : "object-cover"}`}
                 priority
               />
             </motion.div>
@@ -228,7 +230,7 @@ export function ProductGallery() {
               }`}
             >
               <Image
-                src={bgItem.path}
+                src={getCloudinaryUrl(bgItem.path)}
                 alt={bgItem.id}
                 fill
                 sizes="96px"
@@ -248,7 +250,7 @@ export function ProductGallery() {
               }`}
             >
               <Image
-                src={img}
+                src={getCloudinaryUrl(img)}
                 alt={`Thumbnail ${idx + 1}`}
                 fill
                 sizes="96px"
