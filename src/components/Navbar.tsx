@@ -1,10 +1,36 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Menu, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 
 export function Navbar() {
+  const [cartCount, setCartCount] = useState(0);
+
+  useEffect(() => {
+    // 1. Initial count check from persisted localStorage cache
+    try {
+      const saved = localStorage.getItem('peternity_cart');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.hasCustomizedItem) {
+          const count = 1 + (parsed.addMagnet ? 1 : 0) + (parsed.addMug ? 1 : 0);
+          setCartCount(count);
+        }
+      }
+    } catch (e) {
+      console.warn("Error reading initial cart cache in Navbar:", e);
+    }
+
+    // 2. Listen to real-time custom cart update events
+    const handleBadgeUpdate = (e: any) => {
+      setCartCount(e.detail || 0);
+    };
+    window.addEventListener('cartBadgeUpdated', handleBadgeUpdate);
+    return () => window.removeEventListener('cartBadgeUpdated', handleBadgeUpdate);
+  }, []);
+
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-100">
       <nav className="container mx-auto px-4 h-16 md:h-24 flex items-center justify-between font-playfair">
@@ -25,11 +51,17 @@ export function Navbar() {
         </Link>
 
         <div className="flex items-center gap-4">
-          <button className="relative p-2 hover:bg-gray-50 rounded-full transition-colors">
-            <ShoppingBag size={24} className="text-secondary" />
-            <span className="absolute top-1 right-1 bg-primary text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
-              0
-            </span>
+          <button 
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent('toggleCart'))}
+            className="relative p-2 hover:bg-gray-50 rounded-full transition-colors group"
+          >
+            <ShoppingBag size={24} className="text-secondary group-hover:scale-105 transition-transform" />
+            {cartCount > 0 && (
+              <span className="absolute top-1 right-1 bg-primary text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold animate-bounce shadow-sm">
+                {cartCount}
+              </span>
+            )}
           </button>
         </div>
       </nav>
