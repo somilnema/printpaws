@@ -37,15 +37,15 @@ export default function ContactUs() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div className="p-8 bg-[#fcf8f5] rounded-3xl border border-[#f0e4db] space-y-4 group hover:border-primary transition-colors">
+              <a href="mailto:Peternity.memories@gmail.com" className="p-8 bg-[#fcf8f5] rounded-3xl border border-[#f0e4db] space-y-4 group hover:border-primary transition-all duration-300 block hover:shadow-md">
                 <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-primary shadow-sm group-hover:scale-110 transition-transform">
                   <Mail size={24} />
                 </div>
                 <div>
-                  <p className="text-xs font-bold uppercase text-gray-400 mb-1">Email Us</p>
-                  <p className="text-[#1a1a1b] font-bold">hello@Peternity.com</p>
+                  <p className="text-xs font-bold uppercase text-gray-400 mb-1 font-inter">Email Us</p>
+                  <p className="text-[#1a1a1b] font-bold font-inter break-all text-sm sm:text-base">Peternity.memories@gmail.com</p>
                 </div>
-              </div>
+              </a>
 
               <div className="p-8 bg-[#fcf8f5] rounded-3xl border border-[#f0e4db] space-y-4 group hover:border-primary transition-colors">
                 <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-[#25D366] shadow-sm group-hover:scale-110 transition-transform">
