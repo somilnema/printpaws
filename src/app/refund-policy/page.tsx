@@ -83,14 +83,14 @@ export default function RefundPolicy() {
              In the rare event that your physical portrait frames arrive damaged, broken, or defective during delivery transit, we got your back!
           </p>
           <p className="font-inter text-sm md:text-base text-gray-600 leading-relaxed">
-             Simply contact our support desk at <strong className="text-[#1a1a1b]">hello@Peternity.com</strong> within <strong className="text-[#1a1a1b]">48 hours of delivery</strong> with photos of the damaged frame/artwork, and we will immediately reprint and ship a replacement to you free of charge.
+             Simply contact our support desk at <strong className="text-[#1a1a1b]">Peternity.memories@gmail.com</strong> within <strong className="text-[#1a1a1b]">48 hours of delivery</strong> with photos of the damaged frame/artwork, and we will immediately reprint and ship a replacement to you free of charge.
           </p>
         </section>
 
         {/* Call to Support */}
         <section className="pt-10 flex flex-col items-center justify-center p-8 border-t border-gray-100">
           <p className="text-sm font-bold uppercase tracking-widest text-gray-400 mb-6 font-playfair">Have any questions about refunds?</p>
-          <a href="mailto:hello@Peternity.com" className="flex items-center gap-3 px-8 py-3 bg-[#1a1a1b] text-white rounded-full font-bold hover:bg-primary transition-all text-sm uppercase tracking-wider">
+          <a href="mailto:Peternity.memories@gmail.com" className="flex items-center gap-3 px-8 py-3 bg-[#1a1a1b] text-white rounded-full font-bold hover:bg-primary transition-all text-sm uppercase tracking-wider">
              <Mail size={18} />
              Contact Support
           </a>
