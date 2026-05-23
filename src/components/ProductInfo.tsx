@@ -44,15 +44,15 @@ const BACKGROUNDS = [
   { name: "Celadon", value: "#b8cfc1", textColor: "#ffffff" },
   { name: "Tea Rosé", value: "#f3ccc6", textColor: "#ffffff" },
   { name: "Black", value: "#000000", textColor: "#ffffff" },
-  { name: "bg7", value: "/bg7.png", textColor: "#ffffff", isImage: true },
-  { name: "bg8", value: "/bg8.png", textColor: "#ffffff", isImage: true },
-  { name: "bg9", value: "/bg9.png", textColor: "#ffffff", isImage: true }
+  // { name: "bg7", value: "/bg7.png", textColor: "#ffffff", isImage: true },
+  // { name: "bg8", value: "/bg8.png", textColor: "#ffffff", isImage: true },
+  // { name: "bg9", value: "/bg9.png", textColor: "#ffffff", isImage: true }
 ];
 
 const ADD_ONS = [
-  { id: "bowtie_bonus", label: "Bow Tie (Bonus)", image: "/bonus-image/bow-tie.png" },
+  // { id: "bowtie_bonus", label: "Bow Tie (Bonus)", image: "/bonus-image/bow-tie.png" },
   { id: "halo_effect", label: "Halo Effect", image: "/bonus-image/halo-effect.png" },
-  { id: "heart", label: "Heart", image: "/bonus-image/heart.png" },
+  // { id: "heart", label: "Heart", image: "/bonus-image/heart.png" },
 ];
 
 export function ProductInfo() {
