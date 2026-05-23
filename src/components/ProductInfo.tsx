@@ -1315,13 +1315,12 @@ export function ProductInfo() {
                       </div>
                     </div>
 
-                    {/* You might like... Cross-Sells Section */}
+                    {/* You might like... Cross-Sells Section commented out
                     <div className="bg-[#A87B62] rounded-[2rem] p-5 space-y-4 shadow-sm text-white">
                       <h4 className="text-center font-black uppercase tracking-widest text-xs font-inter">
                         You might like...
                       </h4>
 
-                      {/* Magnet Cross-sell Card */}
                       <div className="bg-white rounded-2xl p-3 flex items-center justify-between gap-3 text-[#1a1a1b]">
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-12 relative rounded-lg overflow-hidden bg-gray-50 border border-gray-100 flex-shrink-0">
@@ -1352,7 +1351,6 @@ export function ProductInfo() {
                         </button>
                       </div>
 
-                      {/* Mug Cross-sell Card */}
                       <div className="bg-white rounded-2xl p-3 flex items-center justify-between gap-3 text-[#1a1a1b]">
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-12 relative rounded-lg overflow-hidden bg-gray-50 border border-gray-100 flex-shrink-0">
@@ -1383,8 +1381,9 @@ export function ProductInfo() {
                         </button>
                       </div>
                     </div>
+                    */}
 
-                    {/* Digital Download Toggle Card */}
+                    {/* Digital Download Toggle Card commented out
                     <div className="bg-[#f8eadd] rounded-3xl p-4 flex items-center justify-between gap-3 border border-[#e5d2c4] text-[#1a1a1b]">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 relative rounded-lg overflow-hidden bg-white/60 border border-[#e5d2c4] flex-shrink-0 flex items-center justify-center">
@@ -1405,6 +1404,7 @@ export function ProductInfo() {
                         <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 ${addDigitalDownload ? 'translate-x-5' : 'translate-x-1'} mt-0.5`} />
                       </button>
                     </div>
+                    */}
                   </>
                 )}
               </div>
