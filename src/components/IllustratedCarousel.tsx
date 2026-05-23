@@ -108,18 +108,7 @@ export function IllustratedCarousel() {
                     />
                   </div>
 
-                  {/* Gradient Overlay for Text Readability */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-300 pointer-events-none" />
-
-                  {/* Sleek bottom overlay for Pet Name */}
-                  <div className="absolute bottom-6 left-6 right-6 transform translate-y-2 opacity-0 group-hover/card:translate-y-0 group-hover/card:opacity-100 transition-all duration-300 flex items-center justify-between pointer-events-none">
-                    <span className="text-white text-lg font-bold tracking-wider uppercase font-playfair drop-shadow-md">
-                      {pet.name}
-                    </span>
-                    <span className="text-white/80 text-[10px] uppercase tracking-widest font-medium border border-white/20 px-3 py-1 rounded-full backdrop-blur-sm">
-                      Portrait
-                    </span>
-                  </div>
+                  {/* Hover overlays removed */}
                 </div>
               ))}
             </div>
