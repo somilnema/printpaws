@@ -37,7 +37,8 @@ const PET_OPTIONS = [
 ];
 
 
-const BACKGROUNDS = [
+type BackgroundType = { name: string; value: string; textColor: string; isImage?: boolean };
+const BACKGROUNDS: BackgroundType[] = [
   { name: "Pearl", value: "#f9f9f7", textColor: "#d1d1cf" },
   { name: "Almond", value: "#f3e4d4", textColor: "#c4a484" },
   { name: "Serenity", value: "#f0e9f9", textColor: "#c4b5d4" },
