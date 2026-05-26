@@ -21,7 +21,7 @@ const STEPS = [
 
 export function HowItWorks() {
   return (
-    <section className="pt-6 pb-12 md:pt-8 md:pb-20 bg-white">
+    <section id="how-it-works" className="pt-6 pb-12 md:pt-8 md:pb-20 bg-white">
       <div className="container mx-auto px-4">
         <div className="bg-white lg:bg-[#f8f9fa] rounded-[2rem] lg:rounded-[3rem] overflow-hidden flex flex-col lg:flex-row shadow-sm border border-gray-100 lg:border-none">
           <div className="w-full lg:w-1/2 flex items-center justify-center p-0 sm:p-6 md:p-10 lg:p-12 bg-[#f8f9fa]">
