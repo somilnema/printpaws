@@ -337,10 +337,12 @@ export function ProductInfo() {
         router.push(`/checkout/success?orderId=${result.orderId}`);
       } else {
         setOrderStatus('error');
+        router.push(`/checkout/failed?reason=${encodeURIComponent(result.error || 'Server failed to record order specifications.')}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Checkout Submit Order Error:", err);
       setOrderStatus('error');
+      router.push(`/checkout/failed?reason=${encodeURIComponent(err.message || 'Failed to submit finalized order data.')}`);
     } finally {
       setIsSubmitting(false);
       setShowSandboxModal(false);
@@ -433,6 +435,7 @@ export function ProductInfo() {
           modal: {
             ondismiss: function () {
               setIsSubmitting(false);
+              router.push("/checkout/failed?reason=dismissed");
             },
           },
         };
@@ -442,9 +445,9 @@ export function ProductInfo() {
       }
     } catch (err: any) {
       console.error("Razorpay Checkout Error:", err);
-      alert(err.message || "Failed to initiate payment. Please retry.");
       setOrderStatus('error');
       setIsSubmitting(false);
+      router.push(`/checkout/failed?reason=${encodeURIComponent(err.message || 'Failed to initiate secure payment portal.')}`);
     }
   };
 
