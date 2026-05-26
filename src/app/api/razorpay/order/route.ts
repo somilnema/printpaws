@@ -31,7 +31,7 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         amount: Math.round(amount * 100), // convert rupees to paise
         currency: "INR",
-        receipt: `receipt_paws_${Date.now()}`,
+        receipt: `receipt_peternity_${Date.now()}`,
       }),
     });
 
