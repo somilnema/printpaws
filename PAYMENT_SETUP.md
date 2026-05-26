@@ -1,4 +1,4 @@
-# Prints By Paws - Payment & SMTP SMTP Setup Guide
+# Peternity - Payment & SMTP Setup Guide
 
 This guide describes how to configure the production credentials for the **Nodemailer SMTP** and **Razorpay Payment Gateway** integrations.
 
