@@ -128,7 +128,7 @@ const REVIEWS: ReviewItem[] = [
 
 export function Reviews() {
   return (
-    <section className="py-16 bg-white font-inter">
+    <section id="reviews" className="py-16 bg-white font-inter">
       <div className="container mx-auto px-4 max-w-5xl">
         {/* Rating Summary Bar */}
         <div className="flex justify-between items-center border-b border-gray-100 pb-6 mb-10">
