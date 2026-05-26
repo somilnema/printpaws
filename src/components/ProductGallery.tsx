@@ -183,7 +183,7 @@ export function ProductGallery() {
                 alt={`Pet Portrait ${activeImage + 1}`}
                 fill
                 sizes="(max-width: 768px) 100vw, 50vw"
-                className={`select-none ${isMultiPet || currentImages[activeImage]?.includes("Main Hero Image") ? "object-contain p-4" : "object-cover"}`}
+                className={`select-none transition-transform duration-300 ${isMultiPet || currentImages[activeImage]?.includes("Main Hero Image") ? "object-contain p-4" : "object-cover"} ${currentImages[activeImage]?.includes("Main Hero Image") ? "scale-[1.15]" : ""}`}
                 priority
               />
             </motion.div>
