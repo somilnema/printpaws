@@ -55,9 +55,9 @@ export function Footer() {
               <h4 className="font-bold uppercase mb-6 tracking-wide">Quick Links</h4>
               <ul className="space-y-4 text-sm font-inter text-white/70">
                 <li><Link href="/" className="hover:text-white transition-colors font-inter">Shop All</Link></li>
-                <li><Link href="#" className="hover:text-white transition-colors font-inter">Reviews</Link></li>
-                <li><Link href="#" className="hover:text-white transition-colors font-inter">How it Works</Link></li>
-                <li><Link href="#" className="hover:text-white transition-colors font-inter">FAQ</Link></li>
+                <li><Link href="/#reviews" className="hover:text-white transition-colors font-inter">Reviews</Link></li>
+                <li><Link href="/#how-it-works" className="hover:text-white transition-colors font-inter">How it Works</Link></li>
+                <li><Link href="/#faq" className="hover:text-white transition-colors font-inter">FAQ</Link></li>
                 <li><Link href="/contact" className="hover:text-white transition-colors font-inter">Contact Us</Link></li>
               </ul>
             </div>
