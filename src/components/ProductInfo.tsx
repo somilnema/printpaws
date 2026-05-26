@@ -415,7 +415,7 @@ export function ProductInfo() {
           key: orderData.keyId,
           amount: Math.round(checkoutTotal * 100), // paise
           currency: "INR",
-          name: "Prints By Paws",
+          name: "Peternity",
           description: "Custom Pet Portrait Masterpiece",
           order_id: orderData.orderId,
           handler: async function (response: any) {
@@ -1567,7 +1567,7 @@ export function ProductInfo() {
 
               {/* Bottom Decorative footer */}
               <div className="bg-gray-50 px-6 py-4 text-center border-t border-gray-100 text-[10px] text-gray-400 font-bold uppercase tracking-wider">
-                Prints By Paws Payment Sandbox
+                Peternity Payment Sandbox
               </div>
             </motion.div>
           </div>

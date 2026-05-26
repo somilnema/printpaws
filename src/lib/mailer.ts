@@ -29,7 +29,7 @@ export const sendOrderEmail = async (orderData: any) => {
   const razorpayPaymentId = orderData.razorpayPaymentId || orderData.razorpay_payment_id || "";
   const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER || "";
 
-  const subject = `🐾 Order Confirmed! Prints By Paws Masterpiece #${id.slice(0, 8).toUpperCase()}`;
+  const subject = `🐾 Order Confirmed! Peternity Masterpiece #${id.slice(0, 8).toUpperCase()}`;
   
   const html = `
     <div style="background-color: #fcf9f6; padding: 40px 20px; font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #2C2623; line-height: 1.5;">
@@ -40,7 +40,7 @@ export const sendOrderEmail = async (orderData: any) => {
         
         <!-- Premium Header Area -->
         <div style="padding: 35px 40px 25px; text-align: center;">
-          <div style="font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: #B38E75; font-weight: 700; margin-bottom: 8px;">Prints By Paws</div>
+          <div style="font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: #B38E75; font-weight: 700; margin-bottom: 8px;">Peternity</div>
           <h1 style="font-size: 26px; margin: 0; color: #2C2623; font-weight: 800;">Masterpiece Confirmed! 🐾</h1>
           <p style="color: #6E6259; font-size: 14px; margin-top: 10px; margin-bottom: 0; line-height: 1.6;">
             We have received your custom order details. Our master artists are ready to transform your uploaded photo into a magnificent, premium portrait!
@@ -135,14 +135,14 @@ export const sendOrderEmail = async (orderData: any) => {
         <div style="padding: 10px 40px 35px; font-size: 13px; color: #6E6259; border-top: 1px solid #FAF8F5; margin-top: 20px; line-height: 1.6;">
           <p style="margin: 5px 0;"><b>Customer Contact:</b> ${customerEmail}</p>
           <p style="margin: 15px 0 5px 0; font-size: 12px; color: #8A6651;">
-            <b>Next Steps:</b> Our team of artists will craft a draft of your portrait and share it with you for approval. If you need to make any alterations to your customized selections, please reach out to <a href="mailto:support@printsbypaws.com" style="color: #B38E75; text-decoration: none; font-weight: 700;">support@printsbypaws.com</a> within 12 hours.
+            <b>Next Steps:</b> Our team of artists will craft a draft of your portrait and share it with you for approval. If you need to make any alterations to your customized selections, please reach out to <a href="mailto:support@peternity.com" style="color: #B38E75; text-decoration: none; font-weight: 700;">support@peternity.com</a> within 12 hours.
           </p>
         </div>
 
         <!-- Branding Footer -->
         <div style="background-color: #FAF8F5; padding: 30px 40px; text-align: center; border-top: 1px solid #efece8;">
           <p style="margin: 0; font-size: 12px; color: #8A6651; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;">✨ Made with Love for Pet Families ✨</p>
-          <p style="margin: 8px 0 0; font-size: 11px; color: #A0948D;">© 2026 Prints By Paws. All rights reserved.</p>
+          <p style="margin: 8px 0 0; font-size: 11px; color: #A0948D;">© 2026 Peternity. All rights reserved.</p>
         </div>
 
       </div>
@@ -159,7 +159,7 @@ export const sendOrderEmail = async (orderData: any) => {
         
         <!-- Premium Header Area -->
         <div style="padding: 35px 40px 25px; text-align: center;">
-          <div style="font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: #D4AF37; font-weight: 700; margin-bottom: 8px;">Prints By Paws Admin</div>
+          <div style="font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: #D4AF37; font-weight: 700; margin-bottom: 8px;">Peternity Admin</div>
           <h1 style="font-size: 26px; margin: 0; color: #FFFFFF; font-weight: 800;">🚨 NEW ORDER RECEIVED!</h1>
           <p style="color: #A0A0A0; font-size: 14px; margin-top: 10px; margin-bottom: 0; line-height: 1.6;">
             A new masterpiece has been purchased and is ready for production. Below are the design specifications and original image.
@@ -253,7 +253,7 @@ export const sendOrderEmail = async (orderData: any) => {
 
         <!-- Branding Footer -->
         <div style="background-color: #151515; padding: 30px 40px; text-align: center; border-top: 1px solid #222222;">
-          <p style="margin: 0; font-size: 12px; color: #D4AF37; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;">⚡ Prints By Paws Portal ⚡</p>
+          <p style="margin: 0; font-size: 12px; color: #D4AF37; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;">⚡ Peternity Portal ⚡</p>
         </div>
 
       </div>
@@ -261,16 +261,16 @@ export const sendOrderEmail = async (orderData: any) => {
   `;
 
   const customerMailOptions = {
-    from: process.env.EMAIL_USER || "noreply@printsbypaws.com",
+    from: process.env.EMAIL_USER || "noreply@peternity.com",
     to: customerEmail,
     subject: subject,
     html: html,
   };
 
   const adminMailOptions = {
-    from: process.env.EMAIL_USER || "noreply@printsbypaws.com",
+    from: process.env.EMAIL_USER || "noreply@peternity.com",
     to: adminEmail,
-    subject: `🚨 NEW ORDER RECEIVED! Prints By Paws Masterpiece #${id.slice(0, 8).toUpperCase()}`,
+    subject: `🚨 NEW ORDER RECEIVED! Peternity Masterpiece #${id.slice(0, 8).toUpperCase()}`,
     html: adminHtml,
   };
 
