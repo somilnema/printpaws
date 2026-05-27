@@ -1,6 +1,4 @@
-import React from 'react';
-import { Mail, MessageCircle, Clock, MapPin, Star } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Mail, MessageCircle, Clock, Star } from 'lucide-react';
 
 export default function ContactUs() {
   return (
