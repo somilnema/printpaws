@@ -160,7 +160,6 @@ export function ProductInfo() {
     selectedFile
   ]);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const testimonials = [
@@ -286,7 +285,7 @@ export function ProductInfo() {
           const fileName = `${Math.random()}.${fileExt}`;
           const filePath = `orders/${Date.now()}-${fileName}`;
 
-          const { data: uploadData, error: uploadError } = await supabase.storage
+          const { error: uploadError } = await supabase.storage
             .from('pet-photos')
             .upload(filePath, selectedFile);
 
@@ -1576,7 +1575,7 @@ export function ProductInfo() {
 
       {/* Floating WhatsApp Button */}
       <a
-        href="https://wa.me/919999999999?text=Hi!%20I'm%20customizing%20a%20pet%20portrait%20and%20had%20a%20question!"
+        href="https://wa.me/917999519434?text=Hi!%20I'm%20customizing%20a%20pet%20portrait%20and%20had%20a%20question!"
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-6 right-6 z-[9999] bg-[#25D366] text-white w-14 h-14 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all cursor-pointer"
