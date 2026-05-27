@@ -2,7 +2,7 @@
 
 import React, { Suspense } from 'react';
 import { motion } from 'framer-motion';
-import { XCircle, RefreshCw, AlertTriangle, ShieldAlert, ArrowRight, HelpCircle, HelpCircleIcon } from 'lucide-react';
+import { XCircle, RefreshCw, AlertTriangle, HelpCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
@@ -104,19 +104,19 @@ function FailedContent() {
            transition={{ delay: 0.4 }}
            className="mt-10 space-y-4 flex flex-col items-center"
         >
-           <Link 
+           <a 
              href="/" 
              className="group flex items-center gap-3 px-8 py-4.5 bg-[#1a1a1b] text-white rounded-2xl font-bold uppercase tracking-widest text-xs hover:bg-[#E11D48] transition-all shadow-lg active:scale-95"
            >
               Try Checking Out Again
               <RefreshCw size={14} className="group-hover:rotate-180 transition-transform duration-500" />
-           </Link>
-           <Link 
+           </a>
+           <a 
              href="/contact" 
              className="text-xs font-bold text-gray-400 hover:text-black uppercase tracking-wider transition-colors flex items-center gap-1.5"
            >
              <HelpCircle size={14} /> Need Help? Contact Support
-           </Link>
+           </a>
         </motion.div>
       </div>
     </div>
