@@ -1,9 +1,7 @@
 "use client";
 
-import React from "react";
-import { Star, ChevronDown, SlidersHorizontal, Check } from "lucide-react";
+import { Star, Check } from "lucide-react";
 import Image from "next/image";
-import { getCloudinaryUrl } from "@/utils/cloudinary";
 
 interface ReviewItem {
   name: string;
