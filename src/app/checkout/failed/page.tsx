@@ -3,7 +3,6 @@
 import React, { Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { XCircle, RefreshCw, AlertTriangle, HelpCircle } from 'lucide-react';
-import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
 function FailedContent() {
