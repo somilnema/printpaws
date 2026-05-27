@@ -2,7 +2,7 @@
 
 import React, { Suspense, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { CheckCircle, Package, Truck, Mail, ArrowRight, Heart, Sparkles, Star, Loader2, PawPrint } from 'lucide-react';
+import { CheckCircle, Truck, Mail, ArrowRight, Heart, Star, Loader2, PawPrint } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -218,13 +218,13 @@ function SuccessContent() {
            transition={{ delay: 0.6 }}
            className="mt-12 space-y-4 flex flex-col items-center"
         >
-           <Link 
+           <a 
              href="/" 
              className="group flex items-center gap-3 px-8 py-4.5 bg-[#1a1a1b] text-white rounded-2xl font-bold uppercase tracking-widest text-xs hover:bg-primary transition-all shadow-lg active:scale-95"
            >
               Back to Store
               <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-           </Link>
+           </a>
            <p className="text-[9px] font-bold uppercase text-gray-400 tracking-widest">
              Follow us @Peternity
            </p>
