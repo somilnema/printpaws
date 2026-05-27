@@ -32,14 +32,14 @@ export const sendOrderEmail = async (orderData: any) => {
   const subject = `🐾 Order Confirmed! Peternity Masterpiece #${id.slice(0, 8).toUpperCase()}`;
   
   const html = `
-    <div style="background-color: #fcf9f6; padding: 40px 20px; font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #2C2623; line-height: 1.5;">
+    <div style="background-color: #fcf9f6; padding: 20px 10px; font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #2C2623; line-height: 1.5;">
       <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 30px rgba(180, 142, 117, 0.15); border: 1px solid #f3ece5;">
         
         <!-- Top Decorative Gradient Bar -->
         <div style="background: linear-gradient(135deg, #B38E75 0%, #8A6651 100%); height: 8px;"></div>
         
         <!-- Premium Header Area -->
-        <div style="padding: 35px 40px 25px; text-align: center;">
+        <div style="padding: 35px 20px 25px; text-align: center;">
           <div style="font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: #B38E75; font-weight: 700; margin-bottom: 8px;">Peternity</div>
           <h1 style="font-size: 26px; margin: 0; color: #2C2623; font-weight: 800;">Masterpiece Confirmed! 🐾</h1>
           <p style="color: #6E6259; font-size: 14px; margin-top: 10px; margin-bottom: 0; line-height: 1.6;">
@@ -48,14 +48,14 @@ export const sendOrderEmail = async (orderData: any) => {
         </div>
 
         <!-- Sleek Order Identifier Box -->
-        <div style="margin: 0 40px; padding: 15px 20px; background-color: #FAF8F5; border-radius: 12px; border: 1px dashed #EADFC9; text-align: center;">
+        <div style="margin: 0 20px; padding: 15px 20px; background-color: #FAF8F5; border-radius: 12px; border: 1px dashed #EADFC9; text-align: center;">
           <span style="font-size: 11px; color: #8A6651; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700;">Order Confirmation ID</span>
           <div style="font-size: 18px; font-weight: 700; color: #2C2623; margin-top: 4px; letter-spacing: 0.5px;">#${id.slice(0, 8).toUpperCase()}</div>
         </div>
 
         <!-- High-Definition Image Highlight Box -->
         ${photoUrl ? `
-        <div style="padding: 30px 40px 15px; text-align: center;">
+        <div style="padding: 30px 20px 15px; text-align: center;">
           <h3 style="font-size: 13px; text-transform: uppercase; letter-spacing: 2px; color: #8A6651; margin-bottom: 15px; margin-top: 0; font-weight: 700;">Uploaded Pet Portrait Reference</h3>
           <div style="display: inline-block; padding: 12px; background-color: #ffffff; border-radius: 12px; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06); border: 1px solid #efece8; max-width: 100%;">
             <img src="${photoUrl}" alt="Uploaded Pet Photo" style="max-width: 100%; max-height: 320px; border-radius: 8px; display: block; object-fit: contain; margin: 0 auto;" />
@@ -69,7 +69,7 @@ export const sendOrderEmail = async (orderData: any) => {
         ` : ''}
 
         <!-- Custom Order Specifications -->
-        <div style="padding: 20px 40px 10px;">
+        <div style="padding: 20px 20px 10px;">
           <h3 style="font-size: 13px; text-transform: uppercase; letter-spacing: 2px; color: #8A6651; margin-bottom: 15px; margin-top: 0; font-weight: 700; border-bottom: 2px solid #FAF8F5; padding-bottom: 8px;">Order Details Summary</h3>
           
           <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
@@ -94,10 +94,6 @@ export const sendOrderEmail = async (orderData: any) => {
               <td style="padding: 12px 0; border-bottom: 1px solid #FAF8F5; text-align: right; font-weight: 700; color: #2C2623;">${background}</td>
             </tr>
             <tr>
-              <td style="padding: 12px 0; border-bottom: 1px solid #FAF8F5; color: #6E6259;">Typography Font Style</td>
-              <td style="padding: 12px 0; border-bottom: 1px solid #FAF8F5; text-align: right; font-weight: 700; color: #2C2623;">${font}</td>
-            </tr>
-            <tr>
               <td style="padding: 12px 0; border-bottom: 1px solid #FAF8F5; color: #6E6259;">Custom Art Add-ons</td>
               <td style="padding: 12px 0; border-bottom: 1px solid #FAF8F5; text-align: right; font-weight: 700; color: #2C2623;">${addon}</td>
             </tr>
@@ -115,7 +111,7 @@ export const sendOrderEmail = async (orderData: any) => {
         </div>
 
         <!-- Premium Highlight Total Table Box -->
-        <div style="margin: 25px 40px; padding: 20px; background-color: #FAF8F5; border-radius: 12px; border: 1px solid #EADFC9;">
+        <div style="margin: 25px 20px; padding: 20px; background-color: #FAF8F5; border-radius: 12px; border: 1px solid #EADFC9;">
           <table style="width: 100%; border-collapse: collapse;">
             <tr>
               <td style="vertical-align: middle;">
@@ -132,15 +128,14 @@ export const sendOrderEmail = async (orderData: any) => {
         </div>
 
         <!-- Order Information Footer -->
-        <div style="padding: 10px 40px 35px; font-size: 13px; color: #6E6259; border-top: 1px solid #FAF8F5; margin-top: 20px; line-height: 1.6;">
-          <p style="margin: 5px 0;"><b>Customer Contact:</b> ${customerEmail}</p>
+        <div style="padding: 10px 20px 35px; font-size: 13px; color: #6E6259; border-top: 1px solid #FAF8F5; margin-top: 20px; line-height: 1.6;">
           <p style="margin: 15px 0 5px 0; font-size: 12px; color: #8A6651;">
-            <b>Next Steps:</b> Our team of artists will craft a draft of your portrait and share it with you for approval. If you need to make any alterations to your customized selections, please reach out to <a href="mailto:support@peternity.com" style="color: #B38E75; text-decoration: none; font-weight: 700;">support@peternity.com</a> within 12 hours.
+            <b>Next Steps:</b> Our team of artists will craft a draft of your portrait and share it with you for approval. If you need to make any alterations to your customized selections, please reach out to <a href="mailto:${process.env.EMAIL_USER || 'peternity.memories@gmail.com'}" style="color: #B38E75; text-decoration: none; font-weight: 700;">${process.env.EMAIL_USER || 'peternity.memories@gmail.com'}</a> within 12 hours.
           </p>
         </div>
 
         <!-- Branding Footer -->
-        <div style="background-color: #FAF8F5; padding: 30px 40px; text-align: center; border-top: 1px solid #efece8;">
+        <div style="background-color: #FAF8F5; padding: 30px 20px; text-align: center; border-top: 1px solid #efece8;">
           <p style="margin: 0; font-size: 12px; color: #8A6651; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;">✨ Made with Love for Pet Families ✨</p>
           <p style="margin: 8px 0 0; font-size: 11px; color: #A0948D;">© 2026 Peternity. All rights reserved.</p>
         </div>
@@ -151,14 +146,14 @@ export const sendOrderEmail = async (orderData: any) => {
 
   // 🐾 Beautiful Dark-Theme Owner/Admin Notification Template
   const adminHtml = `
-    <div style="background-color: #121212; padding: 40px 20px; font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #E5E5E5; line-height: 1.5;">
+    <div style="background-color: #121212; padding: 20px 10px; font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #E5E5E5; line-height: 1.5;">
       <div style="max-width: 600px; margin: 0 auto; background-color: #1A1A1A; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5); border: 1px solid #2A2A2A;">
         
         <!-- Top Decorative Gold Bar -->
         <div style="background: linear-gradient(135deg, #D4AF37 0%, #AA7C11 100%); height: 8px;"></div>
         
         <!-- Premium Header Area -->
-        <div style="padding: 35px 40px 25px; text-align: center;">
+        <div style="padding: 35px 20px 25px; text-align: center;">
           <div style="font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: #D4AF37; font-weight: 700; margin-bottom: 8px;">Peternity Admin</div>
           <h1 style="font-size: 26px; margin: 0; color: #FFFFFF; font-weight: 800;">🚨 NEW ORDER RECEIVED!</h1>
           <p style="color: #A0A0A0; font-size: 14px; margin-top: 10px; margin-bottom: 0; line-height: 1.6;">
@@ -167,7 +162,7 @@ export const sendOrderEmail = async (orderData: any) => {
         </div>
 
         <!-- Order ID & Revenue Box -->
-        <div style="margin: 0 40px; padding: 20px; background-color: #222222; border-radius: 12px; border: 1px dashed #D4AF37; text-align: center;">
+        <div style="margin: 0 20px; padding: 20px; background-color: #222222; border-radius: 12px; border: 1px dashed #D4AF37; text-align: center;">
           <table style="width: 100%; border-collapse: collapse;">
             <tr>
               <td style="text-align: left; width: 50%;">
@@ -184,7 +179,7 @@ export const sendOrderEmail = async (orderData: any) => {
 
         <!-- High-Definition Image Reference -->
         ${photoUrl ? `
-        <div style="padding: 30px 40px 15px; text-align: center;">
+        <div style="padding: 30px 20px 15px; text-align: center;">
           <h3 style="font-size: 13px; text-transform: uppercase; letter-spacing: 2px; color: #D4AF37; margin-bottom: 15px; margin-top: 0; font-weight: 700;">Source Artwork Image</h3>
           <div style="display: inline-block; padding: 12px; background-color: #222222; border-radius: 12px; border: 1px solid #333333; max-width: 100%;">
             <img src="${photoUrl}" alt="Uploaded Pet Photo" style="max-width: 100%; max-height: 320px; border-radius: 8px; display: block; object-fit: contain; margin: 0 auto;" />
@@ -198,7 +193,7 @@ export const sendOrderEmail = async (orderData: any) => {
         ` : ''}
 
         <!-- Design Specifications Table -->
-        <div style="padding: 20px 40px 10px;">
+        <div style="padding: 20px 20px 10px;">
           <h3 style="font-size: 13px; text-transform: uppercase; letter-spacing: 2px; color: #D4AF37; margin-bottom: 15px; margin-top: 0; font-weight: 700; border-bottom: 2px solid #222222; padding-bottom: 8px;">Design Specifications</h3>
           
           <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #E5E5E5;">
@@ -223,10 +218,6 @@ export const sendOrderEmail = async (orderData: any) => {
               <td style="padding: 12px 0; border-bottom: 1px solid #222222; text-align: right; font-weight: 700; color: #FFFFFF;">${background}</td>
             </tr>
             <tr>
-              <td style="padding: 12px 0; border-bottom: 1px solid #222222; color: #A0A0A0;">Typography Font Style</td>
-              <td style="padding: 12px 0; border-bottom: 1px solid #222222; text-align: right; font-weight: 700; color: #FFFFFF;">${font}</td>
-            </tr>
-            <tr>
               <td style="padding: 12px 0; border-bottom: 1px solid #222222; color: #A0A0A0;">Custom Art Add-ons</td>
               <td style="padding: 12px 0; border-bottom: 1px solid #222222; text-align: right; font-weight: 700; color: #FFFFFF;">${addon}</td>
             </tr>
@@ -244,7 +235,7 @@ export const sendOrderEmail = async (orderData: any) => {
         </div>
 
         <!-- Customer Contact Footer -->
-        <div style="padding: 20px 40px 35px; font-size: 13px; color: #A0A0A0; border-top: 1px solid #222222; margin-top: 20px; line-height: 1.6;">
+        <div style="padding: 20px 20px 35px; font-size: 13px; color: #A0A0A0; border-top: 1px solid #222222; margin-top: 20px; line-height: 1.6;">
           <p style="margin: 5px 0;"><b>Customer Contact Email:</b> <a href="mailto:${customerEmail}" style="color: #D4AF37; text-decoration: none; font-weight: 700;">${customerEmail}</a></p>
           <p style="margin: 15px 0 5px 0; font-size: 12px; color: #8A6651;">
             <b>Action Required:</b> Assign this order to your portrait designers. Send the initial preview proof to the customer at <b>${customerEmail}</b> once completed.
@@ -252,7 +243,7 @@ export const sendOrderEmail = async (orderData: any) => {
         </div>
 
         <!-- Branding Footer -->
-        <div style="background-color: #151515; padding: 30px 40px; text-align: center; border-top: 1px solid #222222;">
+        <div style="background-color: #151515; padding: 30px 20px; text-align: center; border-top: 1px solid #222222;">
           <p style="margin: 0; font-size: 12px; color: #D4AF37; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;">⚡ Peternity Portal ⚡</p>
         </div>
 
