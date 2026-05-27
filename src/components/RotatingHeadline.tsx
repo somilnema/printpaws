@@ -15,7 +15,7 @@ export function RotatingHeadline() {
   useEffect(() => {
     if (!containerRef.current) return;
     
-    let ctx = gsap.context(() => {
+    const ctx = gsap.context(() => {
       const runCycle = (index: number) => {
         setCurrentText(HEADLINES[index]);
         
