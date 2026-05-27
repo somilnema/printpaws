@@ -3,7 +3,6 @@
 import React, { Suspense, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle, Truck, Mail, ArrowRight, Heart, Star, Loader2, PawPrint } from 'lucide-react';
-import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
