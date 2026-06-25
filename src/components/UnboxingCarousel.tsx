@@ -8,33 +8,51 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const CARDS = [
   {
-    video: "/IMG_3777.MOV",
+    video: "IMG_6005.MOV",
     text: "Unboxing & Final Reveal",
     subtext: "Pure Joy",
     hasPlay: true,
   },
   {
-    video: "/IMG_3780.MOV",
+    video: "IMG_6007.MOV",
     text: "Capturing Every",
     subtext: "Detail",
     hasPlay: true,
   },
   {
-    video: "/IMG_3784.MOV",
+    video: "IMG_6165.MOV",
     text: "A Gift That",
     subtext: "Lasts Forever",
     hasPlay: true,
   },
   {
-    video: "/IMG_3791.MOV",
+    video: "IMG_6181.MOV",
     text: "The Perfect",
     subtext: "Memory",
     hasPlay: true,
   },
   {
-    video: "/IMG_3825.MOV",
+    video: "IMG_6239.MOV",
     text: "Watch them",
     subtext: "React",
+    hasPlay: true,
+  },
+  {
+    video: "IMG_3784 (1).MOV",
+    text: "Real",
+    subtext: "Reaction",
+    hasPlay: true,
+  },
+  {
+    video: "IMG_4486.MOV",
+    text: "Pure",
+    subtext: "Joy",
+    hasPlay: true,
+  },
+  {
+    video: "IMG_5576.MOV",
+    text: "Hand-Painted",
+    subtext: "Details",
     hasPlay: true,
   },
 ];
