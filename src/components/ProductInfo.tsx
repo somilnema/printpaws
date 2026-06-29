@@ -54,7 +54,7 @@ export function ProductInfo() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
   const [portraitStyle, setPortraitStyle] = useState<"framed" | "canvas">("framed");
-  const [selectedSize, setSelectedSize] = useState('12"x16"');
+  const [selectedSize, setSelectedSize] = useState('8"x10"');
   const [selectedFrame, setSelectedFrame] = useState("black");
   const [selectedPets, setSelectedPets] = useState("one");
   const [selectedBg, setSelectedBg] = useState("Pearl");
@@ -475,9 +475,7 @@ export function ProductInfo() {
         <h1 className="hidden lg:block text-5xl lg:text-[56px] font-normal text-[#1a1a1b] leading-tight font-playfair tracking-tight">
           Custom Pet Portrait
         </h1>
-        <h1 className="block lg:hidden text-[28px] font-normal text-[#1a1a1b] leading-tight font-playfair tracking-tight mt-1 mb-1">
-          They're More Than Pets. They're Family...
-        </h1>
+    
         <div className="flex items-center gap-4">
           <span className="text-xl font-medium text-[#1a1a1b] font-inter">Rs. {totalPrice}.00</span>
           <span className="text-[20px] font-medium text-[#A87B62] line-through font-inter opacity-80">Rs. {cutPrice}.00</span>
@@ -561,28 +559,28 @@ export function ProductInfo() {
                   <label className="block text-base font-bold text-[#1a1a1b] font-inter">
                     1. Choose Your Portrait Style
                   </label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-2 gap-3">
                     <button
                       onClick={() => {
                         setPortraitStyle("framed");
                         setSelectedFrame("black");
-                        setSelectedSize('12"x16"');
+                        setSelectedSize('8"x10"');
                         window.dispatchEvent(new CustomEvent('frameSelectionChanged', { detail: "black" }));
                       }}
-                      className={`group relative flex items-center gap-4 p-3.5 rounded-2xl border-[2px] transition-all text-left ${portraitStyle === "framed"
+                      className={`group relative flex flex-col md:flex-row items-center md:items-center gap-2 md:gap-4 p-2 md:p-3.5 rounded-2xl border-[2px] transition-all text-center md:text-left ${portraitStyle === "framed"
                         ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
                         : "border-gray-200 hover:border-gray-300 bg-white"
                         }`}
                     >
-                      <div className="relative w-14 h-14 md:w-16 md:h-16 flex-shrink-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm p-1">
-                        <Image src="/framestyle/black-frame.png" alt="Framed" fill className="object-contain p-1" />
+                      <div className="relative w-16 h-16 flex-shrink-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
+                        <Image src="/framestyle/black-frame.png" alt="Framed" fill className="object-cover" />
                       </div>
-                      <div className="flex-1">
-                        <span className="block font-black text-[#1a1a1b] text-sm">Framed Portrait</span>
-                        <span className="block text-[10px] text-gray-500 font-medium">Ready to Hang • Classic Look</span>
+                      <div className="flex-1 flex flex-col items-center md:items-start w-full">
+                        <span className="block font-black text-[#1a1a1b] text-[11px] md:text-sm">Framed Portrait</span>
+                        <span className="hidden md:block text-[10px] text-gray-500 font-medium">Ready to Hang • Classic Look</span>
                       </div>
-                      <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${portraitStyle === "framed" ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
-                        {portraitStyle === "framed" && <Check size={12} className="text-white" strokeWidth={3} />}
+                      <div className={`absolute top-2 right-2 md:static flex-shrink-0 w-4 h-4 md:w-5 md:h-5 rounded-full border-2 flex items-center justify-center transition-colors ${portraitStyle === "framed" ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
+                        {portraitStyle === "framed" && <Check size={10} className="text-white md:w-3 md:h-3" strokeWidth={3} />}
                       </div>
                     </button>
 
@@ -593,20 +591,20 @@ export function ProductInfo() {
                         setSelectedSize('16"x20"');
                         window.dispatchEvent(new CustomEvent('frameSelectionChanged', { detail: "canva" }));
                       }}
-                      className={`group relative flex items-center gap-4 p-3.5 rounded-2xl border-[2px] transition-all text-left ${portraitStyle === "canvas"
+                      className={`group relative flex flex-col md:flex-row items-center md:items-center gap-2 md:gap-4 p-2 md:p-3.5 rounded-2xl border-[2px] transition-all text-center md:text-left ${portraitStyle === "canvas"
                         ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
                         : "border-gray-200 hover:border-gray-300 bg-white"
                         }`}
                     >
-                      <div className="relative w-14 h-14 md:w-16 md:h-16 flex-shrink-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm p-1">
-                        <Image src="/framestyle/canvas-frame.png" alt="Canvas" fill className="object-contain p-1" />
+                      <div className="relative w-16 h-16 flex-shrink-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
+                        <Image src="/framestyle/canvas-frame.png" alt="Canvas" fill className="object-cover" />
                       </div>
-                      <div className="flex-1">
-                        <span className="block font-black text-[#1a1a1b] text-sm">Canvas Portrait</span>
-                        <span className="block text-[10px] text-gray-500 font-medium">Gallery Wrapped • Premium</span>
+                      <div className="flex-1 flex flex-col items-center md:items-start w-full">
+                        <span className="block font-black text-[#1a1a1b] text-[11px] md:text-sm">Canvas Portrait</span>
+                        <span className="hidden md:block text-[10px] text-gray-500 font-medium">Gallery Wrapped • Premium</span>
                       </div>
-                      <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${portraitStyle === "canvas" ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
-                        {portraitStyle === "canvas" && <Check size={12} className="text-white" strokeWidth={3} />}
+                      <div className={`absolute top-2 right-2 md:static flex-shrink-0 w-4 h-4 md:w-5 md:h-5 rounded-full border-2 flex items-center justify-center transition-colors ${portraitStyle === "canvas" ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
+                        {portraitStyle === "canvas" && <Check size={10} className="text-white md:w-3 md:h-3" strokeWidth={3} />}
                       </div>
                     </button>
                   </div>
@@ -687,7 +685,7 @@ export function ProductInfo() {
                   <label className="block text-base font-bold text-[#1a1a1b] font-inter">
                     3. Number of Pets
                   </label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     {PET_OPTIONS.map((pet) => (
                       <button
                         key={pet.id}
@@ -695,24 +693,24 @@ export function ProductInfo() {
                           setSelectedPets(pet.id);
                           window.dispatchEvent(new CustomEvent('petSelectionChanged', { detail: pet.id }));
                         }}
-                        className={`group relative flex items-center justify-between p-3.5 rounded-2xl border-[2px] transition-all overflow-hidden ${selectedPets === pet.id
+                        className={`group relative flex flex-col md:flex-row items-center md:items-center justify-between gap-2 md:gap-4 p-2 md:p-3.5 rounded-2xl border-[2px] transition-all overflow-hidden ${selectedPets === pet.id
                           ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
                           : "border-gray-200 hover:border-gray-300 bg-white"
                           }`}
                       >
-                        <div className="flex items-center gap-4">
-                           <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl overflow-hidden bg-gray-50 border border-gray-100 flex-shrink-0 relative shadow-sm">
-                             <Image src={pet.image} alt={pet.label} fill className="object-contain p-1" />
+                        <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4 w-full">
+                           <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl overflow-hidden bg-gray-50 border border-gray-100 flex-shrink-0 relative shadow-sm">
+                             <Image src={pet.image} alt={pet.label} fill className="object-cover" />
                            </div>
-                           <div className="text-left">
-                             <span className="block font-black text-sm text-[#1a1a1b]">{pet.label} Pet{pet.id !== "one" ? "s" : ""}</span>
-                             <span className="block text-[10px] font-bold text-gray-500 uppercase mt-0.5">
+                           <div className="text-center md:text-left flex-1">
+                             <span className="block font-black text-[11px] md:text-sm text-[#1a1a1b]">{pet.label} Pet{pet.id !== "one" ? "s" : ""}</span>
+                             <span className="hidden md:block text-[10px] font-bold text-gray-500 uppercase mt-0.5">
                                {pet.id === "one" ? "Included" : pet.id === "two" ? "+₹300" : pet.id === "three" ? "+₹600" : "+Contact Us"}
                              </span>
                            </div>
                         </div>
-                        <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedPets === pet.id ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
-                          {selectedPets === pet.id && <Check size={12} className="text-white" strokeWidth={3} />}
+                        <div className={`absolute top-2 right-2 md:static flex-shrink-0 w-4 h-4 md:w-5 md:h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedPets === pet.id ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
+                          {selectedPets === pet.id && <Check size={10} className="text-white md:w-3 md:h-3" strokeWidth={3} />}
                         </div>
                       </button>
                     ))}

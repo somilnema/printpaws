@@ -27,7 +27,7 @@ const REVIEWS: ReviewItem[] = [
     date: "12/13/2024",
     rating: 5,
     text: "I didn’t expect to feel this much. It’s not just a portrait - it genuinely feels like him. I pause every time I walk past it.",
-    image: "/review-image/review-1.jpeg",
+    image: "/new review/IMG-20260628-WA0015.jpg.jpeg",
     hasMultiplePhotos: true,
   },
   {
@@ -37,7 +37,7 @@ const REVIEWS: ReviewItem[] = [
     date: "10/19/2024",
     rating: 5,
     text: "The moment I saw it, I smiled… and then I teared up. You’ve captured something I can’t even explain.",
-    image: "/review-image/review-2.jpeg",
+    image: "/new review/IMG-20260706-WA0006.jpg.jpeg",
     productBox: {
       image: "/review-image/review-box-icon.png",
       text: "One Pet Portrait - Black Frame"
@@ -50,7 +50,7 @@ const REVIEWS: ReviewItem[] = [
     date: "10/17/2024",
     rating: 5,
     text: "It’s crazy how accurate it is. Not just the face - the feeling. It’s like she’s still right here.",
-    image: "/review-image/review-4.png",
+    image: "/new review/IMG-20260706-WA0019.jpg.jpeg",
     itemType: "Pearl / 50x70 cm / 20x28\"",
     productBox: {
       image: "/review-image/review-box-icon.png",
@@ -64,7 +64,7 @@ const REVIEWS: ReviewItem[] = [
     date: "9/24/2024",
     rating: 5,
     text: "I gifted this to my parents and they couldn’t stop looking at it. It’s one of those things that just hits you.",
-    image: "/review-image/review-5.png",
+    image: "/new review/IMG-20260706-WA0020.jpg.jpeg",
   },
   {
     name: "Aarav",
@@ -73,7 +73,7 @@ const REVIEWS: ReviewItem[] = [
     date: "11/02/2024",
     rating: 5,
     text: "I’ve taken hundreds of photos of my dog, but this… this is the one that actually feels like him.",
-    image: "/review-image/review-6.png",
+    image: "/new review/IMG-20260710-WA0004.jpg.jpeg",
     itemType: "Almond / 30x40 cm / 12x16\"",
     productBox: {
       image: "/review-image/review-box-icon.png",
@@ -87,7 +87,7 @@ const REVIEWS: ReviewItem[] = [
     date: "10/29/2024",
     rating: 5,
     text: "The eyes, the expression, everything - it’s so real it almost feels alive. I wasn’t expecting that.",
-    image: "/review-image/review-7.png",
+    image: "/new review/IMG-20260712-WA0010.jpg.jpeg",
     productBox: {
       image: "/review-image/review-box-icon.png",
       text: "One Pet Portrait - Premium Wood"
@@ -100,7 +100,7 @@ const REVIEWS: ReviewItem[] = [
     date: "10/05/2024",
     rating: 5,
     text: "I thought it would be nice. I didn’t think it would mean this much. It’s now my favorite thing in the house.",
-    image: "/review-image/review-8.jpg",
+    image: "/new review/IMG-20260713-WA0001.jpg.jpeg",
     productBox: {
       image: "/review-image/review-box-icon.png",
       text: "One Pet Portrait - Pearl Frame"
@@ -113,6 +113,7 @@ const REVIEWS: ReviewItem[] = [
     date: "11/20/2024",
     rating: 5,
     text: "It’s the kind of thing you don’t just hang on a wall - you feel something every time you look at it.",
+    image: "/new review/IMG-20260714-WA0007.jpg.jpeg",
   },
   {
     name: "Vihaan",
@@ -121,6 +122,7 @@ const REVIEWS: ReviewItem[] = [
     date: "11/15/2024",
     rating: 5,
     text: "My dog passed away last year… and this brought back a part of him I thought I’d lost. I can’t thank you enough.",
+    image: "/new review/WhatsApp Image 2026-07-18 at 12.44.35 AM.jpeg",
   }
 ];
 
