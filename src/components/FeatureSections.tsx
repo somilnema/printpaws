@@ -14,7 +14,7 @@ const FEATURES = [
   {
     title: "We Don’t Just Draw Them. We Get Them Right.",
     description: "Every expression, every little detail - crafted until it doesn’t just look like your pet - it feels like them.",
-    video: "/we-dont-just-draw-them.mp4",
+    video: "we-dont-just-draw-them.mp4",
     reverse: true,
   },
   {

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Playfair_Display, Inter, Great_Vibes } from "next/font/google";
 import "./globals.css";
+import { MetaPixel } from "@/components/MetaPixel";
+import { Suspense } from "react";
 
 const playfair = Playfair_Display({
   variable: "--font-playfair",
@@ -38,7 +40,12 @@ export default function RootLayout({
       lang="en"
       className={`${playfair.variable} ${inter.variable} ${greatVibes.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <Suspense fallback={null}>
+          <MetaPixel />
+        </Suspense>
+      </body>
     </html>
   );
 }

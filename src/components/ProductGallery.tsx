@@ -7,20 +7,24 @@ import { getCloudinaryUrl } from "@/utils/cloudinary";
 
 const GALLERY_IMAGES: Record<string, string[]> = {
   // Pets (Section 1)
-  one: ["/Section 1/Main Hero Image.png", "/Section 1/2.jpg", "/Section 1/3.jpg", "/Section 1/4.jpg", "/Section 1/5.jpg"],
-  two: ["/Section 1/6.jpg", "/Section 1/7.jpg", "/Section 1/8.jpg", "/Section 1/9.jpg"],
-  three: ["/Section 1/10.jpg", "/Section 1/11.jpg", "/Section 1/12.jpg"],
-  four: ["/Section 1/13.jpg", "/Section 1/14.jpg", "/Section 1/11.jpg", "/Section 1/8.jpg"],
+  one: ["Main Image.png","2nd Image.png","3rd Image.png","4th Image (2).png","5th Image.png","6th Image.png","7th Image.png","8th Image.png","9th Image.png","10th Image.png"],
+  two: ["Main Image.png","2nd Image.png","3rd Image.png"],
+  three: ["Main Image.png","2nd Image.png","3rd Image.png"],
+  four: ["Main Image.png","2nd Image.png","3rd Image.png"],
   
   // Frames (Section 2)
-  black: ["/Section 2/1.png", "/Section 2/2.png", "/Section 2/3.png", "/Section 2/4.png"],
-  white: ["/Section 2/5.png", "/Section 2/6.png", "/Section 2/7.png", "/Section 2/8.png"],
-  wood: ["/Section 2/9.png", "/Section 2/10.png", "/Section 2/11.png", "/Section 2/12.png"],
-  canva: ["/Section 2/13.jpg", "/Section 2/14.jpg", "/Section 2/15.jpg", "/Section 2/16.jpg"],
+  black: ["Main Image.png","2nd Image.png"],
+  white: ["Main Image.png","2nd Image.png"],
+  wood: ["Main Image.png","2nd Image.png"],
+  canva: ["6th Image.png", "3rd Image.png"],
+
+  // Sizes
+  framed_size: ["4th Image (2).png"],
+  canvas_size: ["5th Image.png", "3rd Image.png"],
 
   // Backgrounds (Section 3)
-  different: ["/Section 3/1.jpg", "/Section 3/2.webp", "/Section 3/3.jpg", "/Section 3/4.jpg", "/Section 3/5.jpg", "/Section 3/6.jpg"],
-  black_bg: ["/Section 3/7.png", "/Section 3/8.jpg", "/Section 3/9.jpg", "/Section 3/10.jpg", "/Section 3/11.jpg", "/Section 3/12.jpg"],
+  different: ["Main Image.png","2nd Image.png","3rd Image.png"],
+  black_bg: ["Main Image.png","2nd Image.png","3rd Image.png"],
 };
 
 export function ProductGallery() {
@@ -122,9 +126,9 @@ export function ProductGallery() {
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 items-center">
       {/* Main Image Container */}
-      <div className="relative -mx-4 w-screen aspect-[3/4] md:mx-0 md:w-full md:aspect-square overflow-hidden bg-white rounded-none md:rounded-3xl shadow-sm">
+      <div className="relative -mx-4 w-screen aspect-[3/4] md:mx-auto md:w-full md:max-w-[640px] md:aspect-square overflow-hidden bg-white rounded-none md:rounded-3xl shadow-sm">
         <AnimatePresence mode="wait">
           {selectedCategory === "custom_bg" ? (
             <motion.div
@@ -182,8 +186,8 @@ export function ProductGallery() {
                 src={getCloudinaryUrl(currentImages[activeImage])}
                 alt={`Pet Portrait ${activeImage + 1}`}
                 fill
-                sizes="(max-width: 768px) 100vw, 50vw"
-                className={`select-none transition-transform duration-300 ${isMultiPet || currentImages[activeImage]?.includes("Main Hero Image") ? "object-contain p-4" : "object-cover"} ${currentImages[activeImage]?.includes("Main Hero Image") ? "scale-[1.15]" : ""}`}
+                sizes="(max-width: 768px) 100vw, (max-width: 1024px) 640px, 640px"
+                className="select-none transition-transform duration-300 object-cover"
                 priority
               />
             </motion.div>
@@ -209,8 +213,8 @@ export function ProductGallery() {
         )}
       </div>
 
-      {/* Desktop Thumbnails (Hidden on Mobile) */}
-      <div className="hidden md:flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+      {/* Desktop Thumbnails (Hidden) */}
+      <div className="hidden">
         {selectedCategory === "custom_bg" ? (
           [
             { id: "bg7", path: "/bg7.png" },
