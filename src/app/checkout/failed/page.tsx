@@ -59,7 +59,7 @@ function FailedContent() {
             Payment Declined or Cancelled
           </h1>
           <p className="text-gray-500 text-sm md:text-base max-w-lg mx-auto leading-relaxed">
-            Your transaction was not completed successfully. Don't worry—your cart details and configurations are saved, and you have not been charged.
+            Your transaction was not completed successfully. Don't worry - your cart details and configurations are saved, and you have not been charged.
           </p>
         </motion.div>
 
