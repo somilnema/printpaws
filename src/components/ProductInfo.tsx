@@ -22,13 +22,7 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { getCloudinaryUrl } from "@/utils/cloudinary";
 
-const SIZES = ['8"x10"', '12"x16"', '18"x24"', '24"x24"'];
-const FRAMES = [
-  { id: "black", label: "the Black", image: "/framestyle/black-frame.png" },
-  { id: "white", label: "pure White", image: "/framestyle/white-frame.png" },
-  { id: "wood", label: "premium Wood", image: "/framestyle/wooden-frame.png" },
-  { id: "canva", label: "Canvas", image: "/framestyle/canvas-frame.png" },
-];
+
 const PET_OPTIONS = [
   { id: "one", label: "One", image: "/no-of-pets/one-pet.png" },
   { id: "two", label: "Two", image: "/no-of-pets/two-pet.png" },
@@ -59,7 +53,8 @@ const ADD_ONS = [
 export function ProductInfo() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(1);
-  const [selectedSize, setSelectedSize] = useState('8"x10"');
+  const [portraitStyle, setPortraitStyle] = useState<"framed" | "canvas">("framed");
+  const [selectedSize, setSelectedSize] = useState('12"x16"');
   const [selectedFrame, setSelectedFrame] = useState("black");
   const [selectedPets, setSelectedPets] = useState("one");
   const [selectedBg, setSelectedBg] = useState("Pearl");
@@ -69,6 +64,9 @@ export function ProductInfo() {
   const [orderStatus, setOrderStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [petName, setPetName] = useState("");
+  const [memorialText, setMemorialText] = useState("");
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [showPhotoGuide, setShowPhotoGuide] = useState(false);
   const [showCart, setShowCart] = useState(false);
@@ -79,6 +77,19 @@ export function ProductInfo() {
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string>("/feature-detail.png");
   const [showSandboxModal, setShowSandboxModal] = useState(false);
   const [sandboxOrderData, setSandboxOrderData] = useState<any>(null);
+  const [warningMessage, setWarningMessage] = useState<string | null>(null);
+  const [deliveryDates, setDeliveryDates] = useState("");
+
+  useEffect(() => {
+    const today = new Date();
+    const date1 = new Date(today);
+    date1.setDate(today.getDate() + 12);
+    const date2 = new Date(today);
+    date2.setDate(today.getDate() + 13);
+    
+    const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+    setDeliveryDates(`${date1.toLocaleDateString('en-US', options)} - ${date2.toLocaleDateString('en-US', options)}`);
+  }, []);
 
   useEffect(() => {
     if (selectedFile) {
@@ -103,6 +114,7 @@ export function ProductInfo() {
       const saved = localStorage.getItem('peternity_cart');
       if (saved) {
         const parsed = JSON.parse(saved);
+        if (parsed.portraitStyle) setPortraitStyle(parsed.portraitStyle);
         if (parsed.selectedSize) setSelectedSize(parsed.selectedSize);
         if (parsed.selectedFrame) setSelectedFrame(parsed.selectedFrame);
         if (parsed.selectedPets) setSelectedPets(parsed.selectedPets);
@@ -110,6 +122,8 @@ export function ProductInfo() {
         if (parsed.selectedAddOn) setSelectedAddOn(parsed.selectedAddOn);
         if (parsed.giftWrap !== undefined) setGiftWrap(parsed.giftWrap);
         if (parsed.petName) setPetName(parsed.petName);
+        if (parsed.customerName) setCustomerName(parsed.customerName);
+        if (parsed.customerPhone) setCustomerPhone(parsed.customerPhone);
         if (parsed.cartQty) setCartQty(parsed.cartQty);
         if (parsed.addMagnet !== undefined) setAddMagnet(parsed.addMagnet);
         if (parsed.addMug !== undefined) setAddMug(parsed.addMug);
@@ -123,6 +137,7 @@ export function ProductInfo() {
   // 3. Keep cache synchronized in localStorage when configurations change
   useEffect(() => {
     const cartState = {
+      portraitStyle,
       selectedSize,
       selectedFrame,
       selectedPets,
@@ -130,6 +145,9 @@ export function ProductInfo() {
       selectedAddOn,
       giftWrap,
       petName,
+      memorialText,
+      customerName,
+      customerPhone,
       cartQty,
       addMagnet,
       addMug,
@@ -143,9 +161,10 @@ export function ProductInfo() {
       const count = (selectedFile || petName) ? (1 + (addMagnet ? 1 : 0) + (addMug ? 1 : 0)) : 0;
       window.dispatchEvent(new CustomEvent('cartBadgeUpdated', { detail: count }));
     } catch (e) {
-      console.warn("Failed to sync cart to cache:", e);
+      console.warn("Failed to persist cart cache:", e);
     }
   }, [
+    portraitStyle,
     selectedSize,
     selectedFrame,
     selectedPets,
@@ -153,6 +172,9 @@ export function ProductInfo() {
     selectedAddOn,
     giftWrap,
     petName,
+    memorialText,
+    customerName,
+    customerPhone,
     cartQty,
     addMagnet,
     addMug,
@@ -179,47 +201,34 @@ export function ProductInfo() {
   }, [currentStep]);
 
   const calculatePrice = () => {
-    // ── Step 5: Frame Size → this is the BASE (full price for 1 pet) ─────────
-    const sizePrice: Record<string, number> = {
-      '8"x10"':  1499,
-      '12"x16"': 1999,
-      '18"x24"': 2499,
-      '24"x24"': 3000,
-    };
-    let price = sizePrice[selectedSize] ?? 1499;
+    let price = 1499;
+    if (portraitStyle === "framed") {
+      const sizePrice: Record<string, number> = {
+        '8"x10"':  1499,
+        '12"x16"': 1999,
+        '18"x24"': 2499,
+      };
+      price = sizePrice[selectedSize] ?? 1499;
+    } else {
+      const canvasSizePrice: Record<string, number> = {
+        '8"x12"':  1999,
+        '16"x20"': 2999,
+        '20"x30"': 3799,
+      };
+      price = canvasSizePrice[selectedSize] ?? 1999;
+    }
 
-    // ── Step 1: Pet count upgrade (added on top of size price) ───────────────
-    // Each extra pet adds +500 to the size base price
     const petUpgrade: Record<string, number> = {
       one:   0,
-      two:   500,   // +500
-      three: 1000,  // +1000
-      four:  1500,  // +1500
+      two:   300,
+      three: 600,
+      four:  1500,
     };
     price += petUpgrade[selectedPets] ?? 0;
 
-    // ── Step 2: Frame Style ───────────────────────────────────────────────────
-    // Black / White / Wood → no extra charge
-    // Canvas → own price table (18×24 base 3799, 24×24 base 4499) + pet upgrade
-    if (selectedFrame === "canva") {
-      const canvasSizePrice: Record<string, number> = {
-        '18"x24"': 3799,
-        '24"x24"': 4499,
-      };
-      const petIndex = ["one", "two", "three", "four"].indexOf(selectedPets);
-      price = (canvasSizePrice[selectedSize] ?? 3799) + petIndex * 500;
-    }
-
-    // ── Step 3: Background ───────────────────────────────────────────────────
-    // bg7 / bg8 / bg9 → fixed +199 regardless of pet count
     if (["bg7", "bg8", "bg9"].includes(selectedBg)) price += 199;
-
-    // ── Step 4: Bonus Add-on ─────────────────────────────────────────────────
-    // Halo → +200 fixed | Normal (bowtie, heart) → +100 fixed
     if (selectedAddOn === "halo_effect") price += 200;
     else if (selectedAddOn !== "none") price += 100;
-
-    // ── Gift Wrap ────────────────────────────────────────────────────────────
     if (giftWrap) price += 99;
 
     return price;
@@ -229,28 +238,9 @@ export function ProductInfo() {
   const totalPrice = calculatePrice();
   const cutPrice = Math.round(totalPrice / 0.70);
 
-  const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 6));
+  const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 3));
   const prevStep = () => {
-    setCurrentStep(prev => {
-      const nextStepVal = Math.max(prev - 1, 1);
-      
-      // Reset the selection of the step we are leaving when going back
-      if (prev === 2) {
-        setSelectedFrame("black");
-        window.dispatchEvent(new CustomEvent('frameSelectionChanged', { detail: "black" }));
-      } else if (prev === 3) {
-        setSelectedBg("Pearl");
-        window.dispatchEvent(new CustomEvent('backgroundSelectionChanged', { detail: "Pearl" }));
-      } else if (prev === 4) {
-        setSelectedAddOn("none");
-      } else if (prev === 5) {
-        setSelectedSize('8"x10"');
-      } else if (prev === 6) {
-        setGiftWrap(false);
-      }
-      
-      return nextStepVal;
-    });
+    setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
   const loadRazorpayScript = () => {
@@ -303,7 +293,10 @@ export function ProductInfo() {
           background: selectedBg,
           addon: selectedAddOn,
           petName: petName || "My Pet",
+          memorialText: memorialText,
           giftWrap: giftWrap,
+          customerName: customerName,
+          customerPhone: customerPhone,
           customerEmail: customerEmail,
           totalPrice: finalAmount,
           photoUrl: publicUrl,
@@ -339,23 +332,23 @@ export function ProductInfo() {
     setIsSubmitting(true);
     setOrderStatus('idle');
 
-    if (!customerEmail) {
-      alert("Please enter your email to continue!");
-      setCurrentStep(6);
+    if (!customerEmail || !customerName || !customerPhone) {
+      setWarningMessage("Please enter your contact details (Name, Email, Phone) to continue!");
+      setCurrentStep(3);
       setIsSubmitting(false);
       return;
     }
 
     if (!petName) {
-      alert("Please enter your pet's name!");
-      setCurrentStep(6);
+      setWarningMessage("Please enter your pet's name!");
+      setCurrentStep(2);
       setIsSubmitting(false);
       return;
     }
 
     if (!selectedFile) {
-      alert("Please choose a pet photo to continue!");
-      setCurrentStep(6);
+      setWarningMessage("Please choose a pet photo to continue!");
+      setCurrentStep(2);
       setIsSubmitting(false);
       return;
     }
@@ -482,6 +475,9 @@ export function ProductInfo() {
         <h1 className="hidden lg:block text-5xl lg:text-[56px] font-normal text-[#1a1a1b] leading-tight font-playfair tracking-tight">
           Custom Pet Portrait
         </h1>
+        <h1 className="block lg:hidden text-[28px] font-normal text-[#1a1a1b] leading-tight font-playfair tracking-tight mt-1 mb-1">
+          They're More Than Pets. They're Family...
+        </h1>
         <div className="flex items-center gap-4">
           <span className="text-xl font-medium text-[#1a1a1b] font-inter">Rs. {totalPrice}.00</span>
           <span className="text-[20px] font-medium text-[#A87B62] line-through font-inter opacity-80">Rs. {cutPrice}.00</span>
@@ -522,7 +518,7 @@ export function ProductInfo() {
         <div className="flex items-start gap-3 px-2">
           <Package size={18} className="text-[#A87B62] opacity-70 mt-0.5" />
           <p className="text-[12px] text-gray-500 font-medium leading-tight">
-            Choose from <span className="text-[#A87B62] font-bold">20+ unique font options</span>, selected once your artwork is approved.
+            See your artwork first, then choose your favorite font from <span className="text-[#A87B62] font-bold">20+ styles on WhatsApp.</span>
           </p>
         </div>
       </div>
@@ -531,17 +527,17 @@ export function ProductInfo() {
       <div className="mb-6 lg:mb-8">
         <div className="flex items-center justify-between mb-2">
           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-            Step {currentStep} of 6
+            Step {currentStep} of 3
           </span>
           <span className="text-[10px] font-bold text-primary uppercase tracking-widest">
-            {Math.round((currentStep / 6) * 100)}% Complete
+            {Math.round((currentStep / 3) * 100)}% Complete
           </span>
         </div>
         <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden">
           <motion.div 
             className="h-full bg-primary"
             initial={{ width: 0 }}
-            animate={{ width: `${(currentStep / 6) * 100}%` }}
+            animate={{ width: `${(currentStep / 3) * 100}%` }}
             transition={{ duration: 0.5, ease: "circOut" }}
           />
         </div>
@@ -558,38 +554,183 @@ export function ProductInfo() {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
-              <div className="space-y-4">
-                <div className="flex justify-between items-end">
-                  <label className="block text-base font-medium text-[#1a1a1b]">
-                    Step 1: Number of Pets
+              <div className="space-y-6">
+                
+                {/* 1. Portrait Style */}
+                <div className="space-y-3">
+                  <label className="block text-base font-bold text-[#1a1a1b] font-inter">
+                    1. Choose Your Portrait Style
                   </label>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {PET_OPTIONS.map((pet) => (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <button
-                      key={pet.id}
                       onClick={() => {
-                        setSelectedPets(pet.id);
-                        window.dispatchEvent(new CustomEvent('petSelectionChanged', { detail: pet.id }));
+                        setPortraitStyle("framed");
+                        setSelectedFrame("black");
+                        setSelectedSize('12"x16"');
+                        window.dispatchEvent(new CustomEvent('frameSelectionChanged', { detail: "black" }));
                       }}
-                      className={`group relative aspect-square rounded-xl border-[2.5px] transition-all overflow-hidden ${selectedPets === pet.id
-                        ? "border-[#1a1a1b] shadow-xl scale-[1.02] z-10"
-                        : "border-gray-100 hover:border-gray-200"
+                      className={`group relative flex items-center gap-4 p-3.5 rounded-2xl border-[2px] transition-all text-left ${portraitStyle === "framed"
+                        ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
+                        : "border-gray-200 hover:border-gray-300 bg-white"
                         }`}
-                      style={{ backgroundImage: `url(${getCloudinaryUrl(pet.image)})`, backgroundSize: "92%", backgroundRepeat: "no-repeat", backgroundPosition: "center" }}
                     >
-                      <div className={`absolute inset-0 flex items-center justify-center bg-black/40 transition-opacity ${selectedPets === pet.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                        <span className="text-white font-bold uppercase tracking-widest text-[10px]">{pet.label}</span>
+                      <div className="relative w-14 h-14 md:w-16 md:h-16 flex-shrink-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm p-1">
+                        <Image src="/framestyle/black-frame.png" alt="Framed" fill className="object-contain p-1" />
+                      </div>
+                      <div className="flex-1">
+                        <span className="block font-black text-[#1a1a1b] text-sm">Framed Portrait</span>
+                        <span className="block text-[10px] text-gray-500 font-medium">Ready to Hang • Classic Look</span>
+                      </div>
+                      <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${portraitStyle === "framed" ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
+                        {portraitStyle === "framed" && <Check size={12} className="text-white" strokeWidth={3} />}
                       </div>
                     </button>
-                  ))}
+
+                    <button
+                      onClick={() => {
+                        setPortraitStyle("canvas");
+                        setSelectedFrame("canva");
+                        setSelectedSize('16"x20"');
+                        window.dispatchEvent(new CustomEvent('frameSelectionChanged', { detail: "canva" }));
+                      }}
+                      className={`group relative flex items-center gap-4 p-3.5 rounded-2xl border-[2px] transition-all text-left ${portraitStyle === "canvas"
+                        ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
+                        : "border-gray-200 hover:border-gray-300 bg-white"
+                        }`}
+                    >
+                      <div className="relative w-14 h-14 md:w-16 md:h-16 flex-shrink-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm p-1">
+                        <Image src="/framestyle/canvas-frame.png" alt="Canvas" fill className="object-contain p-1" />
+                      </div>
+                      <div className="flex-1">
+                        <span className="block font-black text-[#1a1a1b] text-sm">Canvas Portrait</span>
+                        <span className="block text-[10px] text-gray-500 font-medium">Gallery Wrapped • Premium</span>
+                      </div>
+                      <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${portraitStyle === "canvas" ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
+                        {portraitStyle === "canvas" && <Check size={12} className="text-white" strokeWidth={3} />}
+                      </div>
+                    </button>
+                  </div>
                 </div>
+
+                {/* 2. Choose Your Size */}
+                <div className="space-y-3">
+                  <label className="block text-base font-bold text-[#1a1a1b] font-inter">
+                    2. Choose Your Size
+                  </label>
+                  <div className="flex flex-col gap-3">
+                    {portraitStyle === "framed" ? (
+                      <>
+                        <button onClick={() => setSelectedSize('8"x10"')} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '8"x10"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
+                          <div>
+                            <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">8×10</span></div>
+                            <span className="text-xs font-bold text-gray-500">₹1,499</span>
+                          </div>
+                          <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedSize === '8"x10"' ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
+                            {selectedSize === '8"x10"' && <Check size={12} className="text-white" strokeWidth={3} />}
+                          </div>
+                        </button>
+                        <button onClick={() => setSelectedSize('12"x16"')} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '12"x16"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
+                          <div>
+                            <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">12×16</span><span className="text-[10px] font-black text-white bg-[#A87B62] px-1.5 py-0.5 rounded uppercase tracking-wider">⭐ Most Popular</span></div>
+                            <span className="text-xs font-bold text-gray-500">₹1,999</span>
+                          </div>
+                          <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedSize === '12"x16"' ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
+                            {selectedSize === '12"x16"' && <Check size={12} className="text-white" strokeWidth={3} />}
+                          </div>
+                        </button>
+                        <button onClick={() => setSelectedSize('18"x24"')} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '18"x24"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
+                          <div>
+                            <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">18×24</span></div>
+                            <span className="text-xs font-bold text-gray-500">₹2,499</span>
+                          </div>
+                          <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedSize === '18"x24"' ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
+                            {selectedSize === '18"x24"' && <Check size={12} className="text-white" strokeWidth={3} />}
+                          </div>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button onClick={() => setSelectedSize('8"x12"')} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '8"x12"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
+                          <div>
+                            <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">8×12</span></div>
+                            <span className="text-xs font-bold text-gray-500">₹1,999</span>
+                          </div>
+                          <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedSize === '8"x12"' ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
+                            {selectedSize === '8"x12"' && <Check size={12} className="text-white" strokeWidth={3} />}
+                          </div>
+                        </button>
+                        <button onClick={() => setSelectedSize('16"x20"')} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '16"x20"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
+                          <div>
+                            <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">16×20</span><span className="text-[10px] font-black text-white bg-[#A87B62] px-1.5 py-0.5 rounded uppercase tracking-wider">⭐ Best Seller</span></div>
+                            <span className="text-xs font-bold text-gray-500">₹2,999</span>
+                          </div>
+                          <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedSize === '16"x20"' ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
+                            {selectedSize === '16"x20"' && <Check size={12} className="text-white" strokeWidth={3} />}
+                          </div>
+                        </button>
+                        <button onClick={() => setSelectedSize('20"x30"')} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '20"x30"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
+                          <div>
+                            <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">20×30</span></div>
+                            <span className="text-xs font-bold text-gray-500">₹3,799</span>
+                          </div>
+                          <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedSize === '20"x30"' ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
+                            {selectedSize === '20"x30"' && <Check size={12} className="text-white" strokeWidth={3} />}
+                          </div>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* 3. Number of Pets */}
+                <div className="space-y-3">
+                  <label className="block text-base font-bold text-[#1a1a1b] font-inter">
+                    3. Number of Pets
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {PET_OPTIONS.map((pet) => (
+                      <button
+                        key={pet.id}
+                        onClick={() => {
+                          setSelectedPets(pet.id);
+                          window.dispatchEvent(new CustomEvent('petSelectionChanged', { detail: pet.id }));
+                        }}
+                        className={`group relative flex items-center justify-between p-3.5 rounded-2xl border-[2px] transition-all overflow-hidden ${selectedPets === pet.id
+                          ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
+                          : "border-gray-200 hover:border-gray-300 bg-white"
+                          }`}
+                      >
+                        <div className="flex items-center gap-4">
+                           <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl overflow-hidden bg-gray-50 border border-gray-100 flex-shrink-0 relative shadow-sm">
+                             <Image src={pet.image} alt={pet.label} fill className="object-contain p-1" />
+                           </div>
+                           <div className="text-left">
+                             <span className="block font-black text-sm text-[#1a1a1b]">{pet.label} Pet{pet.id !== "one" ? "s" : ""}</span>
+                             <span className="block text-[10px] font-bold text-gray-500 uppercase mt-0.5">
+                               {pet.id === "one" ? "Included" : pet.id === "two" ? "+₹300" : pet.id === "three" ? "+₹600" : "+Contact Us"}
+                             </span>
+                           </div>
+                        </div>
+                        <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedPets === pet.id ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
+                          {selectedPets === pet.id && <Check size={12} className="text-white" strokeWidth={3} />}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <button 
                   onClick={nextStep}
-                  className="w-full py-4 bg-[#1a1a1b] text-white rounded-xl font-bold uppercase tracking-widest text-sm mt-4 hover:bg-[#2F2F2F] transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
+                  className="w-full py-4 bg-[#1a1a1b] text-white rounded-xl font-black uppercase tracking-widest text-sm mt-6 hover:bg-[#2F2F2F] transition-all shadow-xl shadow-black/10 active:scale-[0.98] flex items-center justify-center gap-2"
                 >
                   Continue <ArrowRight size={18} />
                 </button>
+                <div className="flex items-center justify-center gap-1.5 mt-3 text-gray-500 bg-gray-50/80 py-2.5 rounded-lg border border-gray-100">
+                  <Truck size={14} className="text-[#A87B62]" />
+                  <span className="text-[11px] font-medium tracking-wide uppercase">
+                    Order today, receive it by: <strong className="text-[#1a1a1b] font-black">{deliveryDates}</strong>
+                  </span>
+                </div>
               </div>
             </motion.div>
           )}
@@ -600,155 +741,77 @@ export function ProductInfo() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
+              className="space-y-8"
             >
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <button onClick={prevStep} className="flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-black transition-colors uppercase">
-                    <ArrowLeft size={14} /> Back
-                  </button>
-                  <label className="block text-base font-medium text-[#1a1a1b]">
-                    Step 2: Frame Style
-                  </label>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {FRAMES.map((frame) => (
-                    <button
-                      key={frame.id}
-                      onClick={() => {
-                        setSelectedFrame(frame.id);
-                        // Canvas only supports 18×24 and 24×24 — reset size if needed
-                        if (frame.id === "canva" && !['18"x24"', '24"x24"'].includes(selectedSize)) {
-                          setSelectedSize('18"x24"');
-                        }
-                        window.dispatchEvent(new CustomEvent('frameSelectionChanged', { detail: frame.id }));
-                      }}
-                      className={`group relative aspect-square rounded-xl border-[2.5px] transition-all overflow-hidden ${selectedFrame === frame.id
-                        ? "border-[#1a1a1b] shadow-xl scale-[1.02] z-10"
-                        : "border-gray-100 hover:border-gray-200"
-                        }`}
-                      style={{ backgroundImage: `url(${getCloudinaryUrl(frame.image)})`, backgroundSize: "92%", backgroundRepeat: "no-repeat", backgroundPosition: "center" }}
-                    >
-                      <div className={`absolute inset-0 flex items-center justify-center bg-black/40 transition-opacity ${selectedFrame === frame.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                        <span className="text-white font-bold uppercase tracking-widest text-[10px]">{frame.label}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-                <button 
-                  onClick={nextStep}
-                  className="w-full py-4 bg-[#1a1a1b] text-white rounded-xl font-bold uppercase tracking-widest text-sm mt-4 hover:bg-[#2F2F2F] transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
-                >
-                  Continue <ArrowRight size={18} />
+              <div className="flex justify-between items-center mb-2">
+                <button onClick={prevStep} className="flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-black transition-colors uppercase">
+                  <ArrowLeft size={14} /> Back
                 </button>
+                <label className="block text-base font-medium text-[#1a1a1b]">
+                  Step 2: Customize Your Artwork
+                </label>
               </div>
-            </motion.div>
-          )}
 
-          {currentStep === 3 && (
-            <motion.div
-              key="step3"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
-            >
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <button onClick={prevStep} className="flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-black transition-colors uppercase">
-                    <ArrowLeft size={14} /> Back
-                  </button>
-                  <label className="block text-base font-medium text-[#1a1a1b]">
-                    Step 3: Background Colour
-                  </label>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
+              {/* Background Color */}
+              <div className="space-y-3">
+                <label className="block text-base font-bold text-[#1a1a1b] font-inter">
+                  Background Colour
+                </label>
+                <div className="flex flex-wrap gap-4">
                   {BACKGROUNDS.map((bg) => (
-                    <button
-                      key={bg.name}
-                      onClick={() => {
-                        setSelectedBg(bg.name);
-                        window.dispatchEvent(new CustomEvent('backgroundSelectionChanged', { detail: bg.name }));
-                      }}
-                      className={`group relative aspect-square rounded-xl border-[1.5px] transition-all overflow-hidden flex items-center justify-center shadow-sm ${selectedBg === bg.name
-                        ? "border-[#1a1a1b] scale-[1.02] z-10 shadow-md"
-                        : "border-gray-100 hover:border-gray-200"
-                        }`}
-                      style={{ 
-                        backgroundColor: bg.isImage ? undefined : bg.value,
-                        backgroundImage: bg.isImage ? `url(${bg.value})` : undefined,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center'
-                      }}
-                    >
-                      {!bg.isImage ? (
-                        <span 
-                          className="text-xs font-serif opacity-90 select-none tracking-tight font-bold" 
-                          style={{ 
-                            color: bg.textColor,
-                          }}
-                        >
-                          {bg.name}
-                        </span>
-                      ) : (
-                        <>
-                          {/* Price badge on the right side */}
-                          <div className="absolute top-1.5 right-1.5 z-10">
-                            <span className="text-[8px] font-black text-white bg-black/60 px-1 py-0.5 rounded font-inter tracking-wider">
-                              +199
-                            </span>
+                    <div key={bg.name} className="flex flex-col items-center gap-1.5">
+                      <button
+                        onClick={() => {
+                          setSelectedBg(bg.name);
+                          window.dispatchEvent(new CustomEvent('backgroundSelectionChanged', { detail: bg.name }));
+                        }}
+                        className={`group relative w-12 h-12 rounded-xl border-[2px] transition-all overflow-hidden flex items-center justify-center shadow-sm flex-shrink-0 ${selectedBg === bg.name
+                          ? "border-gray-300 scale-[1.05] shadow-md"
+                          : "border-gray-100 hover:border-gray-200"
+                          }`}
+                        style={{ 
+                          backgroundColor: bg.isImage ? undefined : bg.value,
+                          backgroundImage: bg.isImage ? `url(${bg.value})` : undefined,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center'
+                        }}
+                      >
+                        {selectedBg === bg.name && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/5">
+                            <Check size={20} className={bg.name === "Black" ? "text-white" : "text-[#1a1a1b]"} strokeWidth={3} />
                           </div>
-                          {/* Centered Limited Edition text at the bottom */}
-                          <div className="absolute bottom-1.5 inset-x-0 flex justify-center z-10">
-                            <span className="text-[7px] md:text-[8px] font-black text-white bg-[#A87B62] px-1.5 py-0.5 rounded font-inter tracking-wide uppercase shadow-sm">
-                              Limited Edition
-                            </span>
+                        )}
+                        {bg.isImage && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-[7px] font-black text-white bg-black/60 px-1 py-0.5 rounded font-inter tracking-wider">+199</span>
                           </div>
-                        </>
-                      )}
-                    </button>
+                        )}
+                      </button>
+                      <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest text-center w-12 leading-tight">
+                        {bg.name}
+                      </span>
+                    </div>
                   ))}
                 </div>
-                <button 
-                  onClick={nextStep}
-                  className="w-full py-4 bg-[#1a1a1b] text-white rounded-xl font-bold uppercase tracking-widest text-sm mt-4 hover:bg-[#2F2F2F] transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
-                >
-                  Continue <ArrowRight size={18} />
-                </button>
               </div>
-            </motion.div>
-          )}
 
-          {currentStep === 4 && (
-            <motion.div
-              key="step4"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
-            >
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <button onClick={prevStep} className="flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-black transition-colors uppercase">
-                    <ArrowLeft size={14} /> Back
-                  </button>
-                  <label className="block text-base font-medium text-[#1a1a1b]">
-                    Step 4: Bonus Icon Image
-                  </label>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
+              {/* Add-ons */}
+              <div className="space-y-3">
+                <label className="block text-base font-bold text-[#1a1a1b] font-inter">
+                  Add-on Illustrations
+                </label>
+                <div className="flex flex-wrap gap-3">
                   {ADD_ONS.map((addon) => (
                     <button
                       key={addon.id}
-                      onClick={() => setSelectedAddOn(addon.id)}
-                      className={`group relative aspect-square rounded-xl border-[2.5px] transition-all overflow-hidden ${selectedAddOn === addon.id
-                        ? "border-[#1a1a1b] shadow-xl scale-[1.02] z-10"
+                      onClick={() => setSelectedAddOn(selectedAddOn === addon.id ? "none" : addon.id)}
+                      className={`group relative w-24 h-24 rounded-xl border-[2.5px] transition-all overflow-hidden flex-shrink-0 ${selectedAddOn === addon.id
+                        ? "border-[#1a1a1b] shadow-lg scale-[1.05] z-10"
                         : "border-gray-100 hover:border-gray-200"
                         }`}
                     >
-                      {/* Price badge in the top-right corner of the button */}
                       <div className="absolute top-1.5 right-1.5 z-10">
-                        <span className="text-[8px] font-black text-white bg-black/60 px-1 py-0.5 rounded font-inter tracking-wider">
+                        <span className="text-[7px] font-black text-white bg-black/60 px-1 py-0.5 rounded font-inter tracking-wider">
                           {addon.id === "halo_effect" ? "+199" : "+99"}
                         </span>
                       </div>
@@ -758,163 +821,26 @@ export function ProductInfo() {
                         fill
                         className="object-cover"
                       />
-                      <div className={`absolute inset-0 flex items-center justify-center bg-black/40 transition-opacity ${selectedAddOn === addon.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                        <span className="text-white font-bold uppercase tracking-widest text-[10px]">{addon.label}</span>
+                      <div className={`absolute inset-0 flex items-center justify-center transition-colors ${selectedAddOn === addon.id ? 'bg-black/20' : 'bg-black/0 group-hover:bg-black/10'}`}>
+                        <div className={`absolute bottom-2 text-white font-bold uppercase tracking-widest text-[8px] bg-black/60 px-1.5 py-0.5 rounded transition-opacity ${selectedAddOn === addon.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                          {addon.label}
+                        </div>
                       </div>
                     </button>
                   ))}
                 </div>
-                <div className="flex gap-3 mt-4">
-                  <button 
-                    onClick={() => {
-                      setSelectedAddOn("none");
-                      nextStep();
-                    }}
-                    className="flex-1 py-4 bg-gray-100 text-gray-500 rounded-xl font-bold uppercase tracking-widest text-[10px] md:text-sm hover:bg-gray-200 transition-all shadow-sm active:scale-[0.98]"
-                  >
-                    Skip
-                  </button>
-                  <button 
-                    onClick={nextStep}
-                    className="flex-[2] py-4 bg-[#1a1a1b] text-white rounded-xl font-bold uppercase tracking-widest text-[10px] md:text-sm hover:bg-[#2F2F2F] transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
-                  >
-                    Continue <ArrowRight size={18} />
-                  </button>
-                </div>
               </div>
-            </motion.div>
-          )}
 
-          {currentStep === 5 && (
-            <motion.div
-              key="step5"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
-            >
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <button onClick={prevStep} className="flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-black transition-colors uppercase">
-                    <ArrowLeft size={14} /> Back
-                  </button>
-                  <label className="block text-base font-medium text-[#1a1a1b]">
-                    Step 5: Frame Size
-                  </label>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {(selectedFrame === "canva" ? ['18"x24"', '24"x24"'] : SIZES).map((size) => (
-                    <button
-                      key={size}
-                      onClick={() => setSelectedSize(size)}
-                      className={`w-full py-2.5 rounded-lg border-[1.5px] font-bold transition-all text-[13px] flex justify-between px-4 items-center ${selectedSize === size
-                        ? "border-[#1a1a1b] bg-[#f7f7f7] text-[#1a1a1b] shadow-sm scale-[1.01]"
-                        : "border-gray-200 text-gray-600 bg-white hover:border-gray-300"
-                        }`}
-                    >
-                      <span>{size}</span>
-                      {selectedSize === size && <Check size={18} />}
-                    </button>
-                  ))}
-                </div>
-                <button 
-                  onClick={nextStep}
-                  className="w-full py-4 bg-[#1a1a1b] text-white rounded-xl font-bold uppercase tracking-widest text-sm mt-4 hover:bg-[#2F2F2F] transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
-                >
-                  Continue <ArrowRight size={18} />
-                </button>
-              </div>
-            </motion.div>
-          )}
-
-          {currentStep === 6 && (
-            <motion.div
-              key="step6"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
-            >
-              <div className="space-y-5">
-                <div className="flex justify-between items-center mb-2">
-                  <button onClick={prevStep} className="flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-black transition-colors uppercase">
-                    <ArrowLeft size={14} /> Back
-                  </button>
-                  <label className="block text-base font-medium text-[#1a1a1b]">
-                    Step 6: Final Details
-                  </label>
-                </div>
-
-                {/* Pet Name */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                    Pet's Name
-                  </label>
-                  <input
-                    type="text"
-                    value={petName}
-                    onChange={(e) => setPetName(e.target.value)}
-                    placeholder="Enter pet name..."
-                    className="w-full px-4 py-3 border-[1.5px] border-gray-200 rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-xs"
-                  />
-                </div>
-
-                {/* Email */}
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                    Your Email
-                  </label>
-                  <input
-                    type="email"
-                    value={customerEmail}
-                    onChange={(e) => setCustomerEmail(e.target.value)}
-                    placeholder="order@example.com"
-                    className="w-full px-4 py-3 border-[1.5px] border-gray-200 rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-xs"
-                  />
-                </div>
-
-                {/* Photo Upload */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">
-                      Upload Photo
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setShowPhotoGuide(true)}
-                      className="text-[10px] font-black text-primary hover:text-primary-dark transition-colors uppercase tracking-wider flex items-center gap-1 bg-[#A87B62]/10 px-2 py-0.5 rounded-full"
-                    >
-                      💡 Photo Guide
-                    </button>
-                  </div>
-                  <div className="border-[1.5px] border-dashed border-gray-300 rounded-xl p-4 bg-gray-50/50">
-                    <input 
-                      type="file" 
-                      id="pet-photo-upload"
-                      className="hidden" 
-                      accept="image/*"
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          setSelectedFile(e.target.files[0]);
-                        }
-                      }}
-                    />
-                    <label 
-                      htmlFor="pet-photo-upload"
-                      className="w-full flex items-center justify-center gap-2 py-2.5 bg-white hover:bg-gray-50 text-[#1a1a1b] border-[1.5px] border-gray-200 rounded-lg font-bold transition-all shadow-sm group cursor-pointer text-xs"
-                    >
-                      <Upload size={16} className="group-hover:scale-110 transition-transform" />
-                      {selectedFile ? selectedFile.name.substring(0, 15) + "..." : "CHOOSE IMAGE"}
-                    </label>
-                  </div>
-                </div>
-
-                {/* Gift Wrap */}
+              {/* Gift Wrap */}
+              <div className="space-y-3">
+                <label className="block text-base font-bold text-[#1a1a1b] font-inter">
+                  Gift Wrap
+                </label>
                 <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <ShieldCheck size={20} className="text-primary" />
                     <div>
-                      <p className="text-xs font-bold text-[#1a1a1b] uppercase">Gift Wrap (+Rs. 99)</p>
+                      <p className="text-xs font-bold text-[#1a1a1b] uppercase">Premium Gift Wrap (+Rs. 99)</p>
                       <p className="text-[10px] text-gray-500">Ready to give portrait</p>
                     </div>
                   </div>
@@ -926,30 +852,174 @@ export function ProductInfo() {
                     <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 ${giftWrap ? 'translate-x-5' : 'translate-x-1'} mt-0.5`} />
                   </button>
                 </div>
+              </div>
 
-                <button
-                  type="button"
-                  onClick={handleAddToCartClick}
-                  disabled={isSubmitting}
-                  className={`w-full py-4 rounded-lg font-bold text-base tracking-widest uppercase transition-all shadow-lg active:scale-[0.98] flex items-center justify-center gap-2 ${isSubmitting
-                      ? "bg-gray-400 cursor-not-allowed"
-                      : orderStatus === 'success' ? "bg-green-600" : "bg-[#1a1a1b] hover:bg-[#2F2F2F]"
-                    } text-white`}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      PROCESSING...
-                    </>
-                  ) : orderStatus === 'success' ? (
-                    <>
-                      <Check size={20} />
-                      ORDER PLACED!
-                    </>
-                  ) : (
-                    "ADD TO CART"
-                  )}
+              {/* Names & Text */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                    Pet's Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={petName}
+                    onChange={(e) => setPetName(e.target.value)}
+                    placeholder="E.g. Lola"
+                    className="w-full px-4 py-3 border-[1.5px] border-gray-200 rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                    Memorial Text (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={memorialText}
+                    onChange={(e) => setMemorialText(e.target.value)}
+                    placeholder="E.g. Always in our hearts"
+                    className="w-full px-4 py-3 border-[1.5px] border-gray-200 rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Photo Upload */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">
+                    Upload Photo <span className="text-red-500">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowPhotoGuide(true)}
+                    className="text-[10px] font-black text-primary hover:text-primary-dark transition-colors uppercase tracking-wider flex items-center gap-1 bg-[#A87B62]/10 px-2 py-0.5 rounded-full"
+                  >
+                    💡 Photo Guide
+                  </button>
+                </div>
+                <div className="border-[1.5px] border-dashed border-gray-300 rounded-xl p-4 bg-gray-50/50">
+                  <input 
+                    type="file" 
+                    id="pet-photo-upload"
+                    className="hidden" 
+                    accept="image/*"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setSelectedFile(e.target.files[0]);
+                      }
+                    }}
+                  />
+                  <label 
+                    htmlFor="pet-photo-upload"
+                    className="w-full flex items-center justify-center gap-2 py-2.5 bg-white hover:bg-gray-50 text-[#1a1a1b] border-[1.5px] border-gray-200 rounded-lg font-bold transition-all shadow-sm group cursor-pointer text-sm"
+                  >
+                    <Upload size={18} className="group-hover:scale-110 transition-transform" />
+                    {selectedFile ? selectedFile.name.substring(0, 20) + "..." : "CHOOSE IMAGE"}
+                  </label>
+                </div>
+              </div>
+
+              <button 
+                onClick={nextStep}
+                className="w-full py-4 bg-[#1a1a1b] text-white rounded-xl font-bold uppercase tracking-widest text-sm mt-4 hover:bg-[#2F2F2F] transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
+              >
+                Continue <ArrowRight size={18} />
+              </button>
+              <div className="flex items-center justify-center gap-1.5 mt-3 text-gray-500 bg-gray-50/80 py-2.5 rounded-lg border border-gray-100">
+                <Truck size={14} className="text-[#A87B62]" />
+                <span className="text-[11px] font-medium tracking-wide uppercase">
+                  Order today, receive it by: <strong className="text-[#1a1a1b] font-black">{deliveryDates}</strong>
+                </span>
+              </div>
+            </motion.div>
+          )}
+
+          {currentStep === 3 && (
+            <motion.div
+              key="step3"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-8"
+            >
+              <div className="flex justify-between items-center mb-2">
+                <button onClick={prevStep} className="flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-black transition-colors uppercase">
+                  <ArrowLeft size={14} /> Back
                 </button>
+                <label className="block text-base font-medium text-[#1a1a1b]">
+                  Step 3: Final Details
+                </label>
+              </div>
+
+              {/* Customer Name */}
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                  Your Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  placeholder="John Doe"
+                  className="w-full px-4 py-3 border-[1.5px] border-gray-200 rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm"
+                />
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                  Your Email <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  value={customerEmail}
+                  onChange={(e) => setCustomerEmail(e.target.value)}
+                  placeholder="order@example.com"
+                  className="w-full px-4 py-3 border-[1.5px] border-gray-200 rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm"
+                />
+              </div>
+
+              {/* Phone Number */}
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                  Phone Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  placeholder="+91 98765 43210"
+                  className="w-full px-4 py-3 border-[1.5px] border-gray-200 rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleAddToCartClick}
+                disabled={isSubmitting}
+                className={`w-full py-4 rounded-xl font-bold text-sm tracking-widest uppercase transition-all shadow-xl active:scale-[0.98] flex items-center justify-center gap-2 mt-4 ${isSubmitting
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : orderStatus === 'success' ? "bg-green-600" : "bg-[#1a1a1b] hover:bg-[#2F2F2F]"
+                  } text-white`}
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    PROCESSING...
+                  </>
+                ) : orderStatus === 'success' ? (
+                  <>
+                    <Check size={20} />
+                    ORDER PLACED!
+                  </>
+                ) : (
+                  "ADD TO CART"
+                )}
+              </button>
+              <div className="flex items-center justify-center gap-1.5 mt-3 text-gray-500 bg-gray-50/80 py-2.5 rounded-lg border border-gray-100">
+                <Truck size={14} className="text-[#A87B62]" />
+                <span className="text-[11px] font-medium tracking-wide uppercase">
+                  Order today, receive it by: <strong className="text-[#1a1a1b] font-black">{deliveryDates}</strong>
+                </span>
               </div>
             </motion.div>
           )}
@@ -1019,7 +1089,7 @@ export function ProductInfo() {
                   "{testimonials[testimonialIndex].content}"
                 </p>
                 <p className="text-[12px] font-bold text-[#1a1a1b] uppercase tracking-wider">
-                  — Verified Customer ({testimonials[testimonialIndex].author})
+                  - {testimonials[testimonialIndex].author}
                 </p>
               </div>
             </motion.div>
@@ -1053,8 +1123,8 @@ export function ProductInfo() {
           icon={<PawPrint size={18} />}
         >
           <div className="text-sm text-gray-600 leading-relaxed font-inter space-y-4">
-            <p>Your pet isn’t just part of your life — they are your life in a thousand little moments. The way they wait for you. The way they look at you. The quiet comfort of just having them close.</p>
-            <p>At Peternity, we turn your pet’s photo into a portrait that captures all of that — not just how they look, but how they feel to you.</p>
+            <p>Your pet isn’t just part of your life - they are your life in a thousand little moments. The way they wait for you. The way they look at you. The quiet comfort of just having them close.</p>
+            <p>At Peternity, we turn your pet’s photo into a portrait that captures all of that - not just how they look, but how they feel to you.</p>
             <p>Every piece is carefully created to reflect their personality, so when you see it… it feels like they’re right there, exactly as you know them.</p>
             <ul className="list-disc pl-5 space-y-1 mt-2">
               <li>Preview your artwork before it’s printed</li>
@@ -1069,10 +1139,10 @@ export function ProductInfo() {
           icon={<Truck size={18} />}
         >
           <div className="text-sm text-gray-600 leading-relaxed font-inter space-y-4">
-            <p>Within 48 hours, you’ll receive your pet’s portrait preview — the first moment it starts to feel real.</p>
+            <p>Within 48 hours, you’ll receive your pet’s portrait preview - the first moment it starts to feel real.</p>
             <p>We refine every detail with you, until it doesn’t just look right… it feels like them.</p>
-            <p>The moment you approve, we begin printing within 24 hours — carefully, thoughtfully, as something that truly matters.</p>
-            <p><strong>Delivery across India:</strong> 4–7 working days after approval.</p>
+            <p>The moment you approve, we begin printing within 24 hours - carefully, thoughtfully, as something that truly matters.</p>
+            <p><strong>Delivery across India:</strong> 4-7 working days after approval.</p>
             <p>From a photo you love… to a memory you can live with, every single day.</p>
           </div>
         </Accordion>
@@ -1081,7 +1151,7 @@ export function ProductInfo() {
           icon={<HeartIcon size={18} />}
         >
           <div className="text-sm text-gray-600 leading-relaxed font-inter space-y-4">
-            <p>You’ll receive your portrait preview within 48 hours — and we don’t print until it feels right to you.</p>
+            <p>You’ll receive your portrait preview within 48 hours - and we don’t print until it feels right to you.</p>
             <p>We refine every detail with you, from expression to mood, until it truly feels like <em>them</em>.</p>
             <p>Because this isn’t something you should “settle” for. It should feel personal, emotional… and exactly right.</p>
           </div>
@@ -1201,7 +1271,7 @@ export function ProductInfo() {
                 {/* Header Title */}
                 <div>
                   <h2 className="text-xl font-extrabold text-[#1a1a1b] font-inter">
-                    Your Cart – {!hasCustomizedItem ? 0 : (1 + (addMagnet ? 1 : 0) + (addMug ? 1 : 0))}
+                    Your Cart - {!hasCustomizedItem ? 0 : (1 + (addMagnet ? 1 : 0) + (addMug ? 1 : 0))}
                   </h2>
                 </div>
 
@@ -1572,6 +1642,41 @@ export function ProductInfo() {
           <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.73-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.625 1.451 5.403.002 9.794-4.382 9.797-9.786.001-2.617-1.01-5.078-2.85-6.918C16.37 2.062 13.916.97 11.306.97c-5.41.003-9.802 4.39-9.805 9.795-.001 1.77.462 3.5 1.34 5.025l-.95 3.473 3.56-.933zm11.238-6.84c-.31-.156-1.83-.903-2.112-1.004-.282-.102-.489-.153-.69.155-.203.307-.785.99-.963 1.196-.178.205-.355.23-.665.074-.31-.156-1.31-.483-2.493-1.54-1.183-1.055-1.183-1.055-2.096-1.536-.913-.48-.913-.48-.155-1.312.28-.307.31-.462.464-.77.154-.307.077-.577-.038-.782-.115-.205-.963-2.317-1.316-3.17-.344-.833-.694-.72-1.005-.722h-.854c-.282 0-.742.106-1.13.53-.388.423-1.48 1.446-1.48 3.528 0 2.082 1.516 4.09 1.727 4.38.21.291 2.984 4.557 7.228 6.388 1.01.436 1.8.697 2.413.89 1.014.322 1.937.276 2.666.168.812-.12 1.832-.748 2.086-1.434.254-.686.254-1.274.178-1.4-.076-.127-.282-.205-.592-.361z" />
         </svg>
       </a>
+      {/* Warning Modal */}
+      <AnimatePresence>
+        {warningMessage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-red-500"></div>
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className="w-12 h-12 bg-red-50 rounded-full flex items-center justify-center text-red-500 mb-2">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-black text-[#1a1a1b] uppercase tracking-tight">Missing Details</h3>
+                <p className="text-sm font-medium text-gray-500">{warningMessage}</p>
+                <button
+                  onClick={() => setWarningMessage(null)}
+                  className="w-full py-3 bg-[#1a1a1b] text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-[#2F2F2F] transition-all shadow-md active:scale-95 mt-2"
+                >
+                  Got It
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

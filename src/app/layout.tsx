@@ -20,10 +20,10 @@ const greatVibes = Great_Vibes({
 
 export const metadata: Metadata = {
   title: "Custom Pet Portrait | Peternity",
-  description: "Personalized Pet Art – Peternity",
+  description: "Personalized Pet Art - Peternity",
   openGraph: {
     title: "Custom Pet Portrait | Peternity",
-    description: "Personalized Pet Art – Peternity",
+    description: "Personalized Pet Art - Peternity",
     type: "website",
   },
 };
