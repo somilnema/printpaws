@@ -4,8 +4,7 @@ import React, { Suspense, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle, Truck, Mail, ArrowRight, Heart, Star, Loader2, PawPrint } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
-
+import { getOrderDetails } from '@/app/actions/supabaseActions';
 function SuccessContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get('orderId');
@@ -22,26 +21,18 @@ function SuccessContent() {
       }
       
       try {
-        // Fetch order details from Supabase 'orders' table
-        const { data, error } = await supabase
-          .from('orders')
-          .select('*')
-          .eq('id', orderId)
-          .maybeSingle();
+        // Fetch order details using server action
+        const data = await getOrderDetails(orderId);
 
-        if (data && !error) {
+        if (data) {
           setOrderExists(true);
           setOrderData(data);
         } else {
-          // If not found instantly, wait 1.5 seconds and retry (handles minor network/insert latencies)
+          // If not found instantly, wait 1.5 seconds and retry
           await new Promise((resolve) => setTimeout(resolve, 1500));
-          const { data: retryData, error: retryError } = await supabase
-            .from('orders')
-            .select('*')
-            .eq('id', orderId)
-            .maybeSingle();
+          const retryData = await getOrderDetails(orderId);
 
-          if (retryData && !retryError) {
+          if (retryData) {
             setOrderExists(true);
             setOrderData(retryData);
           }

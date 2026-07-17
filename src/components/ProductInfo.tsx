@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { uploadPetPhoto } from "@/app/actions/supabaseActions";
 import {
   Upload,
   Star,
@@ -281,22 +281,9 @@ export function ProductInfo() {
       let publicUrl = "";
       try {
         if (selectedFile) {
-          const fileExt = selectedFile.name.split('.').pop();
-          const fileName = `${Math.random()}.${fileExt}`;
-          const filePath = `orders/${Date.now()}-${fileName}`;
-
-          const { error: uploadError } = await supabase.storage
-            .from('pet-photos')
-            .upload(filePath, selectedFile);
-
-          if (uploadError) {
-            throw uploadError;
-          }
-
-          const { data: { publicUrl: url } } = supabase.storage
-            .from('pet-photos')
-            .getPublicUrl(filePath);
-          publicUrl = url;
+          const formData = new FormData();
+          formData.append('file', selectedFile);
+          publicUrl = await uploadPetPhoto(formData);
         }
       } catch (uploadError: any) {
         console.warn("Supabase Storage Upload Failed. Falling back to local object URL:", uploadError);
