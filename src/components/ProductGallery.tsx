@@ -35,8 +35,8 @@ export function ProductGallery() {
 
   useEffect(() => {
     const handleCategoryChange = (e: any) => {
-      setSelectedCategory(e.detail);
-      setActiveImage(0); // Reset to first image when category changes
+      setSelectedCategory("one");
+      setActiveImage(0);
     };
 
     const handleBackgroundChange = (e: any) => {
@@ -44,40 +44,50 @@ export function ProductGallery() {
         setSelectedCategory("custom_bg");
         setSelectedBgImage(`/${e.detail}.png`);
       } else {
-        const colorMap: Record<string, { category: string, index: number }> = {
-          "Pearl": { category: "different", index: 0 },
-          "Almond": { category: "different", index: 1 },
-          "Serenity": { category: "different", index: 2 },
-          "Celadon": { category: "different", index: 3 },
-          "Tea Rosé": { category: "different", index: 4 },
-          "Black": { category: "black_bg", index: 0 },
+        setSelectedCategory("one");
+        const colorMap: Record<string, number> = {
+          "Pearl": 0,
+          "Almond": 1,
+          "Serenity": 2,
+          "Celadon": 3, // 4th Image
+          "Tea Rosé": 4, // 5th Image
+          "Black": 0,
         };
-
-        const selection = colorMap[e.detail];
-        if (selection) {
-          setSelectedCategory(selection.category);
-          setActiveImage(selection.index);
-        }
+        setActiveImage(colorMap[e.detail] !== undefined ? colorMap[e.detail] : 0);
       }
     };
 
     const handleFrameChange = (e: any) => {
-      const frameList = ["black", "white", "wood", "canva"];
-      if (frameList.includes(e.detail)) {
-        setSelectedFrame(e.detail);
+      setSelectedFrame(e.detail);
+      if (e.detail === "canva") {
+        setSelectedCategory("one");
+        setActiveImage(5); // 6th Image
+      } else {
+        setSelectedCategory("one");
+        setActiveImage(0); // Main Image
+      }
+    };
+
+    const handleSizeChange = (e: any) => {
+      if (e.detail === "framed_size") {
+        setSelectedCategory("one");
+        setActiveImage(3); // 4th Image
+      } else if (e.detail === "canvas_size") {
+        setSelectedCategory("one");
+        setActiveImage(4); // 5th Image
       }
     };
 
     window.addEventListener('petSelectionChanged', handleCategoryChange);
-    window.addEventListener('frameSelectionChanged', handleCategoryChange);
     window.addEventListener('frameSelectionChanged', handleFrameChange);
     window.addEventListener('backgroundSelectionChanged', handleBackgroundChange);
+    window.addEventListener('sizeSelectionChanged', handleSizeChange);
     
     return () => {
       window.removeEventListener('petSelectionChanged', handleCategoryChange);
-      window.removeEventListener('frameSelectionChanged', handleCategoryChange);
       window.removeEventListener('frameSelectionChanged', handleFrameChange);
       window.removeEventListener('backgroundSelectionChanged', handleBackgroundChange);
+      window.removeEventListener('sizeSelectionChanged', handleSizeChange);
     };
   }, []);
 
@@ -129,7 +139,7 @@ export function ProductGallery() {
     <div className="flex flex-col gap-4 items-center">
       {/* Main Image Container */}
       <div className="relative -mx-4 w-screen aspect-[3/4] md:mx-auto md:w-full md:max-w-[640px] md:aspect-square overflow-hidden bg-white rounded-none md:rounded-3xl shadow-sm">
-        <AnimatePresence mode="wait">
+        <AnimatePresence>
           {selectedCategory === "custom_bg" ? (
             <motion.div
               key={selectedBgImage}
@@ -137,7 +147,7 @@ export function ProductGallery() {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.4, ease: "easeOut" }}
-              className="relative w-full h-full flex items-center justify-center p-6 md:p-12 bg-gray-50/50"
+              className="absolute inset-0 w-full h-full flex items-center justify-center p-6 md:p-12 bg-gray-50/50"
             >
               {/* Realistic Shadowed Premium Frame */}
               <div 
@@ -177,7 +187,7 @@ export function ProductGallery() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.3, ease: "easeOut" }}
-              className="relative w-full h-full cursor-grab active:cursor-grabbing"
+              className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing"
               drag="x"
               dragConstraints={{ left: 0, right: 0 }}
               onDragEnd={handleDragEnd}
@@ -189,6 +199,7 @@ export function ProductGallery() {
                 sizes="(max-width: 768px) 100vw, (max-width: 1024px) 640px, 640px"
                 className="select-none transition-transform duration-300 object-cover"
                 priority
+                unoptimized
               />
             </motion.div>
           )}
@@ -213,8 +224,8 @@ export function ProductGallery() {
         )}
       </div>
 
-      {/* Desktop Thumbnails (Hidden) */}
-      <div className="hidden">
+      {/* Thumbnails */}
+      <div className="flex gap-3 overflow-x-auto w-full md:max-w-[640px] px-4 md:px-0 py-2 hide-scrollbar scroll-smooth snap-x">
         {selectedCategory === "custom_bg" ? (
           [
             { id: "bg7", path: "/bg7.png" },

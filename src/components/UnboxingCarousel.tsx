@@ -8,6 +8,12 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const CARDS = [
   {
+    video: "IMG_3784 (1).MOV",
+    text: "Real",
+    subtext: "Reaction",
+    hasPlay: true,
+  },
+  {
     video: "IMG_6005.MOV",
     text: "Unboxing & Final Reveal",
     subtext: "Pure Joy",
@@ -35,12 +41,6 @@ const CARDS = [
     video: "IMG_6239.MOV",
     text: "Watch them",
     subtext: "React",
-    hasPlay: true,
-  },
-  {
-    video: "IMG_3784 (1).MOV",
-    text: "Real",
-    subtext: "Reaction",
     hasPlay: true,
   },
   {

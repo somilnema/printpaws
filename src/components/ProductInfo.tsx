@@ -83,9 +83,9 @@ export function ProductInfo() {
   useEffect(() => {
     const today = new Date();
     const date1 = new Date(today);
-    date1.setDate(today.getDate() + 12);
+    date1.setDate(today.getDate() + 8);
     const date2 = new Date(today);
-    date2.setDate(today.getDate() + 13);
+    date2.setDate(today.getDate() + 10);
     
     const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
     setDeliveryDates(`${date1.toLocaleDateString('en-US', options)} - ${date2.toLocaleDateString('en-US', options)}`);
@@ -211,11 +211,11 @@ export function ProductInfo() {
       price = sizePrice[selectedSize] ?? 1499;
     } else {
       const canvasSizePrice: Record<string, number> = {
-        '8"x12"':  1999,
-        '16"x20"': 2999,
-        '20"x30"': 3799,
+        '8"x12"':  1699,
+        '16"x20"': 2499,
+        '20"x30"': 3499,
       };
-      price = canvasSizePrice[selectedSize] ?? 1999;
+      price = canvasSizePrice[selectedSize] ?? 1699;
     }
 
     const petUpgrade: Record<string, number> = {
@@ -610,6 +610,8 @@ export function ProductInfo() {
                   </div>
                 </div>
 
+
+
                 {/* 2. Choose Your Size */}
                 <div className="space-y-3">
                   <label className="block text-base font-bold text-[#1a1a1b] font-inter">
@@ -618,7 +620,7 @@ export function ProductInfo() {
                   <div className="flex flex-col gap-3">
                     {portraitStyle === "framed" ? (
                       <>
-                        <button onClick={() => setSelectedSize('8"x10"')} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '8"x10"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
+                        <button onClick={() => { setSelectedSize('8"x10"'); window.dispatchEvent(new CustomEvent('sizeSelectionChanged', { detail: 'framed_size' })); }} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '8"x10"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
                           <div>
                             <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">8×10</span></div>
                             <span className="text-xs font-bold text-gray-500">₹1,499</span>
@@ -627,7 +629,7 @@ export function ProductInfo() {
                             {selectedSize === '8"x10"' && <Check size={12} className="text-white" strokeWidth={3} />}
                           </div>
                         </button>
-                        <button onClick={() => setSelectedSize('12"x16"')} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '12"x16"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
+                        <button onClick={() => { setSelectedSize('12"x16"'); window.dispatchEvent(new CustomEvent('sizeSelectionChanged', { detail: 'framed_size' })); }} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '12"x16"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
                           <div>
                             <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">12×16</span><span className="text-[10px] font-black text-white bg-[#A87B62] px-1.5 py-0.5 rounded uppercase tracking-wider">⭐ Most Popular</span></div>
                             <span className="text-xs font-bold text-gray-500">₹1,999</span>
@@ -636,7 +638,7 @@ export function ProductInfo() {
                             {selectedSize === '12"x16"' && <Check size={12} className="text-white" strokeWidth={3} />}
                           </div>
                         </button>
-                        <button onClick={() => setSelectedSize('18"x24"')} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '18"x24"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
+                        <button onClick={() => { setSelectedSize('18"x24"'); window.dispatchEvent(new CustomEvent('sizeSelectionChanged', { detail: 'framed_size' })); }} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '18"x24"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
                           <div>
                             <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">18×24</span></div>
                             <span className="text-xs font-bold text-gray-500">₹2,499</span>
@@ -648,28 +650,28 @@ export function ProductInfo() {
                       </>
                     ) : (
                       <>
-                        <button onClick={() => setSelectedSize('8"x12"')} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '8"x12"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
+                        <button onClick={() => { setSelectedSize('8"x12"'); window.dispatchEvent(new CustomEvent('sizeSelectionChanged', { detail: 'canvas_size' })); }} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '8"x12"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
                           <div>
                             <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">8×12</span></div>
-                            <span className="text-xs font-bold text-gray-500">₹1,999</span>
+                            <span className="text-xs font-bold text-gray-500">₹1,699</span>
                           </div>
                           <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedSize === '8"x12"' ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
                             {selectedSize === '8"x12"' && <Check size={12} className="text-white" strokeWidth={3} />}
                           </div>
                         </button>
-                        <button onClick={() => setSelectedSize('16"x20"')} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '16"x20"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
+                        <button onClick={() => { setSelectedSize('16"x20"'); window.dispatchEvent(new CustomEvent('sizeSelectionChanged', { detail: 'canvas_size' })); }} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '16"x20"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
                           <div>
                             <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">16×20</span><span className="text-[10px] font-black text-white bg-[#A87B62] px-1.5 py-0.5 rounded uppercase tracking-wider">⭐ Best Seller</span></div>
-                            <span className="text-xs font-bold text-gray-500">₹2,999</span>
+                            <span className="text-xs font-bold text-gray-500">₹2,499</span>
                           </div>
                           <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedSize === '16"x20"' ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
                             {selectedSize === '16"x20"' && <Check size={12} className="text-white" strokeWidth={3} />}
                           </div>
                         </button>
-                        <button onClick={() => setSelectedSize('20"x30"')} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '20"x30"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
+                        <button onClick={() => { setSelectedSize('20"x30"'); window.dispatchEvent(new CustomEvent('sizeSelectionChanged', { detail: 'canvas_size' })); }} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '20"x30"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
                           <div>
                             <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">20×30</span></div>
-                            <span className="text-xs font-bold text-gray-500">₹3,799</span>
+                            <span className="text-xs font-bold text-gray-500">₹3,499</span>
                           </div>
                           <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedSize === '20"x30"' ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
                             {selectedSize === '20"x30"' && <Check size={12} className="text-white" strokeWidth={3} />}
@@ -749,6 +751,51 @@ export function ProductInfo() {
                   Step 2: Customize Your Artwork
                 </label>
               </div>
+
+              {/* Frame Colour (Only for Framed) */}
+              {portraitStyle === "framed" && (
+                <div className="space-y-3">
+                  <label className="block text-base font-bold text-[#1a1a1b] font-inter">
+                    Frame Colour
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => {
+                        setSelectedFrame("black");
+                        window.dispatchEvent(new CustomEvent('frameSelectionChanged', { detail: "black" }));
+                      }}
+                      className={`group relative flex items-center justify-center p-3.5 rounded-xl border-[2px] transition-all text-center ${selectedFrame === "black"
+                        ? "border-[#1a1a1b] shadow-md bg-[#fafafa] z-10"
+                        : "border-gray-200 hover:border-gray-300 bg-white"
+                        }`}
+                    >
+                      <span className="font-bold text-[#1a1a1b] text-sm">Black Frame</span>
+                      {selectedFrame === "black" && (
+                        <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-[#1a1a1b] flex items-center justify-center">
+                          <Check size={10} className="text-white" strokeWidth={3} />
+                        </div>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedFrame("white");
+                        window.dispatchEvent(new CustomEvent('frameSelectionChanged', { detail: "white" }));
+                      }}
+                      className={`group relative flex items-center justify-center p-3.5 rounded-xl border-[2px] transition-all text-center ${selectedFrame === "white"
+                        ? "border-[#1a1a1b] shadow-md bg-[#fafafa] z-10"
+                        : "border-gray-200 hover:border-gray-300 bg-white"
+                        }`}
+                    >
+                      <span className="font-bold text-[#1a1a1b] text-sm">White Frame</span>
+                      {selectedFrame === "white" && (
+                        <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-[#1a1a1b] flex items-center justify-center">
+                          <Check size={10} className="text-white" strokeWidth={3} />
+                        </div>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Background Color */}
               <div className="space-y-3">
@@ -856,15 +903,30 @@ export function ProductInfo() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                    Pet's Name <span className="text-red-500">*</span>
+                    Pet's Name{selectedPets !== "one" ? "s" : ""} <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    value={petName}
-                    onChange={(e) => setPetName(e.target.value)}
-                    placeholder="E.g. Lola"
-                    className="w-full px-4 py-3 border-[1.5px] border-gray-200 rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm"
-                  />
+                  <div className={`grid gap-3 ${selectedPets === "one" ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                    {Array.from({ length: selectedPets === "four" ? 4 : selectedPets === "three" ? 3 : selectedPets === "two" ? 2 : 1 }).map((_, i) => {
+                      const names = petName.split(", ");
+                      const currentName = names[i] || "";
+                      return (
+                        <input
+                          key={i}
+                          type="text"
+                          value={currentName}
+                          onChange={(e) => {
+                            const numPets = selectedPets === "four" ? 4 : selectedPets === "three" ? 3 : selectedPets === "two" ? 2 : 1;
+                            const newNames = [...names];
+                            while (newNames.length < numPets) newNames.push("");
+                            newNames[i] = e.target.value;
+                            setPetName(newNames.slice(0, numPets).join(", ").replace(/^, |, $/g, ''));
+                          }}
+                          placeholder={selectedPets !== "one" ? `Pet ${i + 1} Name` : "E.g. Lola"}
+                          className="w-full px-4 py-3 border-[1.5px] border-gray-200 rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm"
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">

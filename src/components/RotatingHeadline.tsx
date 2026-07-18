@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 
 const HEADLINES = [
-  "Turn Your Favorite Pet Photo Into  Beautiful Hand-Painted Portrait",
+  "Turn Your Favorite Pet Photo Into Beautiful Hand-Painted Portrait",
    "They're More Than Pets. They're Family..."
 
 ];
