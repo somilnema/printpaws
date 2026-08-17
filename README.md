@@ -37,4 +37,4 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 ## 💳 Payment & SMTP Setup
 
-We have integrated high-performance **SMTP (Nodemailer)** order notifications and **Razorpay Payment Gateway** checkouts with seamless simulated Developer Sandboxes. Refer to [PAYMENT_SETUP.md](file:///c:/Users/ASUS/.gemini/antigravity/scratch/printsbypaws-clone/PAYMENT_SETUP.md) for full configuration steps!....
+We have integrated high-performance **SMTP (Nodemailer)** order notifications and **Razorpay Payment Gateway** checkouts with seamless simulated Developer Sandboxes. Refer to [PAYMENT_SETUP.md](file:///c:/Users/ASUS/.gemini/antigravity/scratch/printsbypaws-clone/PAYMENT_SETUP.md) for full configuration steps!
