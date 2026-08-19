@@ -27,7 +27,7 @@ export type RevenuePoint = {
 };
 
 export type AdminDashboard = {
-  email: string;
+  user: string;
   warning?: string;
   stats: {
     totalRevenue: number;
@@ -59,7 +59,7 @@ function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
-function buildDashboard(email: string, orders: AdminOrder[], warning?: string): AdminDashboard {
+function buildDashboard(user: string, orders: AdminOrder[], warning?: string): AdminDashboard {
   const now = new Date();
   const today = startOfDay(now);
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -107,7 +107,7 @@ function buildDashboard(email: string, orders: AdminOrder[], warning?: string): 
   }
 
   return {
-    email,
+    user,
     warning,
     stats: {
       totalRevenue,
@@ -143,7 +143,7 @@ export async function getAdminDashboard(): Promise<AdminDashboard | null> {
     const session = await getAdminSession();
     if (!session) return null;
     const { orders, warning } = await loadOrders();
-    return buildDashboard(session.email, orders, warning);
+    return buildDashboard(session.user, orders, warning);
   } catch (err) {
     console.error("Admin dashboard error:", err);
     return null;

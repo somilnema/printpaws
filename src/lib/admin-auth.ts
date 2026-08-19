@@ -5,12 +5,21 @@ import type { NextResponse } from "next/server";
 export const ADMIN_COOKIE = "peternity_admin";
 const WEEK = 60 * 60 * 24 * 7;
 
-function expectedEmail() {
-  return (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+const DEFAULT_USERNAME = "peternity";
+const DEFAULT_PASSWORD = "Peternity@Admin2026";
+
+function expectedUsername() {
+  return (
+    process.env.ADMIN_USERNAME ||
+    process.env.ADMIN_EMAIL ||
+    DEFAULT_USERNAME
+  )
+    .trim()
+    .toLowerCase();
 }
 
 function expectedPassword() {
-  return process.env.ADMIN_PASSWORD || "";
+  return process.env.ADMIN_PASSWORD || DEFAULT_PASSWORD;
 }
 
 function sessionSecret() {
@@ -46,26 +55,25 @@ function decodePayload(value: string) {
   return Buffer.from(padded, "base64").toString("utf8");
 }
 
-export function verifyAdminCredentials(email: string, password: string): { ok: true } | { ok: false; error: string } {
-  const expectedE = expectedEmail();
+export function verifyAdminCredentials(
+  username: string,
+  password: string
+): { ok: true } | { ok: false; error: string } {
+  const expectedU = expectedUsername();
   const expectedP = expectedPassword();
-  if (!expectedE || !expectedP) {
-    return {
-      ok: false,
-      error: "Admin login is not configured on the server. Add ADMIN_EMAIL and ADMIN_PASSWORD in the host environment.",
-    };
-  }
-  const emailOk = safeEqual(email.trim().toLowerCase(), expectedE);
+  const userOk = safeEqual(username.trim().toLowerCase(), expectedU);
   const passwordOk = safeEqual(password, expectedP);
-  if (!emailOk || !passwordOk) {
-    return { ok: false, error: "Invalid email or password" };
+  if (!userOk || !passwordOk) {
+    return { ok: false, error: "Invalid username or password" };
   }
   return { ok: true };
 }
 
-export function createAdminToken(email: string) {
+export function createAdminToken(username: string) {
   const exp = Date.now() + WEEK * 1000;
-  const payload = encodePayload(JSON.stringify({ email: email.trim().toLowerCase(), exp }));
+  const payload = encodePayload(
+    JSON.stringify({ user: username.trim().toLowerCase(), exp })
+  );
   return `${payload}.${hmac(payload)}`;
 }
 
@@ -79,8 +87,8 @@ export function adminCookieOptions() {
   };
 }
 
-export function applyAdminCookie(res: NextResponse, email: string) {
-  res.cookies.set(ADMIN_COOKIE, createAdminToken(email), adminCookieOptions());
+export function applyAdminCookie(res: NextResponse, username: string) {
+  res.cookies.set(ADMIN_COOKIE, createAdminToken(username), adminCookieOptions());
   return res;
 }
 
@@ -89,10 +97,15 @@ export function readAdminSession(token?: string | null) {
   const [payload, signature] = token.split(".");
   if (!payload || !signature || !safeEqual(hmac(payload), signature)) return null;
   try {
-    const data = JSON.parse(decodePayload(payload)) as { email: string; exp: number };
+    const data = JSON.parse(decodePayload(payload)) as {
+      user?: string;
+      email?: string;
+      exp: number;
+    };
     if (!data.exp || data.exp < Date.now()) return null;
-    if (!expectedEmail() || !safeEqual(data.email.trim().toLowerCase(), expectedEmail())) return null;
-    return data;
+    const user = (data.user || data.email || "").trim().toLowerCase();
+    if (!user || !safeEqual(user, expectedUsername())) return null;
+    return { user, exp: data.exp };
   } catch {
     return null;
   }

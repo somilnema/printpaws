@@ -25,7 +25,7 @@ function formatDate(value?: string) {
 }
 
 export default function AdminPage() {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [dashboard, setDashboard] = useState<AdminDashboard | null>(null);
   const [checking, setChecking] = useState(true);
@@ -48,11 +48,11 @@ export default function AdminPage() {
       const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username, password }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(json.error || "Invalid email or password");
+        setError(json.error || "Invalid username or password");
         return;
       }
       const data = await getAdminDashboard();
@@ -133,13 +133,13 @@ export default function AdminPage() {
         <div className="container mx-auto max-w-md px-6 py-10">
           <form onSubmit={handleLogin} className="bg-white rounded-3xl border border-[#f0e4db] p-8 space-y-5 shadow-[0_12px_40px_rgba(168,123,98,0.08)]">
             <div className="space-y-2">
-              <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Email</label>
+              <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Username</label>
               <input
-                type="email"
+                type="text"
                 autoComplete="username"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@peternity.in"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="peternity"
                 className="w-full bg-gray-50 rounded-2xl px-5 py-3 outline-none focus:ring-2 ring-primary/20 text-sm font-inter"
                 required
               />
@@ -182,7 +182,7 @@ export default function AdminPage() {
           <div>
             <p className="text-[10px] uppercase tracking-[0.3em] text-white/70 mb-2">Peternity</p>
             <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tight">Dashboard</h1>
-            <p className="text-white/75 text-sm mt-2 font-inter">{dashboard.email}</p>
+            <p className="text-white/75 text-sm mt-2 font-inter">{dashboard.user}</p>
           </div>
           <div className="flex gap-3">
             <button
