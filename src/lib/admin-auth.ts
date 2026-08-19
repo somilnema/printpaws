@@ -9,13 +9,7 @@ const DEFAULT_USERNAME = "peternity";
 const DEFAULT_PASSWORD = "Peternity@Admin2026";
 
 function expectedUsername() {
-  return (
-    process.env.ADMIN_USERNAME ||
-    process.env.ADMIN_EMAIL ||
-    DEFAULT_USERNAME
-  )
-    .trim()
-    .toLowerCase();
+  return (process.env.ADMIN_USERNAME || DEFAULT_USERNAME).trim().toLowerCase();
 }
 
 function expectedPassword() {
