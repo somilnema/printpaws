@@ -16,11 +16,29 @@ import {
   ArrowRight,
   ArrowLeft,
   Package,
-  ShoppingBag
+  ShoppingBag,
+  Wallet,
+  IndianRupee,
+  Tag
 } from "lucide-react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { getCloudinaryUrl } from "@/utils/cloudinary";
+import {
+  calculateQuote,
+  CUSTOM_PAYMENT_AMOUNTS,
+  DIGITAL_DOWNLOAD_AMOUNTS,
+  extraProductLines,
+  extrasTotal,
+  FRESH_PAYMENT_AMOUNT,
+  formatRs,
+  PRODUCT_LABELS,
+  type PaymentMethod,
+  type PricingInput,
+  type ProductType,
+} from "@/lib/pricing";
+import { trackPixel } from "@/lib/pixel";
+import { ExtraProducts } from "@/components/ExtraProducts";
 
 
 const PET_OPTIONS = [
@@ -50,9 +68,35 @@ const ADD_ONS = [
   // { id: "heart", label: "Heart", image: "/bonus-image/heart.png" },
 ];
 
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return <p className="text-[11px] font-bold text-red-500 mt-1.5">{message}</p>;
+}
+
 export function ProductInfo() {
   const router = useRouter();
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStepRaw] = useState(1);
+  const currentStepSafe = Math.min(Math.max(currentStep, 1), 3);
+  const setCurrentStep = (value: number | ((prev: number) => number)) => {
+    setCurrentStepRaw((prev) => {
+      const next = typeof value === "function" ? value(prev) : value;
+      return Math.min(Math.max(next, 1), 3);
+    });
+  };
+  const [productType, setProductType] = useState<ProductType>("portrait");
+  const [customPaymentAmount, setCustomPaymentAmount] = useState<number>(500);
+  const [digitalDownloadAmount, setDigitalDownloadAmount] = useState<number>(300);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("prepaid");
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+  const [couponMessage, setCouponMessage] = useState<string | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [portraitStyle, setPortraitStyle] = useState<"framed" | "canvas">("framed");
   const [selectedSize, setSelectedSize] = useState('8"x10"');
   const [selectedFrame, setSelectedFrame] = useState("black");
@@ -68,6 +112,11 @@ export function ProductInfo() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
+  const [shippingAddress, setShippingAddress] = useState("");
+  const [shippingCity, setShippingCity] = useState("");
+  const [shippingState, setShippingState] = useState("");
+  const [shippingPincode, setShippingPincode] = useState("");
+  const [shippingLandmark, setShippingLandmark] = useState("");
   const [showPhotoGuide, setShowPhotoGuide] = useState(false);
   const [showCart, setShowCart] = useState(false);
   const [cartQty, setCartQty] = useState(1);
@@ -114,6 +163,12 @@ export function ProductInfo() {
       const saved = localStorage.getItem('peternity_cart');
       if (saved) {
         const parsed = JSON.parse(saved);
+        if (parsed.productType) setProductType(parsed.productType);
+        if (parsed.customPaymentAmount) setCustomPaymentAmount(parsed.customPaymentAmount);
+        if (parsed.digitalDownloadAmount) setDigitalDownloadAmount(parsed.digitalDownloadAmount);
+        if (parsed.paymentMethod) setPaymentMethod(parsed.paymentMethod);
+        if (parsed.appliedCoupon) setAppliedCoupon(parsed.appliedCoupon);
+        if (parsed.couponInput) setCouponInput(parsed.couponInput);
         if (parsed.portraitStyle) setPortraitStyle(parsed.portraitStyle);
         if (parsed.selectedSize) setSelectedSize(parsed.selectedSize);
         if (parsed.selectedFrame) setSelectedFrame(parsed.selectedFrame);
@@ -124,6 +179,12 @@ export function ProductInfo() {
         if (parsed.petName) setPetName(parsed.petName);
         if (parsed.customerName) setCustomerName(parsed.customerName);
         if (parsed.customerPhone) setCustomerPhone(parsed.customerPhone);
+        if (parsed.customerEmail) setCustomerEmail(parsed.customerEmail);
+        if (parsed.shippingAddress) setShippingAddress(parsed.shippingAddress);
+        if (parsed.shippingCity) setShippingCity(parsed.shippingCity);
+        if (parsed.shippingState) setShippingState(parsed.shippingState);
+        if (parsed.shippingPincode) setShippingPincode(parsed.shippingPincode);
+        if (parsed.shippingLandmark) setShippingLandmark(parsed.shippingLandmark);
         if (parsed.cartQty) setCartQty(parsed.cartQty);
         if (parsed.addMagnet !== undefined) setAddMagnet(parsed.addMagnet);
         if (parsed.addMug !== undefined) setAddMug(parsed.addMug);
@@ -137,6 +198,12 @@ export function ProductInfo() {
   // 3. Keep cache synchronized in localStorage when configurations change
   useEffect(() => {
     const cartState = {
+      productType,
+      customPaymentAmount,
+      digitalDownloadAmount,
+      paymentMethod,
+      appliedCoupon,
+      couponInput,
       portraitStyle,
       selectedSize,
       selectedFrame,
@@ -148,17 +215,23 @@ export function ProductInfo() {
       memorialText,
       customerName,
       customerPhone,
+      customerEmail,
+      shippingAddress,
+      shippingCity,
+      shippingState,
+      shippingPincode,
+      shippingLandmark,
       cartQty,
       addMagnet,
       addMug,
       addDigitalDownload,
-      hasCustomizedItem: !!selectedFile || !!petName
+      hasCustomizedItem: productType !== "portrait" || !!selectedFile || !!petName
     };
     try {
       localStorage.setItem('peternity_cart', JSON.stringify(cartState));
       
-      // Dispatch cart count dynamically for the Navbar badge
-      const count = (selectedFile || petName) ? (1 + (addMagnet ? 1 : 0) + (addMug ? 1 : 0)) : 0;
+      const hasItem = productType !== "portrait" || !!selectedFile || !!petName;
+      const count = hasItem ? (1 + (addMagnet ? 1 : 0) + (addMug ? 1 : 0) + (addDigitalDownload ? 1 : 0)) : 0;
       window.dispatchEvent(new CustomEvent('cartBadgeUpdated', { detail: count }));
     } catch (e) {
       console.warn("Failed to persist cart cache:", e);
@@ -175,11 +248,23 @@ export function ProductInfo() {
     memorialText,
     customerName,
     customerPhone,
+    customerEmail,
+    shippingAddress,
+    shippingCity,
+    shippingState,
+    shippingPincode,
+    shippingLandmark,
     cartQty,
     addMagnet,
     addMug,
     addDigitalDownload,
-    selectedFile
+    selectedFile,
+    productType,
+    customPaymentAmount,
+    digitalDownloadAmount,
+    paymentMethod,
+    appliedCoupon,
+    couponInput
   ]);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -198,50 +283,115 @@ export function ProductInfo() {
     if (containerRef.current) {
       containerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-  }, [currentStep]);
+  }, [currentStepSafe]);
 
-  const calculatePrice = () => {
-    let price = 1499;
-    if (portraitStyle === "framed") {
-      const sizePrice: Record<string, number> = {
-        '8"x10"':  1499,
-        '12"x16"': 1999,
-        '18"x24"': 2499,
-      };
-      price = sizePrice[selectedSize] ?? 1499;
-    } else {
-      const canvasSizePrice: Record<string, number> = {
-        '8"x12"':  1699,
-        '16"x20"': 2499,
-        '20"x30"': 3499,
-      };
-      price = canvasSizePrice[selectedSize] ?? 1699;
-    }
-
-    const petUpgrade: Record<string, number> = {
-      one:   0,
-      two:   300,
-      three: 600,
-      four:  1500,
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('overlayOpen', { detail: showCart || showSandboxModal }));
+    return () => {
+      window.dispatchEvent(new CustomEvent('overlayOpen', { detail: false }));
     };
-    price += petUpgrade[selectedPets] ?? 0;
+  }, [showCart, showSandboxModal]);
 
-    if (["bg7", "bg8", "bg9"].includes(selectedBg)) price += 199;
-    if (selectedAddOn === "halo_effect") price += 200;
-    else if (selectedAddOn !== "none") price += 100;
-    if (giftWrap) price += 99;
-
-    return price;
+  const pricingInput: PricingInput = {
+    productType,
+    portraitStyle,
+    size: selectedSize,
+    numPets: selectedPets,
+    background: selectedBg,
+    addon: selectedAddOn,
+    giftWrap,
+    cartQty,
+    addDigitalDownload: productType === "portrait" ? addDigitalDownload : false,
+    addMagnet,
+    addMug,
+    customPaymentAmount,
+    digitalDownloadAmount,
+    couponCode: appliedCoupon,
+    paymentMethod: productType === "portrait" ? paymentMethod : "prepaid",
   };
 
-  // Selling price + cut price is always 30% higher
-  const totalPrice = calculatePrice();
+  let quote;
+  try {
+    quote = calculateQuote(pricingInput);
+  } catch {
+    quote = calculateQuote({ ...pricingInput, couponCode: null });
+  }
+
+  const totalPrice = quote.originalAmount;
   const cutPrice = Math.round(totalPrice / 0.70);
+  const displayQuote = quote;
+  const extraLines = extraProductLines(pricingInput);
+  const extrasAmount = extrasTotal(pricingInput);
+  const portraitBaseAmount = Math.max(0, quote.originalAmount - extrasAmount);
 
-  const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 3));
-  const prevStep = () => {
-    setCurrentStep(prev => Math.max(prev - 1, 1));
+  const extraProductsPicker = () =>
+    productType === "portrait" ? (
+    <ExtraProducts
+      addMug={addMug}
+      addMagnet={addMagnet}
+      addGift={addDigitalDownload}
+      onToggleMug={() => setAddMug(!addMug)}
+      onToggleMagnet={() => setAddMagnet(!addMagnet)}
+      onToggleGift={() => setAddDigitalDownload(!addDigitalDownload)}
+    />
+  ) : null;
+
+  const clearFieldError = (key: string) => {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   };
+
+  const validateStep1 = () => {
+    const errors: Record<string, string> = {};
+    if (productType === "portrait" || productType === "digital_download") {
+      if (!petName.trim()) errors.petName = "Please enter your pet's name to continue.";
+      if (!selectedFile) errors.photo = "Please choose a pet photo to continue.";
+    }
+    if (productType === "custom_payment" && ![500, 600].includes(customPaymentAmount)) {
+      errors.customPayment = "Please select a Custom Payment amount.";
+    }
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateStep2 = () => {
+    const errors: Record<string, string> = {};
+    if (!customerName.trim()) errors.customerName = "Please enter your name to continue.";
+    if (!customerEmail.trim()) errors.customerEmail = "Please enter your email to continue.";
+    else if (!isValidEmail(customerEmail)) errors.customerEmail = "Please enter a valid email to continue.";
+    if (!customerPhone.trim() || customerPhone.replace(/\D/g, "").length < 10) {
+      errors.customerPhone = "Please enter a valid contact number to continue.";
+    }
+    if (productType === "portrait") {
+      if (!shippingAddress.trim()) errors.shippingAddress = "Please enter your full address to continue.";
+      if (!shippingCity.trim()) errors.shippingCity = "Please enter your city to continue.";
+      if (!shippingPincode.trim() || shippingPincode.replace(/\D/g, "").length < 6) {
+        errors.shippingPincode = "Please enter a valid pincode to continue.";
+      }
+    }
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const goToStep = (step: number) => setCurrentStep(Math.min(Math.max(step, 1), 3));
+
+  const handleContinueFromStep1 = () => {
+    if (!validateStep1()) return;
+    trackPixel("AddToCart", { value: totalPrice, currency: "INR" });
+    goToStep(2);
+  };
+
+  const handleContinueFromStep2 = () => {
+    if (!validateStep2()) return;
+    trackPixel("InitiateCheckout", { value: displayQuote.payableNow, currency: "INR" });
+    goToStep(3);
+  };
+
+  const prevStep = () => goToStep(currentStepSafe - 1);
 
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
@@ -257,17 +407,44 @@ export function ProductInfo() {
     });
   };
 
+  const checkoutPayload = (photoUrl = "") => ({
+    ...pricingInput,
+    size: productType === "portrait" ? selectedSize : PRODUCT_LABELS[productType],
+    frameStyle: productType === "portrait" ? selectedFrame : productType,
+    numPets: productType === "portrait" ? selectedPets : "one",
+    background: productType === "portrait" ? selectedBg : "",
+    addon: productType === "portrait"
+      ? [
+          selectedAddOn !== "none" ? selectedAddOn : "",
+          addMug ? "custom_mug" : "",
+          addMagnet ? "fridge_magnet" : "",
+          addDigitalDownload ? "digital_download" : "",
+        ].filter(Boolean).join(", ") || "none"
+      : productType,
+    petName: petName || PRODUCT_LABELS[productType],
+    memorialText,
+    giftWrap,
+    portraitStyle: productType === "portrait" ? portraitStyle : productType,
+    customerName,
+    customerPhone,
+    customerEmail,
+    shippingAddress,
+    shippingCity,
+    shippingState,
+    shippingPincode,
+    shippingLandmark,
+    photoUrl,
+  });
+
   const submitFinalOrder = async (
     razorpayPaymentId: string,
     razorpayOrderId: string,
     razorpaySignature: string,
-    finalAmount: number
   ) => {
     setIsSubmitting(true);
     setOrderStatus('idle');
 
     try {
-      // 1. Upload File to Supabase Storage
       let publicUrl = "";
       try {
         if (selectedFile) {
@@ -282,24 +459,11 @@ export function ProductInfo() {
         }
       }
 
-      // 2. Submit Order to API
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          size: selectedSize,
-          frameStyle: selectedFrame,
-          numPets: selectedPets,
-          background: selectedBg,
-          addon: selectedAddOn,
-          petName: petName || "My Pet",
-          memorialText: memorialText,
-          giftWrap: giftWrap,
-          customerName: customerName,
-          customerPhone: customerPhone,
-          customerEmail: customerEmail,
-          totalPrice: finalAmount,
-          photoUrl: publicUrl,
+          ...checkoutPayload(publicUrl),
           razorpayPaymentId,
           razorpayOrderId,
           razorpaySignature,
@@ -310,81 +474,98 @@ export function ProductInfo() {
 
       if (result.success) {
         setOrderStatus('success');
-        // Clear cart cached details
         localStorage.removeItem('peternity_cart');
-        // Redirect to success page
         router.push(`/checkout/success?orderId=${result.orderId}`);
       } else {
         setOrderStatus('error');
-        router.push(`/checkout/failed?reason=${encodeURIComponent(result.error || 'Server failed to record order specifications.')}`);
+        setWarningMessage(result.error || "Server failed to record order specifications.");
       }
     } catch (err: any) {
       console.error("Checkout Submit Order Error:", err);
       setOrderStatus('error');
-      router.push(`/checkout/failed?reason=${encodeURIComponent(err.message || 'Failed to submit finalized order data.')}`);
+      setWarningMessage(err.message || "Failed to submit finalized order data.");
     } finally {
       setIsSubmitting(false);
       setShowSandboxModal(false);
     }
   };
 
-  const handleCheckout = async (customTotal?: number) => {
+  const applyCoupon = async () => {
+    const code = couponInput.trim();
+    if (!code) {
+      setCouponError("Please enter a coupon code.");
+      setCouponMessage(null);
+      return;
+    }
+    setIsApplyingCoupon(true);
+    setCouponError(null);
+    setCouponMessage(null);
+    try {
+      const res = await fetch("/api/checkout/quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...pricingInput, couponCode: code }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setAppliedCoupon(null);
+        setCouponError(data.error || "This coupon code is invalid.");
+        return;
+      }
+      setAppliedCoupon(data.quote.couponCode);
+      setCouponMessage(`${data.quote.couponCode} applied — ${data.quote.couponPercent}% off`);
+    } catch {
+      setCouponError("Could not validate coupon. Please try again.");
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+  };
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput("");
+    setCouponError(null);
+    setCouponMessage(null);
+  };
+
+  const handleCheckout = async () => {
+    if (!validateStep1()) {
+      goToStep(1);
+      return;
+    }
+    if (!validateStep2()) {
+      goToStep(2);
+      return;
+    }
+
     setIsSubmitting(true);
     setOrderStatus('idle');
-
-    if (!customerEmail || !customerName || !customerPhone) {
-      setWarningMessage("Please enter your contact details (Name, Email, Phone) to continue!");
-      setCurrentStep(3);
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (!petName) {
-      setWarningMessage("Please enter your pet's name!");
-      setCurrentStep(2);
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (!selectedFile) {
-      setWarningMessage("Please choose a pet photo to continue!");
-      setCurrentStep(2);
-      setIsSubmitting(false);
-      return;
-    }
-
-    const checkoutTotal = customTotal ?? totalPrice;
+    const payload = checkoutPayload();
 
     try {
-      // 1. Fetch Razorpay Order from server endpoint
       const res = await fetch("/api/razorpay/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: checkoutTotal }),
+        body: JSON.stringify(payload),
       });
 
-      if (!res.ok) {
-        throw new Error("Failed to initialize Razorpay Order endpoint");
-      }
-
       const orderData = await res.json();
-      if (!orderData.success) {
-        throw new Error(orderData.error || "Order creation failure");
+      if (!res.ok || !orderData.success) {
+        throw new Error(orderData.error || "Failed to initialize Razorpay Order endpoint");
       }
 
+      const payableNow = orderData.quote?.payableNow ?? orderData.amount;
       const isMock = orderData.isMock || orderData.keyId === "rzp_test_mockKey123";
 
       if (isMock) {
-        // Trigger Developer Sandbox Modal for offline testing
         setSandboxOrderData({
           orderId: orderData.orderId,
-          amount: checkoutTotal,
+          amount: payableNow,
           keyId: orderData.keyId,
         });
         setShowSandboxModal(true);
         setIsSubmitting(false);
       } else {
-        // Real checkout with Razorpay SDK
         const scriptLoaded = await loadRazorpayScript();
         if (!scriptLoaded) {
           throw new Error("Razorpay SDK failed to load. Please verify your connection.");
@@ -392,21 +573,22 @@ export function ProductInfo() {
 
         const options = {
           key: orderData.keyId,
-          amount: Math.round(checkoutTotal * 100), // paise
+          amount: Math.round(payableNow * 100),
           currency: "INR",
           name: "Peternity",
-          description: "Custom Pet Portrait Masterpiece",
+          description: PRODUCT_LABELS[productType],
           order_id: orderData.orderId,
           handler: async function (response: any) {
             await submitFinalOrder(
               response.razorpay_payment_id,
               response.razorpay_order_id,
               response.razorpay_signature,
-              checkoutTotal
             );
           },
           prefill: {
+            name: customerName,
             email: customerEmail,
+            contact: customerPhone,
           },
           theme: {
             color: "#A87B62",
@@ -414,45 +596,36 @@ export function ProductInfo() {
           modal: {
             ondismiss: function () {
               setIsSubmitting(false);
-              router.push("/checkout/failed?reason=dismissed");
             },
           },
         };
 
         const razorpayInstance = new (window as any).Razorpay(options);
         razorpayInstance.open();
+        setIsSubmitting(false);
       }
     } catch (err: any) {
       console.error("Razorpay Checkout Error:", err);
       setOrderStatus('error');
       setIsSubmitting(false);
-      router.push(`/checkout/failed?reason=${encodeURIComponent(err.message || 'Failed to initiate secure payment portal.')}`);
+      setWarningMessage(err.message || "Failed to initiate secure payment portal.");
     }
   };
 
-  const handleAddToCartClick = () => {
-    if (!customerEmail) {
-      alert("Please enter your email to continue!");
-      setCurrentStep(6);
+  const handleCartCheckout = () => {
+    setShowCart(false);
+    if (!validateStep1()) {
+      goToStep(1);
       return;
     }
-
-    if (!petName) {
-      alert("Please enter your pet's name!");
-      setCurrentStep(6);
+    if (!validateStep2()) {
+      goToStep(2);
       return;
     }
-
-    if (!selectedFile) {
-      alert("Please choose a pet photo to continue!");
-      setCurrentStep(6);
-      return;
-    }
-
-    setShowCart(true);
+    goToStep(3);
   };
 
-  const hasCustomizedItem = !!selectedFile || !!petName;
+  const hasCustomizedItem = productType !== "portrait" || !!selectedFile || !!petName;
 
   return (
     <div ref={containerRef} className="flex flex-col gap-0 scroll-mt-24">
@@ -478,10 +651,14 @@ export function ProductInfo() {
     
         <div className="flex items-center gap-4">
           <span className="text-xl font-medium text-[#1a1a1b] font-inter">Rs. {totalPrice}.00</span>
-          <span className="text-[20px] font-medium text-[#A87B62] line-through font-inter opacity-80">Rs. {cutPrice}.00</span>
-          <span className="bg-[#FF9494] text-white text-[10px] font-bold px-2 py-1 rounded-full tracking-wider">
-            30% OFF
-          </span>
+          {productType === "portrait" && (
+            <>
+              <span className="text-[20px] font-medium text-[#A87B62] line-through font-inter opacity-80">Rs. {cutPrice}.00</span>
+              <span className="bg-[#FF9494] text-white text-[10px] font-bold px-2 py-1 rounded-full tracking-wider">
+                30% OFF
+              </span>
+            </>
+          )}
         </div>
       </div>
 
@@ -525,26 +702,26 @@ export function ProductInfo() {
       <div className="mb-6 lg:mb-8">
         <div className="flex items-center justify-between mb-2">
           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-            Step {currentStep} of 3
+            Step {currentStepSafe} of 3
           </span>
           <span className="text-[10px] font-bold text-primary uppercase tracking-widest">
-            {Math.round((currentStep / 3) * 100)}% Complete
+            {Math.round((currentStepSafe / 3) * 100)}% Complete
           </span>
         </div>
         <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden">
           <motion.div 
             className="h-full bg-primary"
             initial={{ width: 0 }}
-            animate={{ width: `${(currentStep / 3) * 100}%` }}
+            animate={{ width: `${(currentStepSafe / 3) * 100}%` }}
             transition={{ duration: 0.5, ease: "circOut" }}
           />
         </div>
       </div>
 
       {/* Selectors with Transitions */}
-      <div className="relative min-h-[250px] md:min-h-[240px]">
+      <div className="relative min-h-[250px] md:min-h-[240px] overflow-visible">
         <AnimatePresence mode="wait">
-          {currentStep === 1 && (
+          {currentStepSafe === 1 && (
             <motion.div
               key="step1"
               initial={{ opacity: 0, x: 20 }}
@@ -553,7 +730,42 @@ export function ProductInfo() {
               className="space-y-6"
             >
               <div className="space-y-6">
-                
+                <div className="space-y-3">
+                  <label className="block text-base font-bold text-[#1a1a1b] font-inter">
+                    Choose Your Product
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {([
+                      { id: "portrait" as ProductType, label: "Custom Portrait", hint: "Framed or canvas" },
+                      { id: "custom_payment" as ProductType, label: "Custom Payment", hint: `₹${CUSTOM_PAYMENT_AMOUNTS[0]} / ₹${CUSTOM_PAYMENT_AMOUNTS[1]}` },
+                      { id: "fresh_payment" as ProductType, label: "Fresh Payment", hint: `₹${FRESH_PAYMENT_AMOUNT}` },
+                      { id: "digital_download" as ProductType, label: "Digital Download", hint: `₹${DIGITAL_DOWNLOAD_AMOUNTS[0]} / ₹${DIGITAL_DOWNLOAD_AMOUNTS[1]}` },
+                    ]).map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => {
+                          setProductType(option.id);
+                          if (option.id !== "portrait") setPaymentMethod("prepaid");
+                          clearFieldError("customPayment");
+                        }}
+                        className={`group relative flex flex-col items-start gap-1 p-3.5 rounded-2xl border-[2px] transition-all text-left ${productType === option.id
+                          ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
+                          : "border-gray-200 hover:border-gray-300 bg-white"
+                          }`}
+                      >
+                        <span className="font-black text-[#1a1a1b] text-[11px] md:text-sm leading-tight">{option.label}</span>
+                        <span className="text-[10px] font-bold text-gray-500">{option.hint}</span>
+                        <div className={`absolute top-2 right-2 w-4 h-4 rounded-full border-2 flex items-center justify-center ${productType === option.id ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
+                          {productType === option.id && <Check size={10} className="text-white" strokeWidth={3} />}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {productType === "portrait" && (
+                <>
                 {/* 1. Portrait Style */}
                 <div className="space-y-3">
                   <label className="block text-base font-bold text-[#1a1a1b] font-inter">
@@ -718,39 +930,77 @@ export function ProductInfo() {
                     ))}
                   </div>
                 </div>
+                </>
+                )}
 
-                <button 
-                  onClick={nextStep}
-                  className="w-full py-4 bg-[#1a1a1b] text-white rounded-xl font-black uppercase tracking-widest text-sm mt-6 hover:bg-[#2F2F2F] transition-all shadow-xl shadow-black/10 active:scale-[0.98] flex items-center justify-center gap-2"
-                >
-                  Continue <ArrowRight size={18} />
-                </button>
-                <div className="flex items-center justify-center gap-1.5 mt-3 text-gray-500 bg-gray-50/80 py-2.5 rounded-lg border border-gray-100">
-                  <Truck size={14} className="text-[#A87B62]" />
-                  <span className="text-[11px] font-medium tracking-wide uppercase">
-                    Order today, receive it by: <strong className="text-[#1a1a1b] font-black">{deliveryDates}</strong>
-                  </span>
-                </div>
-              </div>
-            </motion.div>
-          )}
+                {productType === "custom_payment" && (
+                  <div className="space-y-3">
+                    <label className="block text-base font-bold text-[#1a1a1b] font-inter">
+                      Custom Payment Amount
+                    </label>
+                    <div className="flex flex-col gap-3">
+                      {CUSTOM_PAYMENT_AMOUNTS.map((amount) => (
+                        <button
+                          key={amount}
+                          type="button"
+                          onClick={() => {
+                            setCustomPaymentAmount(amount);
+                            clearFieldError("customPayment");
+                          }}
+                          className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${customPaymentAmount === amount ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}
+                        >
+                          <div>
+                            <span className="block font-black text-[#1a1a1b] text-base">Custom Payment</span>
+                            <span className="text-xs font-bold text-gray-500">₹{amount.toLocaleString("en-IN")}</span>
+                          </div>
+                          <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${customPaymentAmount === amount ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
+                            {customPaymentAmount === amount && <Check size={12} className="text-white" strokeWidth={3} />}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                    <FieldError message={fieldErrors.customPayment} />
+                  </div>
+                )}
 
-          {currentStep === 2 && (
-            <motion.div
-              key="step2"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-8"
-            >
-              <div className="flex justify-between items-center mb-2">
-                <button onClick={prevStep} className="flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-black transition-colors uppercase">
-                  <ArrowLeft size={14} /> Back
-                </button>
-                <label className="block text-base font-medium text-[#1a1a1b]">
-                  Step 2: Customize Your Artwork
-                </label>
-              </div>
+                {productType === "fresh_payment" && (
+                  <div className="p-4 rounded-2xl border-[2px] border-[#1a1a1b] bg-[#fafafa] flex items-center justify-between">
+                    <div>
+                      <p className="font-black text-[#1a1a1b] text-base">Fresh Payment</p>
+                      <p className="text-xs font-bold text-gray-500 mt-0.5">One-time payment</p>
+                    </div>
+                    <span className="font-black text-[#1a1a1b]">₹{FRESH_PAYMENT_AMOUNT}</span>
+                  </div>
+                )}
+
+                {productType === "digital_download" && (
+                  <div className="space-y-3">
+                    <label className="block text-base font-bold text-[#1a1a1b] font-inter">
+                      Digital Download
+                    </label>
+                    <div className="flex flex-col gap-3">
+                      {DIGITAL_DOWNLOAD_AMOUNTS.map((amount) => (
+                        <button
+                          key={amount}
+                          type="button"
+                          onClick={() => setDigitalDownloadAmount(amount)}
+                          className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${digitalDownloadAmount === amount ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}
+                        >
+                          <div>
+                            <span className="block font-black text-[#1a1a1b] text-base">{amount === 300 ? "Standard File" : "High-Resolution File"}</span>
+                            <span className="text-xs font-bold text-gray-500">₹{amount.toLocaleString("en-IN")}</span>
+                          </div>
+                          <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${digitalDownloadAmount === amount ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
+                            {digitalDownloadAmount === amount && <Check size={12} className="text-white" strokeWidth={3} />}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {productType === "portrait" && (
+                <>
 
               {/* Frame Colour (Only for Framed) */}
               {portraitStyle === "framed" && (
@@ -898,8 +1148,12 @@ export function ProductInfo() {
                   </button>
                 </div>
               </div>
+                </>
+                )}
 
               {/* Names & Text */}
+              {(productType === "portrait" || productType === "digital_download") && (
+              <>
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
@@ -920,13 +1174,15 @@ export function ProductInfo() {
                             while (newNames.length < numPets) newNames.push("");
                             newNames[i] = e.target.value;
                             setPetName(newNames.slice(0, numPets).join(", ").replace(/^, |, $/g, ''));
+                            clearFieldError("petName");
                           }}
                           placeholder={selectedPets !== "one" ? `Pet ${i + 1} Name` : "E.g. Lola"}
-                          className="w-full px-4 py-3 border-[1.5px] border-gray-200 rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm"
+                          className={`w-full px-4 py-3 border-[1.5px] rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm ${fieldErrors.petName ? "border-red-400 bg-red-50/40" : "border-gray-200"}`}
                         />
                       );
                     })}
                   </div>
+                  <FieldError message={fieldErrors.petName} />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
@@ -956,7 +1212,7 @@ export function ProductInfo() {
                     💡 Photo Guide
                   </button>
                 </div>
-                <div className="border-[1.5px] border-dashed border-gray-300 rounded-xl p-4 bg-gray-50/50">
+                <div className={`border-[1.5px] border-dashed rounded-xl p-4 ${fieldErrors.photo ? "border-red-400 bg-red-50/40" : "border-gray-300 bg-gray-50/50"}`}>
                   <input 
                     type="file" 
                     id="pet-photo-upload"
@@ -965,6 +1221,7 @@ export function ProductInfo() {
                     onChange={(e) => {
                       if (e.target.files && e.target.files[0]) {
                         setSelectedFile(e.target.files[0]);
+                        clearFieldError("photo");
                       }
                     }}
                   />
@@ -976,11 +1233,184 @@ export function ProductInfo() {
                     {selectedFile ? selectedFile.name.substring(0, 20) + "..." : "CHOOSE IMAGE"}
                   </label>
                 </div>
+                <FieldError message={fieldErrors.photo} />
               </div>
+              </>
+              )}
+
+              {extraProductsPicker()}
 
               <button 
-                onClick={nextStep}
+                type="button"
+                onClick={handleContinueFromStep1}
                 className="w-full py-4 bg-[#1a1a1b] text-white rounded-xl font-bold uppercase tracking-widest text-sm mt-4 hover:bg-[#2F2F2F] transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
+              >
+                Continue <ArrowRight size={18} />
+              </button>
+              <div className="flex items-center justify-center gap-1.5 mt-3 text-gray-500 bg-gray-50/80 py-2.5 rounded-lg border border-gray-100">
+                <Truck size={14} className="text-[#A87B62]" />
+                <span className="text-[11px] font-medium tracking-wide uppercase">
+                  Order today, receive it by: <strong className="text-[#1a1a1b] font-black">{deliveryDates}</strong>
+                </span>
+              </div>
+              </div>
+            </motion.div>
+          )}
+
+          {currentStepSafe === 2 && (
+            <motion.div
+              key="step2"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="space-y-6"
+            >
+              <div className="flex justify-between items-center mb-2">
+                <button type="button" onClick={prevStep} className="flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-black transition-colors uppercase">
+                  <ArrowLeft size={14} /> Back
+                </button>
+                <label className="block text-base font-medium text-[#1a1a1b]">
+                  Step 2: Customer Details
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                  Your Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={customerName}
+                  onChange={(e) => {
+                    setCustomerName(e.target.value);
+                    clearFieldError("customerName");
+                  }}
+                  placeholder="John Doe"
+                  className={`w-full px-4 py-3 border-[1.5px] rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm ${fieldErrors.customerName ? "border-red-400 bg-red-50/40" : "border-gray-200"}`}
+                />
+                <FieldError message={fieldErrors.customerName} />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                  Your Email <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  value={customerEmail}
+                  onChange={(e) => {
+                    setCustomerEmail(e.target.value);
+                    clearFieldError("customerEmail");
+                  }}
+                  placeholder="order@example.com"
+                  className={`w-full px-4 py-3 border-[1.5px] rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm ${fieldErrors.customerEmail ? "border-red-400 bg-red-50/40" : "border-gray-200"}`}
+                />
+                <FieldError message={fieldErrors.customerEmail} />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                  Phone Number <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  value={customerPhone}
+                  onChange={(e) => {
+                    setCustomerPhone(e.target.value);
+                    clearFieldError("customerPhone");
+                  }}
+                  placeholder="+91 98765 43210"
+                  className={`w-full px-4 py-3 border-[1.5px] rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm ${fieldErrors.customerPhone ? "border-red-400 bg-red-50/40" : "border-gray-200"}`}
+                />
+                <FieldError message={fieldErrors.customerPhone} />
+              </div>
+
+              {productType === "portrait" && (
+                <>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                      Full Address <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      value={shippingAddress}
+                      onChange={(e) => {
+                        setShippingAddress(e.target.value);
+                        clearFieldError("shippingAddress");
+                      }}
+                      placeholder="House / Street / Area"
+                      rows={3}
+                      className={`w-full px-4 py-3 border-[1.5px] rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm resize-none ${fieldErrors.shippingAddress ? "border-red-400 bg-red-50/40" : "border-gray-200"}`}
+                    />
+                    <FieldError message={fieldErrors.shippingAddress} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                        City <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={shippingCity}
+                        onChange={(e) => {
+                          setShippingCity(e.target.value);
+                          clearFieldError("shippingCity");
+                        }}
+                        placeholder="Mumbai"
+                        className={`w-full px-4 py-3 border-[1.5px] rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm ${fieldErrors.shippingCity ? "border-red-400 bg-red-50/40" : "border-gray-200"}`}
+                      />
+                      <FieldError message={fieldErrors.shippingCity} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                        State
+                      </label>
+                      <input
+                        type="text"
+                        value={shippingState}
+                        onChange={(e) => setShippingState(e.target.value)}
+                        placeholder="Maharashtra"
+                        className="w-full px-4 py-3 border-[1.5px] border-gray-200 rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                        Pincode <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={shippingPincode}
+                        onChange={(e) => {
+                          setShippingPincode(e.target.value);
+                          clearFieldError("shippingPincode");
+                        }}
+                        placeholder="400001"
+                        className={`w-full px-4 py-3 border-[1.5px] rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm ${fieldErrors.shippingPincode ? "border-red-400 bg-red-50/40" : "border-gray-200"}`}
+                      />
+                      <FieldError message={fieldErrors.shippingPincode} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                        Landmark
+                      </label>
+                      <input
+                        type="text"
+                        value={shippingLandmark}
+                        onChange={(e) => setShippingLandmark(e.target.value)}
+                        placeholder="Optional"
+                        className="w-full px-4 py-3 border-[1.5px] border-gray-200 rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <button
+                type="button"
+                onClick={handleContinueFromStep2}
+                className="w-full py-4 bg-[#1a1a1b] text-white rounded-xl font-bold text-sm tracking-widest uppercase transition-all shadow-xl active:scale-[0.98] flex items-center justify-center gap-2 mt-4 hover:bg-[#2F2F2F] text-white"
               >
                 Continue <ArrowRight size={18} />
               </button>
@@ -993,94 +1423,171 @@ export function ProductInfo() {
             </motion.div>
           )}
 
-          {currentStep === 3 && (
+          {currentStepSafe === 3 && (
             <motion.div
               key="step3"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="space-y-8"
+              className="space-y-5 overflow-visible"
             >
               <div className="flex justify-between items-center mb-2">
-                <button onClick={prevStep} className="flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-black transition-colors uppercase">
+                <button type="button" onClick={prevStep} className="flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-black transition-colors uppercase">
                   <ArrowLeft size={14} /> Back
                 </button>
                 <label className="block text-base font-medium text-[#1a1a1b]">
-                  Step 3: Final Details
+                  Step 3: Payment
                 </label>
               </div>
 
-              {/* Customer Name */}
-              <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                  Your Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="John Doe"
-                  className="w-full px-4 py-3 border-[1.5px] border-gray-200 rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm"
-                />
+              <div className="bg-[#faf8f5] rounded-2xl p-4 border border-[#efece8] space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">{displayQuote.productLabel}</span>
+                  <span className="font-bold">{formatRs(portraitBaseAmount)}</span>
+                </div>
+                {extraLines.map((line) => (
+                  <div key={line.id} className="flex justify-between">
+                    <span className="text-gray-500">{line.label}</span>
+                    <span className="font-bold">{formatRs(line.price)}</span>
+                  </div>
+                ))}
+                {displayQuote.couponDiscount > 0 && (
+                  <div className="flex justify-between text-green-700">
+                    <span>Coupon {displayQuote.couponCode} ({displayQuote.couponPercent}%)</span>
+                    <span className="font-bold">- {formatRs(displayQuote.couponDiscount)}</span>
+                  </div>
+                )}
+                {displayQuote.prepaidDiscount > 0 && (
+                  <div className="flex justify-between text-green-700">
+                    <span>Prepaid {displayQuote.prepaidPercent}% off</span>
+                    <span className="font-bold">- {formatRs(displayQuote.prepaidDiscount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between pt-2 border-t border-dashed border-[#eadfc9] font-black">
+                  <span>Pay now</span>
+                  <span>{formatRs(displayQuote.payableNow)}</span>
+                </div>
               </div>
 
-              {/* Email */}
-              <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                  Your Email <span className="text-red-500">*</span>
+              {extraProductsPicker()}
+
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">
+                  Coupon code
                 </label>
-                <input
-                  type="email"
-                  value={customerEmail}
-                  onChange={(e) => setCustomerEmail(e.target.value)}
-                  placeholder="order@example.com"
-                  className="w-full px-4 py-3 border-[1.5px] border-gray-200 rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm"
-                />
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Tag size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      value={couponInput}
+                      onChange={(e) => {
+                        setCouponInput(e.target.value.toUpperCase());
+                        setCouponError(null);
+                      }}
+                      placeholder="WELCOME10"
+                      className={`w-full pl-9 pr-3 py-3 border-[1.5px] rounded-lg outline-none font-inter text-sm uppercase tracking-wider ${couponError ? "border-red-400 bg-red-50/40" : "border-gray-200 focus:border-[#1a1a1b]"}`}
+                    />
+                  </div>
+                  {appliedCoupon ? (
+                    <button
+                      type="button"
+                      onClick={removeCoupon}
+                      className="px-4 py-3 rounded-lg border border-gray-200 text-xs font-black uppercase tracking-wider text-gray-600 hover:bg-gray-50"
+                    >
+                      Remove
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={applyCoupon}
+                      disabled={isApplyingCoupon}
+                      className="px-4 py-3 rounded-lg bg-[#1a1a1b] text-white text-xs font-black uppercase tracking-wider hover:bg-[#2F2F2F] disabled:opacity-60"
+                    >
+                      {isApplyingCoupon ? "..." : "Apply"}
+                    </button>
+                  )}
+                </div>
+                {couponError && <p className="text-[11px] font-bold text-red-500">{couponError}</p>}
+                {couponMessage && <p className="text-[11px] font-bold text-green-700">{couponMessage}</p>}
+                <p className="text-[10px] text-gray-400">WELCOME10 is 10% off and can be combined with the 4% prepaid discount. Coupon is applied first.</p>
               </div>
 
-              {/* Phone Number */}
-              <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                  Phone Number <span className="text-red-500">*</span>
+              <div className="space-y-3">
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">
+                  Payment method
                 </label>
-                <input
-                  type="tel"
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
-                  placeholder="+91 98765 43210"
-                  className="w-full px-4 py-3 border-[1.5px] border-gray-200 rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm"
-                />
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod("prepaid")}
+                  className={`w-full text-left p-4 rounded-2xl border-[2px] transition-all ${paymentMethod === "prepaid" ? "border-[#1a1a1b] bg-[#fafafa] shadow-md" : "border-gray-200 bg-white"}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <Wallet size={18} className="text-[#A87B62] mt-0.5" />
+                      <div>
+                        <p className="font-black text-sm text-[#1a1a1b]">Prepaid Payment — {formatRs(paymentMethod === "prepaid" ? displayQuote.payableNow : Math.round(displayQuote.afterCouponAmount * 0.96))}</p>
+                        <p className="text-[11px] text-green-700 font-bold mt-1">4% discount on prepaid payment</p>
+                      </div>
+                    </div>
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === "prepaid" ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
+                      {paymentMethod === "prepaid" && <Check size={12} className="text-white" strokeWidth={3} />}
+                    </div>
+                  </div>
+                </button>
+
+                {displayQuote.allowsCod && (
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("cod")}
+                    className={`w-full text-left p-4 rounded-2xl border-[2px] transition-all ${paymentMethod === "cod" ? "border-[#1a1a1b] bg-[#fafafa] shadow-md" : "border-gray-200 bg-white"}`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <IndianRupee size={18} className="text-[#A87B62] mt-0.5" />
+                        <div>
+                          <p className="font-black text-sm text-[#1a1a1b]">Cash on Delivery</p>
+                          <p className="text-[11px] text-gray-500 mt-1">
+                            40% Advance Payment — {formatRs(paymentMethod === "cod" ? displayQuote.advanceAmount : Math.round(displayQuote.afterCouponAmount * 0.4))}
+                          </p>
+                          <p className="text-[11px] text-gray-500">
+                            60% Remaining at delivery — {formatRs(paymentMethod === "cod" ? displayQuote.remainingAmount : displayQuote.afterCouponAmount - Math.round(displayQuote.afterCouponAmount * 0.4))}
+                          </p>
+                        </div>
+                      </div>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === "cod" ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
+                        {paymentMethod === "cod" && <Check size={12} className="text-white" strokeWidth={3} />}
+                      </div>
+                    </div>
+                  </button>
+                )}
               </div>
 
               <button
                 type="button"
-                onClick={handleAddToCartClick}
+                onClick={handleCheckout}
                 disabled={isSubmitting}
-                className={`w-full py-4 rounded-xl font-bold text-sm tracking-widest uppercase transition-all shadow-xl active:scale-[0.98] flex items-center justify-center gap-2 mt-4 ${isSubmitting
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : orderStatus === 'success' ? "bg-green-600" : "bg-[#1a1a1b] hover:bg-[#2F2F2F]"
-                  } text-white`}
+                className="w-full py-4 bg-[#A87B62] hover:bg-[#966c55] text-white rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-60"
               >
                 {isSubmitting ? (
                   <>
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     PROCESSING...
                   </>
-                ) : orderStatus === 'success' ? (
-                  <>
-                    <Check size={20} />
-                    ORDER PLACED!
-                  </>
                 ) : (
-                  "ADD TO CART"
+                  <>
+                    <span>Pay {formatRs(displayQuote.payableNow)}</span>
+                    <div className="flex items-center gap-1.5 bg-white/10 px-2 py-1 rounded-lg">
+                      <img src="https://img.icons8.com/color/48/google-logo.png" className="w-4 h-4 bg-white rounded p-0.5" alt="GPay" />
+                      <img src="https://img.icons8.com/color/48/paytm.png" className="w-4 h-4 bg-white rounded p-0.5" alt="Paytm" />
+                      <img src="https://img.icons8.com/color/48/bhim.png" className="w-4 h-4 bg-white rounded p-0.5" alt="BHIM" />
+                    </div>
+                  </>
                 )}
               </button>
-              <div className="flex items-center justify-center gap-1.5 mt-3 text-gray-500 bg-gray-50/80 py-2.5 rounded-lg border border-gray-100">
-                <Truck size={14} className="text-[#A87B62]" />
-                <span className="text-[11px] font-medium tracking-wide uppercase">
-                  Order today, receive it by: <strong className="text-[#1a1a1b] font-black">{deliveryDates}</strong>
-                </span>
-              </div>
+              <p className="text-center text-[8px] font-bold text-gray-400 uppercase tracking-widest">
+                Powered By Razorpay
+              </p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -1331,7 +1838,7 @@ export function ProductInfo() {
                 {/* Header Title */}
                 <div>
                   <h2 className="text-xl font-extrabold text-[#1a1a1b] font-inter">
-                    Your Cart - {!hasCustomizedItem ? 0 : (1 + (addMagnet ? 1 : 0) + (addMug ? 1 : 0))}
+                    Your Cart — {!hasCustomizedItem ? 0 : (1 + (addMagnet ? 1 : 0) + (addMug ? 1 : 0) + (addDigitalDownload && productType === "portrait" ? 1 : 0))}
                   </h2>
                 </div>
 
@@ -1376,20 +1883,31 @@ export function ProductInfo() {
                       {/* Right Column: Spec Details */}
                       <div className="flex-1 min-w-0">
                         <h3 className="font-extrabold text-sm text-[#1a1a1b] font-inter leading-tight">
-                          Custom Pet Portrait
+                          {PRODUCT_LABELS[productType]}
                         </h3>
                         <div className="text-[10px] text-gray-500 font-inter space-y-0.5 mt-1.5 leading-normal">
-                          <p><span className="font-bold">Size:</span> {selectedSize},</p>
-                          <p><span className="font-bold">Display Type:</span> {selectedFrame === "canva" ? "Canvas" : `${selectedFrame.charAt(0).toUpperCase() + selectedFrame.slice(1)} Frame`},</p>
-                          <p><span className="font-bold">Pets:</span> {selectedPets === "one" ? "1 Pet" : selectedPets === "two" ? "2 Pets" : selectedPets === "three" ? "3 Pets" : "4 Pets"},</p>
-                          <p><span className="font-bold">Pet Name:</span> {petName || "teter"}</p>
-                          <p className="truncate"><span className="font-bold">Choose your Photo-1:</span> {selectedFile ? selectedFile.name : "Screenshot-2026-01-14-190004.png"}</p>
-                          <p><span className="font-bold">Background:</span> {selectedBg}</p>
+                          {productType === "portrait" ? (
+                            <>
+                              <p><span className="font-bold">Size:</span> {selectedSize},</p>
+                              <p><span className="font-bold">Display Type:</span> {selectedFrame === "canva" ? "Canvas" : `${selectedFrame.charAt(0).toUpperCase() + selectedFrame.slice(1)} Frame`},</p>
+                              <p><span className="font-bold">Pets:</span> {selectedPets === "one" ? "1 Pet" : selectedPets === "two" ? "2 Pets" : selectedPets === "three" ? "3 Pets" : "4 Pets"},</p>
+                              <p><span className="font-bold">Pet Name:</span> {petName || "—"}</p>
+                              <p className="truncate"><span className="font-bold">Choose your Photo-1:</span> {selectedFile ? selectedFile.name : "—"}</p>
+                              <p><span className="font-bold">Background:</span> {selectedBg}</p>
+                            </>
+                          ) : (
+                            <>
+                              <p><span className="font-bold">Service:</span> {PRODUCT_LABELS[productType]}</p>
+                              {petName && <p><span className="font-bold">Pet Name:</span> {petName}</p>}
+                              {selectedFile && <p className="truncate"><span className="font-bold">Photo:</span> {selectedFile.name}</p>}
+                            </>
+                          )}
                         </div>
 
                         {/* Qty & Subtotal Controls */}
                         <div className="flex items-center justify-between mt-4">
                           {/* Qty Counter */}
+                          {productType === "portrait" && (
                           <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden h-7 bg-white">
                             <button
                               type="button"
@@ -1409,6 +1927,7 @@ export function ProductInfo() {
                               &#43;
                             </button>
                           </div>
+                          )}
 
                           {/* Subtotal Display */}
                           <div className="flex items-center gap-3">
@@ -1427,103 +1946,14 @@ export function ProductInfo() {
                               </svg>
                             </button>
                             <span className="text-xs font-extrabold text-[#1a1a1b] font-inter">
-                              Rs. {(totalPrice * cartQty).toLocaleString()}
+                              Rs. {totalPrice.toLocaleString()}
                             </span>
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* You might like... Cross-Sells Section commented out
-                    <div className="bg-[#A87B62] rounded-[2rem] p-5 space-y-4 shadow-sm text-white">
-                      <h4 className="text-center font-black uppercase tracking-widest text-xs font-inter">
-                        You might like...
-                      </h4>
-
-                      <div className="bg-white rounded-2xl p-3 flex items-center justify-between gap-3 text-[#1a1a1b]">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 relative rounded-lg overflow-hidden bg-gray-50 border border-gray-100 flex-shrink-0">
-                            <img
-                              src="https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?auto=format&fit=crop&q=80&w=150&h=150"
-                              alt="Custom Fridge Magnet"
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                          <div>
-                            <h5 className="font-extrabold text-xs leading-snug">Custom Fridge Magnet</h5>
-                            <p className="text-[10px] text-gray-500 mt-0.5">
-                              <span className="line-through mr-1">Rs. 349.00</span>
-                              <span className="font-extrabold text-[#A87B62]">Rs. 299.00</span>
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setAddMagnet(!addMagnet)}
-                          className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all border ${
-                            addMagnet 
-                              ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100" 
-                              : "bg-[#A87B62] text-white border-transparent hover:bg-[#966c55]"
-                          }`}
-                        >
-                          {addMagnet ? "REMOVE" : "ADD TO CART"}
-                        </button>
-                      </div>
-
-                      <div className="bg-white rounded-2xl p-3 flex items-center justify-between gap-3 text-[#1a1a1b]">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 relative rounded-lg overflow-hidden bg-gray-50 border border-gray-100 flex-shrink-0">
-                            <img
-                              src="https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&q=80&w=150&h=150"
-                              alt="Custom Pet Portrait Mug"
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                          <div>
-                            <h5 className="font-extrabold text-xs leading-snug">Custom Pet Portrait Mug</h5>
-                            <p className="text-[10px] text-gray-500 mt-0.5">
-                              <span className="line-through mr-1">Rs. 799.00</span>
-                              <span className="font-extrabold text-[#A87B62]">Rs. 599.00</span>
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setAddMug(!addMug)}
-                          className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all border ${
-                            addMug 
-                              ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100" 
-                              : "bg-[#A87B62] text-white border-transparent hover:bg-[#966c55]"
-                          }`}
-                        >
-                          {addMug ? "REMOVE" : "ADD TO CART"}
-                        </button>
-                      </div>
-                    </div>
-                    */}
-
-                    {/* Digital Download Toggle Card commented out
-                    <div className="bg-[#f8eadd] rounded-3xl p-4 flex items-center justify-between gap-3 border border-[#e5d2c4] text-[#1a1a1b]">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 relative rounded-lg overflow-hidden bg-white/60 border border-[#e5d2c4] flex-shrink-0 flex items-center justify-center">
-                          <Package size={22} className="text-[#A87B62]" />
-                        </div>
-                        <div>
-                          <h5 className="font-extrabold text-xs">Digital Download <span className="text-[#A87B62]">Rs. 299.00</span></h5>
-                          <p className="text-[9px] text-gray-500 mt-0.5 leading-snug">
-                            Receive a file of your artwork. Great for phone wallpapers or printing extras!
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setAddDigitalDownload(!addDigitalDownload)}
-                        className={`relative inline-flex h-5 w-10 cursor-pointer rounded-full transition-colors flex-shrink-0 ${addDigitalDownload ? 'bg-[#A87B62]' : 'bg-gray-300'}`}
-                      >
-                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 ${addDigitalDownload ? 'translate-x-5' : 'translate-x-1'} mt-0.5`} />
-                      </button>
-                    </div>
-                    */}
+                    {extraProductsPicker()}
                   </>
                 )}
               </div>
@@ -1537,12 +1967,7 @@ export function ProductInfo() {
                       Estimated total
                     </span>
                     <span className="font-black text-lg text-[#1a1a1b] font-inter">
-                      Rs. {(
-                        (totalPrice * cartQty) + 
-                        (addMagnet ? 299 : 0) + 
-                        (addMug ? 599 : 0) + 
-                        (addDigitalDownload ? 299 : 0)
-                      ).toLocaleString()}
+                      {formatRs(displayQuote.originalAmount)}
                     </span>
                   </div>
 
@@ -1550,10 +1975,7 @@ export function ProductInfo() {
                   <div>
                     <button
                       type="button"
-                      onClick={async () => {
-                        const grandTotal = (totalPrice * cartQty) + (addMagnet ? 299 : 0) + (addMug ? 599 : 0) + (addDigitalDownload ? 299 : 0);
-                        await handleCheckout(grandTotal);
-                      }}
+                      onClick={handleCartCheckout}
                       disabled={isSubmitting}
                       className="w-full py-4 bg-[#A87B62] hover:bg-[#966c55] text-white rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-3"
                     >
@@ -1655,7 +2077,6 @@ export function ProductInfo() {
                         mockPaymentId,
                         sandboxOrderData.orderId,
                         mockSignature,
-                        sandboxOrderData.amount
                       );
                     }}
                     disabled={isSubmitting}
@@ -1690,18 +2111,6 @@ export function ProductInfo() {
         )}
       </AnimatePresence>
 
-      {/* Floating WhatsApp Button */}
-      <a
-        href="https://wa.me/917999519434?text=Hi!%20I'm%20customizing%20a%20pet%20portrait%20and%20had%20a%20question!"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="fixed bottom-6 right-6 z-[9999] bg-[#25D366] text-white w-14 h-14 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all cursor-pointer"
-        title="Chat on WhatsApp"
-      >
-        <svg className="w-8 h-8 fill-current" viewBox="0 0 24 24">
-          <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.73-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.625 1.451 5.403.002 9.794-4.382 9.797-9.786.001-2.617-1.01-5.078-2.85-6.918C16.37 2.062 13.916.97 11.306.97c-5.41.003-9.802 4.39-9.805 9.795-.001 1.77.462 3.5 1.34 5.025l-.95 3.473 3.56-.933zm11.238-6.84c-.31-.156-1.83-.903-2.112-1.004-.282-.102-.489-.153-.69.155-.203.307-.785.99-.963 1.196-.178.205-.355.23-.665.074-.31-.156-1.31-.483-2.493-1.54-1.183-1.055-1.183-1.055-2.096-1.536-.913-.48-.913-.48-.155-1.312.28-.307.31-.462.464-.77.154-.307.077-.577-.038-.782-.115-.205-.963-2.317-1.316-3.17-.344-.833-.694-.72-1.005-.722h-.854c-.282 0-.742.106-1.13.53-.388.423-1.48 1.446-1.48 3.528 0 2.082 1.516 4.09 1.727 4.38.21.291 2.984 4.557 7.228 6.388 1.01.436 1.8.697 2.413.89 1.014.322 1.937.276 2.666.168.812-.12 1.832-.748 2.086-1.434.254-.686.254-1.274.178-1.4-.076-.127-.282-.205-.592-.361z" />
-        </svg>
-      </a>
       {/* Warning Modal */}
       <AnimatePresence>
         {warningMessage && (

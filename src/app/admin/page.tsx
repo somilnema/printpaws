@@ -99,6 +99,10 @@ export default function AdminPage() {
       [
         order.id,
         order.pet_name,
+        order.customer_name,
+        order.customer_phone,
+        order.coupon_code,
+        order.payment_mode,
         order.customer_email,
         order.size,
         order.frame_style,
@@ -304,6 +308,19 @@ function OrderCard({ order }: { order: AdminOrder }) {
           <p className="font-black text-primary">{rupee(Number(String(order.total_price ?? "0").replace(/[^\d.]/g, "")))}</p>
         </div>
         <p className="text-gray-500">{order.customer_email || "No email"}</p>
+        {(order.customer_name || order.customer_phone) && (
+          <p className="text-gray-600">
+            {[order.customer_name, order.customer_phone].filter(Boolean).join(" · ")}
+          </p>
+        )}
+        {order.payment_mode && (
+          <p className="text-gray-600">
+            {order.payment_mode === "partial" ? "COD" : "Prepaid"}
+            {order.coupon_code ? ` · ${order.coupon_code}` : ""}
+            {order.status ? ` · ${order.status}` : ""}
+            {Number(order.cod_due) > 0 ? ` · due ${rupee(Number(order.cod_due))}` : ""}
+          </p>
+        )}
         <p className="text-gray-600">
           {[order.size, order.frame_style, order.num_pets && `${order.num_pets} pet(s)`, order.background, order.font]
             .filter(Boolean)

@@ -7,6 +7,8 @@ export type AdminOrder = {
   id?: string;
   pet_name?: string;
   customer_email?: string;
+  customer_name?: string;
+  customer_phone?: string;
   size?: string;
   frame_style?: string;
   num_pets?: string | number;
@@ -17,6 +19,12 @@ export type AdminOrder = {
   total_price?: string | number;
   photo_url?: string;
   created_at?: string;
+  coupon_code?: string | null;
+  payment_mode?: string;
+  online_paid?: string | number;
+  cod_due?: string | number;
+  status?: string;
+  shipping_address?: string;
 };
 
 export type RevenuePoint = {

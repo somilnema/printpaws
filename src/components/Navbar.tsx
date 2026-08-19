@@ -15,7 +15,7 @@ export function Navbar() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed.hasCustomizedItem) {
-          const count = 1 + (parsed.addMagnet ? 1 : 0) + (parsed.addMug ? 1 : 0);
+          const count = 1 + (parsed.addMagnet ? 1 : 0) + (parsed.addMug ? 1 : 0) + (parsed.addDigitalDownload ? 1 : 0);
           setCartCount(count);
         }
       }

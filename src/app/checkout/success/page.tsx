@@ -1,10 +1,11 @@
 "use client";
 
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle, Truck, Mail, ArrowRight, Heart, Star, Loader2, PawPrint } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { getOrderDetails } from '@/app/actions/supabaseActions';
+import { trackPixel } from '@/lib/pixel';
 function SuccessContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get('orderId');
@@ -12,6 +13,7 @@ function SuccessContent() {
   const [loading, setLoading] = useState(true);
   const [orderData, setOrderData] = useState<any>(null);
   const [orderExists, setOrderExists] = useState(false);
+  const purchaseTracked = useRef(false);
 
   useEffect(() => {
     async function verifyOrder() {
@@ -21,20 +23,31 @@ function SuccessContent() {
       }
       
       try {
-        // Fetch order details using server action
         const data = await getOrderDetails(orderId);
 
-        if (data) {
+        const markFound = (found: any) => {
           setOrderExists(true);
-          setOrderData(data);
+          setOrderData(found);
+          if (!purchaseTracked.current) {
+            purchaseTracked.current = true;
+            const amount = Number(found.online_paid ?? found.total_price ?? 0);
+            trackPixel("Purchase", {
+              value: amount,
+              currency: "INR",
+              content_name: "Custom Pet Portrait",
+            });
+          }
+        };
+
+        if (data) {
+          markFound(data);
         } else {
           // If not found instantly, wait 1.5 seconds and retry
           await new Promise((resolve) => setTimeout(resolve, 1500));
           const retryData = await getOrderDetails(orderId);
 
           if (retryData) {
-            setOrderExists(true);
-            setOrderData(retryData);
+            markFound(retryData);
           }
         }
       } catch (err) {
@@ -167,6 +180,30 @@ function SuccessContent() {
                   <span className="font-bold text-[#1a1a1b]">{orderData.num_pets}</span>
                 </div>
               </div>
+              {(orderData.payment_mode || orderData.coupon_code || Number(orderData.cod_due) > 0) && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs mt-4 pt-4 border-t border-[#efece8]">
+                  <div>
+                    <span className="text-gray-400 block mb-0.5">Payment</span>
+                    <span className="font-bold text-[#1a1a1b]">{orderData.payment_mode === "partial" ? "COD" : "Prepaid"}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 block mb-0.5">Paid now</span>
+                    <span className="font-bold text-[#1a1a1b]">₹{Number(orderData.online_paid || orderData.total_price || 0).toLocaleString("en-IN")}</span>
+                  </div>
+                  {Number(orderData.cod_due) > 0 && (
+                    <div>
+                      <span className="text-gray-400 block mb-0.5">Due on delivery</span>
+                      <span className="font-bold text-[#1a1a1b]">₹{Number(orderData.cod_due).toLocaleString("en-IN")}</span>
+                    </div>
+                  )}
+                  {orderData.coupon_code && (
+                    <div>
+                      <span className="text-gray-400 block mb-0.5">Coupon</span>
+                      <span className="font-bold text-[#1a1a1b]">{orderData.coupon_code}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

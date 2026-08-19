@@ -27,6 +27,13 @@ export const sendOrderEmail = async (orderData: any) => {
   const totalPrice = orderData.total_price || orderData.totalPrice || "0";
   const photoUrl = orderData.photo_url || orderData.photoUrl || "";
   const razorpayPaymentId = orderData.razorpayPaymentId || orderData.razorpay_payment_id || "";
+  const customerName = orderData.customer_name || orderData.customerName || "";
+  const customerPhone = orderData.customer_phone || orderData.customerPhone || "";
+  const shippingAddress = [orderData.shipping_address, orderData.shipping_city, orderData.shipping_state, orderData.shipping_pincode].filter(Boolean).join(", ");
+  const paymentMode = orderData.payment_mode || orderData.paymentMode || "";
+  const couponCode = orderData.coupon_code || orderData.couponCode || "";
+  const onlinePaid = orderData.online_paid ?? orderData.onlinePaid ?? totalPrice;
+  const codDue = orderData.cod_due ?? orderData.codDue ?? 0;
   const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER || "";
 
   const subject = `🐾 Order Confirmed! Peternity Masterpiece #${id.slice(0, 8).toUpperCase()}`;
@@ -101,6 +108,36 @@ export const sendOrderEmail = async (orderData: any) => {
               <td style="padding: 12px 0; border-bottom: 1px solid #FAF8F5; color: #6E6259;">Premium Gift Wrap</td>
               <td style="padding: 12px 0; border-bottom: 1px solid #FAF8F5; text-align: right; font-weight: 700; color: #2C2623;">${giftWrap ? '🎁 Yes (Premium Wrap Included)' : 'No'}</td>
             </tr>
+            ${customerName ? `
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #FAF8F5; color: #6E6259;">Customer Name</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #FAF8F5; text-align: right; font-weight: 700; color: #2C2623;">${customerName}</td>
+            </tr>` : ''}
+            ${customerPhone ? `
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #FAF8F5; color: #6E6259;">Contact Number</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #FAF8F5; text-align: right; font-weight: 700; color: #2C2623;">${customerPhone}</td>
+            </tr>` : ''}
+            ${shippingAddress ? `
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #FAF8F5; color: #6E6259;">Delivery Address</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #FAF8F5; text-align: right; font-weight: 700; color: #2C2623;">${shippingAddress}</td>
+            </tr>` : ''}
+            ${paymentMode ? `
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #FAF8F5; color: #6E6259;">Payment Method</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #FAF8F5; text-align: right; font-weight: 700; color: #2C2623;">${paymentMode === "partial" ? "Cash on Delivery (40% advance)" : "Prepaid"}</td>
+            </tr>` : ''}
+            ${couponCode ? `
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #FAF8F5; color: #6E6259;">Coupon</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #FAF8F5; text-align: right; font-weight: 700; color: #2C2623;">${couponCode}</td>
+            </tr>` : ''}
+            ${Number(codDue) > 0 ? `
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #FAF8F5; color: #6E6259;">Paid Now / Due on Delivery</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #FAF8F5; text-align: right; font-weight: 700; color: #2C2623;">₹${onlinePaid} / ₹${codDue}</td>
+            </tr>` : ''}
             ${razorpayPaymentId ? `
             <tr>
               <td style="padding: 12px 0; border-bottom: 1px solid #FAF8F5; color: #6E6259;">Razorpay Payment Reference</td>
@@ -225,6 +262,26 @@ export const sendOrderEmail = async (orderData: any) => {
               <td style="padding: 12px 0; border-bottom: 1px solid #222222; color: #A0A0A0;">Premium Gift Wrap</td>
               <td style="padding: 12px 0; border-bottom: 1px solid #222222; text-align: right; font-weight: 700; color: #FFFFFF;">${giftWrap ? '🎁 Yes (Premium Wrap)' : 'No'}</td>
             </tr>
+            ${customerName ? `
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #222222; color: #A0A0A0;">Customer Name</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #222222; text-align: right; font-weight: 700; color: #FFFFFF;">${customerName}</td>
+            </tr>` : ''}
+            ${customerPhone ? `
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #222222; color: #A0A0A0;">Contact Number</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #222222; text-align: right; font-weight: 700; color: #FFFFFF;">${customerPhone}</td>
+            </tr>` : ''}
+            ${shippingAddress ? `
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #222222; color: #A0A0A0;">Delivery Address</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #222222; text-align: right; font-weight: 700; color: #FFFFFF;">${shippingAddress}</td>
+            </tr>` : ''}
+            ${paymentMode ? `
+            <tr>
+              <td style="padding: 12px 0; border-bottom: 1px solid #222222; color: #A0A0A0;">Payment Method</td>
+              <td style="padding: 12px 0; border-bottom: 1px solid #222222; text-align: right; font-weight: 700; color: #FFFFFF;">${paymentMode === "partial" ? "COD (40% advance)" : "Prepaid"}</td>
+            </tr>` : ''}
             ${razorpayPaymentId ? `
             <tr>
               <td style="padding: 12px 0; border-bottom: 1px solid #222222; color: #A0A0A0;">Razorpay Payment Reference</td>

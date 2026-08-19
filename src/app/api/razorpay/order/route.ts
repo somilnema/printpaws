@@ -1,8 +1,27 @@
 import { NextResponse } from "next/server";
+import { calculateQuote, type PricingInput } from "@/lib/pricing";
 
 export async function POST(req: Request) {
   try {
-    const { amount } = await req.json();
+    const body = (await req.json()) as PricingInput;
+
+    let quote;
+    try {
+      quote = calculateQuote(body);
+    } catch (err: any) {
+      return NextResponse.json(
+        { success: false, error: err.message || "Invalid order details." },
+        { status: 400 }
+      );
+    }
+
+    const amount = quote.payableNow;
+    if (!amount || amount < 1) {
+      return NextResponse.json(
+        { success: false, error: "Payable amount is invalid." },
+        { status: 400 }
+      );
+    }
 
     const keyId = process.env.RAZORPAY_KEY_ID;
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
@@ -14,24 +33,29 @@ export async function POST(req: Request) {
         success: true,
         isMock: true,
         orderId: mockOrderId,
-        amount: amount,
+        amount,
         currency: "INR",
-        keyId: "rzp_test_mockKey123"
+        keyId: "rzp_test_mockKey123",
+        quote,
       });
     }
 
-    // Call Razorpay REST API directly to avoid package dependency conflicts
     const authString = Buffer.from(`${keyId}:${keySecret}`).toString("base64");
     const response = await fetch("https://api.razorpay.com/v1/orders", {
       method: "POST",
       headers: {
-        "Authorization": `Basic ${authString}`,
+        Authorization: `Basic ${authString}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        amount: Math.round(amount * 100), // convert rupees to paise
+        amount: Math.round(amount * 100),
         currency: "INR",
         receipt: `receipt_peternity_${Date.now()}`,
+        notes: {
+          productType: quote.productType,
+          paymentMethod: quote.paymentMethod,
+          coupon: quote.couponCode || "",
+        },
       }),
     });
 
@@ -49,9 +73,10 @@ export async function POST(req: Request) {
       success: true,
       isMock: false,
       orderId: order.id,
-      amount: order.amount,
+      amount: quote.payableNow,
       currency: order.currency,
-      keyId: keyId,
+      keyId,
+      quote,
     });
   } catch (error: any) {
     console.error("❌ [RAZORPAY] Order API handler error:", error);
