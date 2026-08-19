@@ -41,11 +41,6 @@ function ExtraCard({
       </div>
       <div className="min-w-0 flex-1">
         <h5 className="font-bold text-sm leading-tight text-[#1a1a1b]">{product.label}</h5>
-        {"subtitle" in product && product.subtitle && (
-          <p className="text-[9px] font-semibold text-[#A87B62] uppercase tracking-wide mt-0.5">
-            {product.subtitle}
-          </p>
-        )}
         <p className="text-[12px] mt-1 leading-none">
           <span className="text-gray-400 line-through mr-1.5">Rs. {product.compareAt}</span>
           <span className="font-bold text-[#A87B62]">Rs. {product.price}</span>
