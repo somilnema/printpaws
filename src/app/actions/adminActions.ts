@@ -1,12 +1,6 @@
 "use server";
 
-import {
-  clearAdminSession,
-  getAdminSession,
-  requireAdminSession,
-  setAdminSession,
-  verifyAdminCredentials,
-} from "@/lib/admin-auth";
+import { getAdminSession } from "@/lib/admin-auth";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export type AdminOrder = {
@@ -145,27 +139,17 @@ async function loadOrders(): Promise<{ orders: AdminOrder[]; warning?: string }>
 }
 
 export async function getAdminDashboard(): Promise<AdminDashboard | null> {
-  const session = await getAdminSession();
-  if (!session) return null;
-  const { orders, warning } = await loadOrders();
-  return buildDashboard(session.email, orders, warning);
-}
-
-export async function adminLogin(email: string, password: string): Promise<AdminDashboard> {
-  if (!verifyAdminCredentials(email, password)) {
-    throw new Error("Invalid email or password");
+  try {
+    const session = await getAdminSession();
+    if (!session) return null;
+    const { orders, warning } = await loadOrders();
+    return buildDashboard(session.email, orders, warning);
+  } catch (err) {
+    console.error("Admin dashboard error:", err);
+    return null;
   }
-  await setAdminSession(email);
-  const { orders, warning } = await loadOrders();
-  return buildDashboard(email.trim().toLowerCase(), orders, warning);
 }
 
-export async function adminLogout() {
-  await clearAdminSession();
-}
-
-export async function refreshAdminDashboard(): Promise<AdminDashboard> {
-  const session = await requireAdminSession();
-  const { orders, warning } = await loadOrders();
-  return buildDashboard(session.email, orders, warning);
+export async function refreshAdminDashboard(): Promise<AdminDashboard | null> {
+  return getAdminDashboard();
 }

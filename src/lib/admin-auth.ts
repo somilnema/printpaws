@@ -1,7 +1,8 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
+import type { NextResponse } from "next/server";
 
-const COOKIE = "peternity_admin";
+export const ADMIN_COOKIE = "peternity_admin";
 const WEEK = 60 * 60 * 24 * 7;
 
 function expectedEmail() {
@@ -26,26 +27,61 @@ function hmac(value: string) {
 }
 
 function safeEqual(a: string, b: string) {
-  const left = hmac(`cmp:${a}`);
-  const right = hmac(`cmp:${b}`);
-  return timingSafeEqual(Buffer.from(left), Buffer.from(right));
+  const left = Buffer.from(hmac(`cmp:${a}`));
+  const right = Buffer.from(hmac(`cmp:${b}`));
+  if (left.length !== right.length) return false;
+  return timingSafeEqual(left, right);
 }
 
-export function verifyAdminCredentials(email: string, password: string) {
+function encodePayload(value: string) {
+  return Buffer.from(value, "utf8")
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function decodePayload(value: string) {
+  const padded = value.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((value.length + 3) % 4);
+  return Buffer.from(padded, "base64").toString("utf8");
+}
+
+export function verifyAdminCredentials(email: string, password: string): { ok: true } | { ok: false; error: string } {
   const expectedE = expectedEmail();
   const expectedP = expectedPassword();
   if (!expectedE || !expectedP) {
-    throw new Error("Admin login is not configured. Set ADMIN_EMAIL and ADMIN_PASSWORD.");
+    return {
+      ok: false,
+      error: "Admin login is not configured on the server. Add ADMIN_EMAIL and ADMIN_PASSWORD in the host environment.",
+    };
   }
   const emailOk = safeEqual(email.trim().toLowerCase(), expectedE);
   const passwordOk = safeEqual(password, expectedP);
-  return emailOk && passwordOk;
+  if (!emailOk || !passwordOk) {
+    return { ok: false, error: "Invalid email or password" };
+  }
+  return { ok: true };
 }
 
-function signSession(email: string) {
+export function createAdminToken(email: string) {
   const exp = Date.now() + WEEK * 1000;
-  const payload = Buffer.from(JSON.stringify({ email, exp })).toString("base64url");
+  const payload = encodePayload(JSON.stringify({ email: email.trim().toLowerCase(), exp }));
   return `${payload}.${hmac(payload)}`;
+}
+
+export function adminCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: WEEK,
+  };
+}
+
+export function applyAdminCookie(res: NextResponse, email: string) {
+  res.cookies.set(ADMIN_COOKIE, createAdminToken(email), adminCookieOptions());
+  return res;
 }
 
 export function readAdminSession(token?: string | null) {
@@ -53,12 +89,9 @@ export function readAdminSession(token?: string | null) {
   const [payload, signature] = token.split(".");
   if (!payload || !signature || !safeEqual(hmac(payload), signature)) return null;
   try {
-    const data = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as {
-      email: string;
-      exp: number;
-    };
+    const data = JSON.parse(decodePayload(payload)) as { email: string; exp: number };
     if (!data.exp || data.exp < Date.now()) return null;
-    if (!safeEqual(data.email.trim().toLowerCase(), expectedEmail())) return null;
+    if (!expectedEmail() || !safeEqual(data.email.trim().toLowerCase(), expectedEmail())) return null;
     return data;
   } catch {
     return null;
@@ -66,28 +99,10 @@ export function readAdminSession(token?: string | null) {
 }
 
 export async function getAdminSession() {
-  const jar = await cookies();
-  return readAdminSession(jar.get(COOKIE)?.value);
-}
-
-export async function requireAdminSession() {
-  const session = await getAdminSession();
-  if (!session) throw new Error("Unauthorized");
-  return session;
-}
-
-export async function setAdminSession(email: string) {
-  const jar = await cookies();
-  jar.set(COOKIE, signSession(email.trim().toLowerCase()), {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: WEEK,
-  });
-}
-
-export async function clearAdminSession() {
-  const jar = await cookies();
-  jar.delete(COOKIE);
+  try {
+    const jar = await cookies();
+    return readAdminSession(jar.get(ADMIN_COOKIE)?.value);
+  } catch {
+    return null;
+  }
 }

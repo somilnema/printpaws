@@ -3,8 +3,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  adminLogin,
-  adminLogout,
   getAdminDashboard,
   refreshAdminDashboard,
   type AdminDashboard,
@@ -47,18 +45,32 @@ export default function AdminPage() {
     setLoading(true);
     setError("");
     try {
-      const data = await adminLogin(email, password);
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(json.error || "Invalid email or password");
+        return;
+      }
+      const data = await getAdminDashboard();
+      if (!data) {
+        setError("Signed in, but the dashboard could not load. Refresh and try again.");
+        return;
+      }
       setDashboard(data);
       setPassword("");
-    } catch (err: any) {
-      setError(err?.message || "Could not sign in");
+    } catch {
+      setError("Could not sign in. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
   async function handleLogout() {
-    await adminLogout();
+    await fetch("/api/admin/logout", { method: "POST" });
     setDashboard(null);
     setQuery("");
   }
@@ -66,10 +78,14 @@ export default function AdminPage() {
   async function handleRefresh() {
     setLoading(true);
     try {
-      setDashboard(await refreshAdminDashboard());
-    } catch (err: any) {
-      setError(err?.message || "Could not refresh");
-      setDashboard(null);
+      const data = await refreshAdminDashboard();
+      if (!data) {
+        setDashboard(null);
+        return;
+      }
+      setDashboard(data);
+    } catch {
+      setError("Could not refresh");
     } finally {
       setLoading(false);
     }
