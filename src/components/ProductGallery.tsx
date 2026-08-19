@@ -199,7 +199,6 @@ export function ProductGallery() {
                 sizes="(max-width: 768px) 100vw, (max-width: 1024px) 640px, 640px"
                 className="select-none transition-transform duration-300 object-cover"
                 priority
-                unoptimized
               />
             </motion.div>
           )}
