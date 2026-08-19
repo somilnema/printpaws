@@ -75,13 +75,19 @@ export async function POST(req: Request) {
     const status = quote.paymentMethod === "cod" ? "partial_paid" : "paid";
     const totalDiscount = quote.couponDiscount + quote.prepaidDiscount;
 
+    const extras = [
+      body.addMug ? "custom_mug" : "",
+      body.addMagnet ? "fridge_magnet" : "",
+      body.addDigitalDownload ? "digital_download" : "",
+    ].filter(Boolean);
+
     const orderRow = {
       size: body.size || quote.productLabel,
       frame_style: body.frameStyle || quote.productType,
       num_pets: body.numPets || "one",
       background: body.background || "",
       font: body.font || "",
-      addon: body.addon || quote.productType,
+      addon: body.addon || extras.join(", ") || quote.productType,
       pet_name: body.petName || quote.productLabel,
       gift_wrap: !!body.giftWrap,
       customer_email: customerEmail,

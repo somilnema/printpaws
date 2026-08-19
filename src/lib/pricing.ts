@@ -87,7 +87,7 @@ export const EXTRA_PRODUCTS = {
   },
   magnet: {
     id: "magnet" as const,
-    label: "Fridge Magnet",
+    label: "Custom Pet Fridge Magnet",
     description: "A custom fridge magnet of your pet.",
     price: 200,
     compareAt: 299,
@@ -96,7 +96,7 @@ export const EXTRA_PRODUCTS = {
   digital: {
     id: "digital" as const,
     label: "Digital Download",
-    description: "Receive a file of your artwork. Great for phone wallpapers or printing extras.",
+    description: "Digital file suitable for wallpapers and other digital uses.",
     price: 300,
     compareAt: 399,
     image: "/extras/digital-download.jpg",
@@ -124,6 +124,76 @@ export function extraProductLines(input: Pick<PricingInput, "addMug" | "addMagne
 
 export function extrasTotal(input: Pick<PricingInput, "addMug" | "addMagnet" | "addDigitalDownload">) {
   return extraProductLines(input).reduce((sum, line) => sum + line.price, 0);
+}
+
+export type PriceLine = { id: string; label: string; price: number };
+
+export const PORTRAIT_STYLE_LABELS: Record<PortraitStyle, string> = {
+  framed: "Framed Portrait",
+  canvas: "Canvas Portrait",
+};
+
+export const PET_COUNT_LABELS: Record<string, string> = {
+  one: "1 Pet",
+  two: "2 Pets",
+  three: "3 Pets",
+  four: "4 Pets",
+};
+
+export function frameColorLabel(frame: string, style: PortraitStyle) {
+  if (style === "canvas") return "Canvas wrap";
+  if (frame === "white") return "White Frame";
+  return "Black Frame";
+}
+
+export function getPortraitBreakdown(input: PricingInput) {
+  const style: PortraitStyle = input.portraitStyle === "canvas" ? "canvas" : "framed";
+  const size = input.size || (style === "canvas" ? '8"x12"' : '8"x10"');
+  const sizePrice =
+    style === "framed" ? (FRAMED_SIZE_PRICES[size] ?? 1499) : (CANVAS_SIZE_PRICES[size] ?? 1699);
+  const petUpgrade = PET_UPGRADES[input.numPets || "one"] ?? 0;
+  const halo = input.addon === "halo_effect" ? ADDON_PRICES.halo_effect : 0;
+  const wrap = input.giftWrap ? GIFT_WRAP_PRICE : 0;
+  const premiumBg = ["bg7", "bg8", "bg9"].includes(input.background || "")
+    ? PREMIUM_BACKGROUND_PRICE
+    : 0;
+  const qty = Math.max(1, input.cartQty || 1);
+  const extras = extraProductLines(input);
+
+  const portraitLines: PriceLine[] = [
+    { id: "size", label: `${PORTRAIT_STYLE_LABELS[style]} · ${size}`, price: sizePrice * qty },
+  ];
+  if (petUpgrade > 0) {
+    portraitLines.push({
+      id: "pets",
+      label: `${PET_COUNT_LABELS[input.numPets || "one"] || "Pets"} upgrade`,
+      price: petUpgrade * qty,
+    });
+  }
+  if (halo > 0) {
+    portraitLines.push({ id: "halo", label: "Halo Effect", price: halo * qty });
+  }
+  if (wrap > 0) {
+    portraitLines.push({ id: "wrap", label: "Gift Wrap", price: wrap * qty });
+  }
+  if (premiumBg > 0) {
+    portraitLines.push({ id: "bg", label: "Premium background", price: premiumBg * qty });
+  }
+
+  const portraitSubtotal = (sizePrice + petUpgrade + halo + wrap + premiumBg) * qty;
+  return {
+    style,
+    size,
+    sizePrice: sizePrice * qty,
+    petUpgrade: petUpgrade * qty,
+    halo: halo * qty,
+    wrap: wrap * qty,
+    premiumBg: premiumBg * qty,
+    extras,
+    extrasAmount: extras.reduce((sum, line) => sum + line.price, 0),
+    portraitLines,
+    portraitSubtotal,
+  };
 }
 
 export const CUSTOM_PAYMENT_AMOUNTS = [500, 600] as const;

@@ -41,6 +41,7 @@ function ExtraCard({
       </div>
       <div className="min-w-0 flex-1">
         <h5 className="font-bold text-sm leading-tight text-[#1a1a1b]">{product.label}</h5>
+        <p className="text-[11px] text-gray-500 mt-0.5 leading-snug">{product.description}</p>
         <p className="text-[12px] mt-1 leading-none">
           <span className="text-gray-400 line-through mr-1.5">Rs. {product.compareAt}</span>
           <span className="font-bold text-[#A87B62]">Rs. {product.price}</span>
@@ -70,7 +71,7 @@ export function ExtraProducts({
   onToggleMug,
   onToggleMagnet,
   onToggleGift,
-  title = "You might like",
+  title = "Additional Products",
 }: ExtraProductsProps) {
   return (
     <div className="rounded-2xl bg-[#A87B62] p-4 space-y-2.5">

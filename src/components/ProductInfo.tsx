@@ -25,13 +25,16 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { getCloudinaryUrl } from "@/utils/cloudinary";
 import {
+  ADDON_PRICES,
   calculateQuote,
-  CUSTOM_PAYMENT_AMOUNTS,
-  DIGITAL_DOWNLOAD_AMOUNTS,
   extraProductLines,
   extrasTotal,
-  FRESH_PAYMENT_AMOUNT,
+  frameColorLabel,
   formatRs,
+  getPortraitBreakdown,
+  GIFT_WRAP_PRICE,
+  PET_COUNT_LABELS,
+  PORTRAIT_STYLE_LABELS,
   PRODUCT_LABELS,
   type PaymentMethod,
   type PricingInput,
@@ -119,6 +122,8 @@ export function ProductInfo() {
   const [shippingLandmark, setShippingLandmark] = useState("");
   const [showPhotoGuide, setShowPhotoGuide] = useState(false);
   const [showCart, setShowCart] = useState(false);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [addedToCart, setAddedToCart] = useState(false);
   const [cartQty, setCartQty] = useState(1);
   const [addMagnet, setAddMagnet] = useState(false);
   const [addMug, setAddMug] = useState(false);
@@ -163,7 +168,7 @@ export function ProductInfo() {
       const saved = localStorage.getItem('peternity_cart');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.productType) setProductType(parsed.productType);
+        if (parsed.productType === "portrait") setProductType("portrait");
         if (parsed.customPaymentAmount) setCustomPaymentAmount(parsed.customPaymentAmount);
         if (parsed.digitalDownloadAmount) setDigitalDownloadAmount(parsed.digitalDownloadAmount);
         if (parsed.paymentMethod) setPaymentMethod(parsed.paymentMethod);
@@ -189,6 +194,8 @@ export function ProductInfo() {
         if (parsed.addMagnet !== undefined) setAddMagnet(parsed.addMagnet);
         if (parsed.addMug !== undefined) setAddMug(parsed.addMug);
         if (parsed.addDigitalDownload !== undefined) setAddDigitalDownload(parsed.addDigitalDownload);
+        if (parsed.addedToCart) setAddedToCart(true);
+        if (parsed.memorialText) setMemorialText(parsed.memorialText);
       }
     } catch (e) {
       console.warn("Failed to load persisted cart cache:", e);
@@ -225,13 +232,13 @@ export function ProductInfo() {
       addMagnet,
       addMug,
       addDigitalDownload,
-      hasCustomizedItem: productType !== "portrait" || !!selectedFile || !!petName
+      addedToCart,
+      hasCustomizedItem: addedToCart
     };
     try {
       localStorage.setItem('peternity_cart', JSON.stringify(cartState));
       
-      const hasItem = productType !== "portrait" || !!selectedFile || !!petName;
-      const count = hasItem ? (1 + (addMagnet ? 1 : 0) + (addMug ? 1 : 0) + (addDigitalDownload ? 1 : 0)) : 0;
+      const count = addedToCart ? (1 + (addMagnet ? 1 : 0) + (addMug ? 1 : 0) + (addDigitalDownload ? 1 : 0)) : 0;
       window.dispatchEvent(new CustomEvent('cartBadgeUpdated', { detail: count }));
     } catch (e) {
       console.warn("Failed to persist cart cache:", e);
@@ -258,6 +265,7 @@ export function ProductInfo() {
     addMagnet,
     addMug,
     addDigitalDownload,
+    addedToCart,
     selectedFile,
     productType,
     customPaymentAmount,
@@ -286,11 +294,11 @@ export function ProductInfo() {
   }, [currentStepSafe]);
 
   useEffect(() => {
-    window.dispatchEvent(new CustomEvent('overlayOpen', { detail: showCart || showSandboxModal }));
+    window.dispatchEvent(new CustomEvent('overlayOpen', { detail: showCart || showCheckout || showSandboxModal }));
     return () => {
       window.dispatchEvent(new CustomEvent('overlayOpen', { detail: false }));
     };
-  }, [showCart, showSandboxModal]);
+  }, [showCart, showCheckout, showSandboxModal]);
 
   const pricingInput: PricingInput = {
     productType,
@@ -317,14 +325,27 @@ export function ProductInfo() {
     quote = calculateQuote({ ...pricingInput, couponCode: null });
   }
 
+  const prepaidQuote = calculateQuote({
+    ...pricingInput,
+    couponCode: quote.couponCode,
+    paymentMethod: "prepaid",
+  });
+  const codQuote = calculateQuote({
+    ...pricingInput,
+    couponCode: quote.couponCode,
+    paymentMethod: "cod",
+  });
+
   const totalPrice = quote.originalAmount;
   const cutPrice = Math.round(totalPrice / 0.70);
   const displayQuote = quote;
   const extraLines = extraProductLines(pricingInput);
   const extrasAmount = extrasTotal(pricingInput);
   const portraitBaseAmount = Math.max(0, quote.originalAmount - extrasAmount);
+  const breakdown = getPortraitBreakdown(pricingInput);
+  const cartTotal = quote.afterCouponAmount;
 
-  const extraProductsPicker = () =>
+  const extraProductsPicker = (title?: string) =>
     productType === "portrait" ? (
     <ExtraProducts
       addMug={addMug}
@@ -333,6 +354,7 @@ export function ProductInfo() {
       onToggleMug={() => setAddMug(!addMug)}
       onToggleMagnet={() => setAddMagnet(!addMagnet)}
       onToggleGift={() => setAddDigitalDownload(!addDigitalDownload)}
+      title={title || "Additional Products"}
     />
   ) : null;
 
@@ -347,10 +369,6 @@ export function ProductInfo() {
 
   const validateStep1 = () => {
     const errors: Record<string, string> = {};
-    if (productType === "portrait" || productType === "digital_download") {
-      if (!petName.trim()) errors.petName = "Please enter your pet's name to continue.";
-      if (!selectedFile) errors.photo = "Please choose a pet photo to continue.";
-    }
     if (productType === "custom_payment" && ![500, 600].includes(customPaymentAmount)) {
       errors.customPayment = "Please select a Custom Payment amount.";
     }
@@ -360,17 +378,40 @@ export function ProductInfo() {
 
   const validateStep2 = () => {
     const errors: Record<string, string> = {};
-    if (!customerName.trim()) errors.customerName = "Please enter your name to continue.";
+    if (productType === "portrait" || productType === "digital_download") {
+      if (!petName.trim()) errors.petName = "Please enter your pet's name to continue.";
+      if (!selectedFile) errors.photo = "Please choose a pet photo to continue.";
+    }
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateStep3 = () => {
+    const errors: Record<string, string> = {};
+    if (!customerName.trim()) errors.customerName = "Please enter your full name to continue.";
     if (!customerEmail.trim()) errors.customerEmail = "Please enter your email to continue.";
     else if (!isValidEmail(customerEmail)) errors.customerEmail = "Please enter a valid email to continue.";
     if (!customerPhone.trim() || customerPhone.replace(/\D/g, "").length < 10) {
-      errors.customerPhone = "Please enter a valid contact number to continue.";
+      errors.customerPhone = "Please enter a valid mobile number to continue.";
+    }
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const validateCheckout = () => {
+    const errors: Record<string, string> = {};
+    if (!customerName.trim()) errors.customerName = "Please enter your full name to continue.";
+    if (!customerEmail.trim()) errors.customerEmail = "Please enter your email to continue.";
+    else if (!isValidEmail(customerEmail)) errors.customerEmail = "Please enter a valid email to continue.";
+    if (!customerPhone.trim() || customerPhone.replace(/\D/g, "").length < 10) {
+      errors.customerPhone = "Please enter a valid mobile number to continue.";
     }
     if (productType === "portrait") {
       if (!shippingAddress.trim()) errors.shippingAddress = "Please enter your full address to continue.";
       if (!shippingCity.trim()) errors.shippingCity = "Please enter your city to continue.";
+      if (!shippingState.trim()) errors.shippingState = "Please enter your state to continue.";
       if (!shippingPincode.trim() || shippingPincode.replace(/\D/g, "").length < 6) {
-        errors.shippingPincode = "Please enter a valid pincode to continue.";
+        errors.shippingPincode = "Please enter a valid PIN code to continue.";
       }
     }
     setFieldErrors(errors);
@@ -381,14 +422,20 @@ export function ProductInfo() {
 
   const handleContinueFromStep1 = () => {
     if (!validateStep1()) return;
-    trackPixel("AddToCart", { value: totalPrice, currency: "INR" });
     goToStep(2);
   };
 
   const handleContinueFromStep2 = () => {
     if (!validateStep2()) return;
-    trackPixel("InitiateCheckout", { value: displayQuote.payableNow, currency: "INR" });
     goToStep(3);
+  };
+
+  const handleAddToCart = () => {
+    if (!validateStep3()) return;
+    setAddedToCart(true);
+    setShowCheckout(false);
+    setShowCart(true);
+    trackPixel("AddToCart", { value: totalPrice, currency: "INR" });
   };
 
   const prevStep = () => goToStep(currentStepSafe - 1);
@@ -529,12 +576,19 @@ export function ProductInfo() {
   };
 
   const handleCheckout = async () => {
-    if (!validateStep1()) {
-      goToStep(1);
+    if (!addedToCart) {
+      setWarningMessage("Please add your portrait to the cart before placing the order.");
       return;
     }
     if (!validateStep2()) {
+      setShowCheckout(false);
+      setShowCart(false);
       goToStep(2);
+      return;
+    }
+    if (!validateCheckout()) {
+      setShowCheckout(true);
+      setShowCart(false);
       return;
     }
 
@@ -612,23 +666,22 @@ export function ProductInfo() {
     }
   };
 
-  const handleCartCheckout = () => {
+  const handleInitiateCheckout = () => {
+    if (!addedToCart) return;
+    if (!validateStep3()) {
+      setShowCart(false);
+      goToStep(3);
+      return;
+    }
+    trackPixel("InitiateCheckout", { value: cartTotal, currency: "INR" });
     setShowCart(false);
-    if (!validateStep1()) {
-      goToStep(1);
-      return;
-    }
-    if (!validateStep2()) {
-      goToStep(2);
-      return;
-    }
-    goToStep(3);
+    setShowCheckout(true);
   };
 
-  const hasCustomizedItem = productType !== "portrait" || !!selectedFile || !!petName;
+  const hasCustomizedItem = addedToCart;
 
   return (
-    <div ref={containerRef} className="flex flex-col gap-0 scroll-mt-24">
+    <div ref={containerRef} id="product-customizer" className="flex flex-col gap-0 scroll-mt-24">
       {/* Header Info */}
       <div className="lg:space-y-4 space-y-1">
         <div className="hidden lg:flex items-center gap-1.5">
@@ -702,7 +755,7 @@ export function ProductInfo() {
       <div className="mb-6 lg:mb-8">
         <div className="flex items-center justify-between mb-2">
           <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-            Step {currentStepSafe} of 3
+            Step {currentStepSafe} of 3 · {currentStepSafe === 1 ? "Choose Portrait" : currentStepSafe === 2 ? "Customize" : "Your Details"}
           </span>
           <span className="text-[10px] font-bold text-primary uppercase tracking-widest">
             {Math.round((currentStepSafe / 3) * 100)}% Complete
@@ -730,42 +783,6 @@ export function ProductInfo() {
               className="space-y-6"
             >
               <div className="space-y-6">
-                <div className="space-y-3">
-                  <label className="block text-base font-bold text-[#1a1a1b] font-inter">
-                    Choose Your Product
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {([
-                      { id: "portrait" as ProductType, label: "Custom Portrait", hint: "Framed or canvas" },
-                      { id: "custom_payment" as ProductType, label: "Custom Payment", hint: `₹${CUSTOM_PAYMENT_AMOUNTS[0]} / ₹${CUSTOM_PAYMENT_AMOUNTS[1]}` },
-                      { id: "fresh_payment" as ProductType, label: "Fresh Payment", hint: `₹${FRESH_PAYMENT_AMOUNT}` },
-                      { id: "digital_download" as ProductType, label: "Digital Download", hint: `₹${DIGITAL_DOWNLOAD_AMOUNTS[0]} / ₹${DIGITAL_DOWNLOAD_AMOUNTS[1]}` },
-                    ]).map((option) => (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => {
-                          setProductType(option.id);
-                          if (option.id !== "portrait") setPaymentMethod("prepaid");
-                          clearFieldError("customPayment");
-                        }}
-                        className={`group relative flex flex-col items-start gap-1 p-3.5 rounded-2xl border-[2px] transition-all text-left ${productType === option.id
-                          ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
-                          : "border-gray-200 hover:border-gray-300 bg-white"
-                          }`}
-                      >
-                        <span className="font-black text-[#1a1a1b] text-[11px] md:text-sm leading-tight">{option.label}</span>
-                        <span className="text-[10px] font-bold text-gray-500">{option.hint}</span>
-                        <div className={`absolute top-2 right-2 w-4 h-4 rounded-full border-2 flex items-center justify-center ${productType === option.id ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
-                          {productType === option.id && <Check size={10} className="text-white" strokeWidth={3} />}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {productType === "portrait" && (
-                <>
                 {/* 1. Portrait Style */}
                 <div className="space-y-3">
                   <label className="block text-base font-bold text-[#1a1a1b] font-inter">
@@ -919,7 +936,7 @@ export function ProductInfo() {
                            <div className="text-center md:text-left flex-1">
                              <span className="block font-black text-[11px] md:text-sm text-[#1a1a1b]">{pet.label} Pet{pet.id !== "one" ? "s" : ""}</span>
                              <span className="hidden md:block text-[10px] font-bold text-gray-500 uppercase mt-0.5">
-                               {pet.id === "one" ? "Included" : pet.id === "two" ? "+₹300" : pet.id === "three" ? "+₹600" : "+Contact Us"}
+                               {pet.id === "one" ? "Included" : pet.id === "two" ? "+₹300" : pet.id === "three" ? "+₹600" : "+₹1,500"}
                              </span>
                            </div>
                         </div>
@@ -930,315 +947,6 @@ export function ProductInfo() {
                     ))}
                   </div>
                 </div>
-                </>
-                )}
-
-                {productType === "custom_payment" && (
-                  <div className="space-y-3">
-                    <label className="block text-base font-bold text-[#1a1a1b] font-inter">
-                      Custom Payment Amount
-                    </label>
-                    <div className="flex flex-col gap-3">
-                      {CUSTOM_PAYMENT_AMOUNTS.map((amount) => (
-                        <button
-                          key={amount}
-                          type="button"
-                          onClick={() => {
-                            setCustomPaymentAmount(amount);
-                            clearFieldError("customPayment");
-                          }}
-                          className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${customPaymentAmount === amount ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}
-                        >
-                          <div>
-                            <span className="block font-black text-[#1a1a1b] text-base">Custom Payment</span>
-                            <span className="text-xs font-bold text-gray-500">₹{amount.toLocaleString("en-IN")}</span>
-                          </div>
-                          <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${customPaymentAmount === amount ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
-                            {customPaymentAmount === amount && <Check size={12} className="text-white" strokeWidth={3} />}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                    <FieldError message={fieldErrors.customPayment} />
-                  </div>
-                )}
-
-                {productType === "fresh_payment" && (
-                  <div className="p-4 rounded-2xl border-[2px] border-[#1a1a1b] bg-[#fafafa] flex items-center justify-between">
-                    <div>
-                      <p className="font-black text-[#1a1a1b] text-base">Fresh Payment</p>
-                      <p className="text-xs font-bold text-gray-500 mt-0.5">One-time payment</p>
-                    </div>
-                    <span className="font-black text-[#1a1a1b]">₹{FRESH_PAYMENT_AMOUNT}</span>
-                  </div>
-                )}
-
-                {productType === "digital_download" && (
-                  <div className="space-y-3">
-                    <label className="block text-base font-bold text-[#1a1a1b] font-inter">
-                      Digital Download
-                    </label>
-                    <div className="flex flex-col gap-3">
-                      {DIGITAL_DOWNLOAD_AMOUNTS.map((amount) => (
-                        <button
-                          key={amount}
-                          type="button"
-                          onClick={() => setDigitalDownloadAmount(amount)}
-                          className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${digitalDownloadAmount === amount ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}
-                        >
-                          <div>
-                            <span className="block font-black text-[#1a1a1b] text-base">{amount === 300 ? "Standard File" : "High-Resolution File"}</span>
-                            <span className="text-xs font-bold text-gray-500">₹{amount.toLocaleString("en-IN")}</span>
-                          </div>
-                          <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${digitalDownloadAmount === amount ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
-                            {digitalDownloadAmount === amount && <Check size={12} className="text-white" strokeWidth={3} />}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {productType === "portrait" && (
-                <>
-
-              {/* Frame Colour (Only for Framed) */}
-              {portraitStyle === "framed" && (
-                <div className="space-y-3">
-                  <label className="block text-base font-bold text-[#1a1a1b] font-inter">
-                    Frame Colour
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      onClick={() => {
-                        setSelectedFrame("black");
-                        window.dispatchEvent(new CustomEvent('frameSelectionChanged', { detail: "black" }));
-                      }}
-                      className={`group relative flex items-center justify-center p-3.5 rounded-xl border-[2px] transition-all text-center ${selectedFrame === "black"
-                        ? "border-[#1a1a1b] shadow-md bg-[#fafafa] z-10"
-                        : "border-gray-200 hover:border-gray-300 bg-white"
-                        }`}
-                    >
-                      <span className="font-bold text-[#1a1a1b] text-sm">Black Frame</span>
-                      {selectedFrame === "black" && (
-                        <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-[#1a1a1b] flex items-center justify-center">
-                          <Check size={10} className="text-white" strokeWidth={3} />
-                        </div>
-                      )}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedFrame("white");
-                        window.dispatchEvent(new CustomEvent('frameSelectionChanged', { detail: "white" }));
-                      }}
-                      className={`group relative flex items-center justify-center p-3.5 rounded-xl border-[2px] transition-all text-center ${selectedFrame === "white"
-                        ? "border-[#1a1a1b] shadow-md bg-[#fafafa] z-10"
-                        : "border-gray-200 hover:border-gray-300 bg-white"
-                        }`}
-                    >
-                      <span className="font-bold text-[#1a1a1b] text-sm">White Frame</span>
-                      {selectedFrame === "white" && (
-                        <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-[#1a1a1b] flex items-center justify-center">
-                          <Check size={10} className="text-white" strokeWidth={3} />
-                        </div>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Background Color */}
-              <div className="space-y-3">
-                <label className="block text-base font-bold text-[#1a1a1b] font-inter">
-                  Background Colour
-                </label>
-                <div className="flex flex-wrap gap-4">
-                  {BACKGROUNDS.map((bg) => (
-                    <div key={bg.name} className="flex flex-col items-center gap-1.5">
-                      <button
-                        onClick={() => {
-                          setSelectedBg(bg.name);
-                          window.dispatchEvent(new CustomEvent('backgroundSelectionChanged', { detail: bg.name }));
-                        }}
-                        className={`group relative w-12 h-12 rounded-xl border-[2px] transition-all overflow-hidden flex items-center justify-center shadow-sm flex-shrink-0 ${selectedBg === bg.name
-                          ? "border-gray-300 scale-[1.05] shadow-md"
-                          : "border-gray-100 hover:border-gray-200"
-                          }`}
-                        style={{ 
-                          backgroundColor: bg.isImage ? undefined : bg.value,
-                          backgroundImage: bg.isImage ? `url(${bg.value})` : undefined,
-                          backgroundSize: 'cover',
-                          backgroundPosition: 'center'
-                        }}
-                      >
-                        {selectedBg === bg.name && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/5">
-                            <Check size={20} className={bg.name === "Black" ? "text-white" : "text-[#1a1a1b]"} strokeWidth={3} />
-                          </div>
-                        )}
-                        {bg.isImage && (
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-[7px] font-black text-white bg-black/60 px-1 py-0.5 rounded font-inter tracking-wider">+199</span>
-                          </div>
-                        )}
-                      </button>
-                      <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest text-center w-12 leading-tight">
-                        {bg.name}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Add-ons */}
-              <div className="space-y-3">
-                <label className="block text-base font-bold text-[#1a1a1b] font-inter">
-                  Add-on Illustrations
-                </label>
-                <div className="flex flex-wrap gap-3">
-                  {ADD_ONS.map((addon) => (
-                    <button
-                      key={addon.id}
-                      onClick={() => setSelectedAddOn(selectedAddOn === addon.id ? "none" : addon.id)}
-                      className={`group relative w-24 h-24 rounded-xl border-[2.5px] transition-all overflow-hidden flex-shrink-0 ${selectedAddOn === addon.id
-                        ? "border-[#1a1a1b] shadow-lg scale-[1.05] z-10"
-                        : "border-gray-100 hover:border-gray-200"
-                        }`}
-                    >
-                      <div className="absolute top-1.5 right-1.5 z-10">
-                        <span className="text-[7px] font-black text-white bg-black/60 px-1 py-0.5 rounded font-inter tracking-wider">
-                          {addon.id === "halo_effect" ? "+199" : "+99"}
-                        </span>
-                      </div>
-                      <Image
-                        src={addon.image}
-                        alt={addon.label}
-                        fill
-                        className="object-cover"
-                      />
-                      <div className={`absolute inset-0 flex items-center justify-center transition-colors ${selectedAddOn === addon.id ? 'bg-black/20' : 'bg-black/0 group-hover:bg-black/10'}`}>
-                        <div className={`absolute bottom-2 text-white font-bold uppercase tracking-widest text-[8px] bg-black/60 px-1.5 py-0.5 rounded transition-opacity ${selectedAddOn === addon.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                          {addon.label}
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Gift Wrap */}
-              <div className="space-y-3">
-                <label className="block text-base font-bold text-[#1a1a1b] font-inter">
-                  Gift Wrap
-                </label>
-                <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <ShieldCheck size={20} className="text-primary" />
-                    <div>
-                      <p className="text-xs font-bold text-[#1a1a1b] uppercase">Premium Gift Wrap (+Rs. 99)</p>
-                      <p className="text-[10px] text-gray-500">Ready to give portrait</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setGiftWrap(!giftWrap)}
-                    className={`relative inline-flex h-5 w-10 cursor-pointer rounded-full transition-colors ${giftWrap ? 'bg-primary' : 'bg-gray-300'}`}
-                  >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 ${giftWrap ? 'translate-x-5' : 'translate-x-1'} mt-0.5`} />
-                  </button>
-                </div>
-              </div>
-                </>
-                )}
-
-              {/* Names & Text */}
-              {(productType === "portrait" || productType === "digital_download") && (
-              <>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                    Pet's Name{selectedPets !== "one" ? "s" : ""} <span className="text-red-500">*</span>
-                  </label>
-                  <div className={`grid gap-3 ${selectedPets === "one" ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                    {Array.from({ length: selectedPets === "four" ? 4 : selectedPets === "three" ? 3 : selectedPets === "two" ? 2 : 1 }).map((_, i) => {
-                      const names = petName.split(", ");
-                      const currentName = names[i] || "";
-                      return (
-                        <input
-                          key={i}
-                          type="text"
-                          value={currentName}
-                          onChange={(e) => {
-                            const numPets = selectedPets === "four" ? 4 : selectedPets === "three" ? 3 : selectedPets === "two" ? 2 : 1;
-                            const newNames = [...names];
-                            while (newNames.length < numPets) newNames.push("");
-                            newNames[i] = e.target.value;
-                            setPetName(newNames.slice(0, numPets).join(", ").replace(/^, |, $/g, ''));
-                            clearFieldError("petName");
-                          }}
-                          placeholder={selectedPets !== "one" ? `Pet ${i + 1} Name` : "E.g. Lola"}
-                          className={`w-full px-4 py-3 border-[1.5px] rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm ${fieldErrors.petName ? "border-red-400 bg-red-50/40" : "border-gray-200"}`}
-                        />
-                      );
-                    })}
-                  </div>
-                  <FieldError message={fieldErrors.petName} />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                    Memorial Text (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={memorialText}
-                    onChange={(e) => setMemorialText(e.target.value)}
-                    placeholder="E.g. Always in our hearts"
-                    className="w-full px-4 py-3 border-[1.5px] border-gray-200 rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm"
-                  />
-                </div>
-              </div>
-
-              {/* Photo Upload */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">
-                    Upload Photo <span className="text-red-500">*</span>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowPhotoGuide(true)}
-                    className="text-[10px] font-black text-primary hover:text-primary-dark transition-colors uppercase tracking-wider flex items-center gap-1 bg-[#A87B62]/10 px-2 py-0.5 rounded-full"
-                  >
-                    💡 Photo Guide
-                  </button>
-                </div>
-                <div className={`border-[1.5px] border-dashed rounded-xl p-4 ${fieldErrors.photo ? "border-red-400 bg-red-50/40" : "border-gray-300 bg-gray-50/50"}`}>
-                  <input 
-                    type="file" 
-                    id="pet-photo-upload"
-                    className="hidden" 
-                    accept="image/*"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        setSelectedFile(e.target.files[0]);
-                        clearFieldError("photo");
-                      }
-                    }}
-                  />
-                  <label 
-                    htmlFor="pet-photo-upload"
-                    className="w-full flex items-center justify-center gap-2 py-2.5 bg-white hover:bg-gray-50 text-[#1a1a1b] border-[1.5px] border-gray-200 rounded-lg font-bold transition-all shadow-sm group cursor-pointer text-sm"
-                  >
-                    <Upload size={18} className="group-hover:scale-110 transition-transform" />
-                    {selectedFile ? selectedFile.name.substring(0, 20) + "..." : "CHOOSE IMAGE"}
-                  </label>
-                </div>
-                <FieldError message={fieldErrors.photo} />
-              </div>
-              </>
-              )}
-
-              {extraProductsPicker()}
 
               <button 
                 type="button"
@@ -1270,139 +978,245 @@ export function ProductInfo() {
                   <ArrowLeft size={14} /> Back
                 </button>
                 <label className="block text-base font-medium text-[#1a1a1b]">
-                  Step 2: Customer Details
+                  Customize Your Portrait
                 </label>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                  Your Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={customerName}
-                  onChange={(e) => {
-                    setCustomerName(e.target.value);
-                    clearFieldError("customerName");
-                  }}
-                  placeholder="John Doe"
-                  className={`w-full px-4 py-3 border-[1.5px] rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm ${fieldErrors.customerName ? "border-red-400 bg-red-50/40" : "border-gray-200"}`}
-                />
-                <FieldError message={fieldErrors.customerName} />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                  Your Email <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="email"
-                  value={customerEmail}
-                  onChange={(e) => {
-                    setCustomerEmail(e.target.value);
-                    clearFieldError("customerEmail");
-                  }}
-                  placeholder="order@example.com"
-                  className={`w-full px-4 py-3 border-[1.5px] rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm ${fieldErrors.customerEmail ? "border-red-400 bg-red-50/40" : "border-gray-200"}`}
-                />
-                <FieldError message={fieldErrors.customerEmail} />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                  Phone Number <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="tel"
-                  value={customerPhone}
-                  onChange={(e) => {
-                    setCustomerPhone(e.target.value);
-                    clearFieldError("customerPhone");
-                  }}
-                  placeholder="+91 98765 43210"
-                  className={`w-full px-4 py-3 border-[1.5px] rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm ${fieldErrors.customerPhone ? "border-red-400 bg-red-50/40" : "border-gray-200"}`}
-                />
-                <FieldError message={fieldErrors.customerPhone} />
               </div>
 
               {productType === "portrait" && (
                 <>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                      Full Address <span className="text-red-500">*</span>
+                  {portraitStyle === "framed" && (
+                    <div className="space-y-3">
+                      <label className="block text-base font-bold text-[#1a1a1b] font-inter">
+                        1. Frame Color
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedFrame("black");
+                            window.dispatchEvent(new CustomEvent('frameSelectionChanged', { detail: "black" }));
+                          }}
+                          className={`group relative flex items-center justify-center p-3.5 rounded-xl border-[2px] transition-all text-center ${selectedFrame === "black"
+                            ? "border-[#1a1a1b] shadow-md bg-[#fafafa] z-10"
+                            : "border-gray-200 hover:border-gray-300 bg-white"
+                            }`}
+                        >
+                          <span className="font-bold text-[#1a1a1b] text-sm">Black Frame</span>
+                          {selectedFrame === "black" && (
+                            <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-[#1a1a1b] flex items-center justify-center">
+                              <Check size={10} className="text-white" strokeWidth={3} />
+                            </div>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedFrame("white");
+                            window.dispatchEvent(new CustomEvent('frameSelectionChanged', { detail: "white" }));
+                          }}
+                          className={`group relative flex items-center justify-center p-3.5 rounded-xl border-[2px] transition-all text-center ${selectedFrame === "white"
+                            ? "border-[#1a1a1b] shadow-md bg-[#fafafa] z-10"
+                            : "border-gray-200 hover:border-gray-300 bg-white"
+                            }`}
+                        >
+                          <span className="font-bold text-[#1a1a1b] text-sm">White Frame</span>
+                          {selectedFrame === "white" && (
+                            <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-[#1a1a1b] flex items-center justify-center">
+                              <Check size={10} className="text-white" strokeWidth={3} />
+                            </div>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    <label className="block text-base font-bold text-[#1a1a1b] font-inter">
+                      2. Background Color
                     </label>
-                    <textarea
-                      value={shippingAddress}
-                      onChange={(e) => {
-                        setShippingAddress(e.target.value);
-                        clearFieldError("shippingAddress");
-                      }}
-                      placeholder="House / Street / Area"
-                      rows={3}
-                      className={`w-full px-4 py-3 border-[1.5px] rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm resize-none ${fieldErrors.shippingAddress ? "border-red-400 bg-red-50/40" : "border-gray-200"}`}
-                    />
-                    <FieldError message={fieldErrors.shippingAddress} />
+                    <div className="flex flex-wrap gap-4">
+                      {BACKGROUNDS.map((bg) => (
+                        <div key={bg.name} className="flex flex-col items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedBg(bg.name);
+                              window.dispatchEvent(new CustomEvent('backgroundSelectionChanged', { detail: bg.name }));
+                            }}
+                            className={`group relative w-12 h-12 rounded-xl border-[2px] transition-all overflow-hidden flex items-center justify-center shadow-sm flex-shrink-0 ${selectedBg === bg.name
+                              ? "border-gray-300 scale-[1.05] shadow-md"
+                              : "border-gray-100 hover:border-gray-200"
+                              }`}
+                            style={{
+                              backgroundColor: bg.isImage ? undefined : bg.value,
+                              backgroundImage: bg.isImage ? `url(${bg.value})` : undefined,
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center'
+                            }}
+                          >
+                            {selectedBg === bg.name && (
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/5">
+                                <Check size={20} className={bg.name === "Black" ? "text-white" : "text-[#1a1a1b]"} strokeWidth={3} />
+                              </div>
+                            )}
+                          </button>
+                          <span className="text-[9px] font-bold text-gray-500 uppercase tracking-widest text-center w-12 leading-tight">
+                            {bg.name}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+
+                  <div className="space-y-3">
+                    <label className="block text-base font-bold text-[#1a1a1b] font-inter">
+                      3. Add-on Illustration
+                    </label>
+                    <div className="flex flex-wrap gap-3">
+                      {ADD_ONS.map((addon) => (
+                        <button
+                          type="button"
+                          key={addon.id}
+                          onClick={() => setSelectedAddOn(selectedAddOn === addon.id ? "none" : addon.id)}
+                          className={`group relative w-24 h-24 rounded-xl border-[2.5px] transition-all overflow-hidden flex-shrink-0 ${selectedAddOn === addon.id
+                            ? "border-[#1a1a1b] shadow-lg scale-[1.05] z-10"
+                            : "border-gray-100 hover:border-gray-200"
+                            }`}
+                        >
+                          <div className="absolute top-1.5 right-1.5 z-10">
+                            <span className="text-[7px] font-black text-white bg-black/60 px-1 py-0.5 rounded font-inter tracking-wider">
+                              +{ADDON_PRICES[addon.id] || 200}
+                            </span>
+                          </div>
+                          <Image
+                            src={addon.image}
+                            alt={addon.label}
+                            fill
+                            className="object-cover"
+                          />
+                          <div className={`absolute inset-0 flex items-center justify-center transition-colors ${selectedAddOn === addon.id ? 'bg-black/20' : 'bg-black/0 group-hover:bg-black/10'}`}>
+                            <div className={`absolute bottom-2 text-white font-bold uppercase tracking-widest text-[8px] bg-black/60 px-1.5 py-0.5 rounded transition-opacity ${selectedAddOn === addon.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                              {addon.label}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="block text-base font-bold text-[#1a1a1b] font-inter">
+                      4. Gift Wrap
+                    </label>
+                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <ShieldCheck size={20} className="text-primary" />
+                        <div>
+                          <p className="text-xs font-bold text-[#1a1a1b] uppercase">Premium Gift Wrap (+Rs. {GIFT_WRAP_PRICE})</p>
+                          <p className="text-[10px] text-gray-500">Ready to give portrait</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setGiftWrap(!giftWrap)}
+                        className={`relative inline-flex h-5 w-10 cursor-pointer rounded-full transition-colors ${giftWrap ? 'bg-primary' : 'bg-gray-300'}`}
+                      >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 ${giftWrap ? 'translate-x-5' : 'translate-x-1'} mt-0.5`} />
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {(productType === "portrait" || productType === "digital_download") && (
+                <>
+                  <div className="space-y-4">
                     <div>
                       <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                        City <span className="text-red-500">*</span>
+                        5. Pet Name{selectedPets !== "one" ? "s" : ""} <span className="text-red-500">*</span>
                       </label>
-                      <input
-                        type="text"
-                        value={shippingCity}
-                        onChange={(e) => {
-                          setShippingCity(e.target.value);
-                          clearFieldError("shippingCity");
-                        }}
-                        placeholder="Mumbai"
-                        className={`w-full px-4 py-3 border-[1.5px] rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm ${fieldErrors.shippingCity ? "border-red-400 bg-red-50/40" : "border-gray-200"}`}
-                      />
-                      <FieldError message={fieldErrors.shippingCity} />
+                      <div className={`grid gap-3 ${selectedPets === "one" ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                        {Array.from({ length: selectedPets === "four" ? 4 : selectedPets === "three" ? 3 : selectedPets === "two" ? 2 : 1 }).map((_, i) => {
+                          const names = petName.split(", ");
+                          const currentName = names[i] || "";
+                          return (
+                            <input
+                              key={i}
+                              type="text"
+                              value={currentName}
+                              onChange={(e) => {
+                                const numPets = selectedPets === "four" ? 4 : selectedPets === "three" ? 3 : selectedPets === "two" ? 2 : 1;
+                                const newNames = [...names];
+                                while (newNames.length < numPets) newNames.push("");
+                                newNames[i] = e.target.value;
+                                setPetName(newNames.slice(0, numPets).join(", ").replace(/^, |, $/g, ''));
+                                clearFieldError("petName");
+                              }}
+                              placeholder={selectedPets !== "one" ? `Pet ${i + 1} Name` : "E.g. Lola"}
+                              className={`w-full px-4 py-3 border-[1.5px] rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm ${fieldErrors.petName ? "border-red-400 bg-red-50/40" : "border-gray-200"}`}
+                            />
+                          );
+                        })}
+                      </div>
+                      <FieldError message={fieldErrors.petName} />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                        State
+                        6. Memorial Text (Optional)
                       </label>
                       <input
                         type="text"
-                        value={shippingState}
-                        onChange={(e) => setShippingState(e.target.value)}
-                        placeholder="Maharashtra"
+                        value={memorialText}
+                        onChange={(e) => setMemorialText(e.target.value)}
+                        placeholder="E.g. Always in our hearts"
                         className="w-full px-4 py-3 border-[1.5px] border-gray-200 rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm"
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                        Pincode <span className="text-red-500">*</span>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">
+                        7. Upload Photo <span className="text-red-500">*</span>
                       </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowPhotoGuide(true)}
+                        className="text-[10px] font-black text-primary hover:text-primary-dark transition-colors uppercase tracking-wider flex items-center gap-1 bg-[#A87B62]/10 px-2 py-0.5 rounded-full"
+                      >
+                        Photo Guide
+                      </button>
+                    </div>
+                    <div className={`border-[1.5px] border-dashed rounded-xl p-4 ${fieldErrors.photo ? "border-red-400 bg-red-50/40" : "border-gray-300 bg-gray-50/50"}`}>
                       <input
-                        type="text"
-                        inputMode="numeric"
-                        value={shippingPincode}
+                        type="file"
+                        id="pet-photo-upload"
+                        className="hidden"
+                        accept="image/*"
                         onChange={(e) => {
-                          setShippingPincode(e.target.value);
-                          clearFieldError("shippingPincode");
+                          if (e.target.files && e.target.files[0]) {
+                            setSelectedFile(e.target.files[0]);
+                            clearFieldError("photo");
+                          }
                         }}
-                        placeholder="400001"
-                        className={`w-full px-4 py-3 border-[1.5px] rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm ${fieldErrors.shippingPincode ? "border-red-400 bg-red-50/40" : "border-gray-200"}`}
                       />
-                      <FieldError message={fieldErrors.shippingPincode} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                        Landmark
+                      <label
+                        htmlFor="pet-photo-upload"
+                        className="w-full flex items-center justify-center gap-2 py-2.5 bg-white hover:bg-gray-50 text-[#1a1a1b] border-[1.5px] border-gray-200 rounded-lg font-bold transition-all shadow-sm group cursor-pointer text-sm"
+                      >
+                        <Upload size={18} className="group-hover:scale-110 transition-transform" />
+                        {selectedFile ? selectedFile.name.substring(0, 20) + "..." : "CHOOSE IMAGE"}
                       </label>
-                      <input
-                        type="text"
-                        value={shippingLandmark}
-                        onChange={(e) => setShippingLandmark(e.target.value)}
-                        placeholder="Optional"
-                        className="w-full px-4 py-3 border-[1.5px] border-gray-200 rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm"
-                      />
                     </div>
+                    {selectedFile && (
+                      <div className="flex items-center gap-3 pt-1">
+                        <div className="w-14 h-14 rounded-lg overflow-hidden border border-gray-100">
+                          <img src={photoPreviewUrl} alt="Uploaded pet" className="w-full h-full object-cover" />
+                        </div>
+                        <p className="text-[11px] text-gray-500 font-medium truncate">{selectedFile.name}</p>
+                      </div>
+                    )}
+                    <FieldError message={fieldErrors.photo} />
                   </div>
                 </>
               )}
@@ -1410,7 +1224,7 @@ export function ProductInfo() {
               <button
                 type="button"
                 onClick={handleContinueFromStep2}
-                className="w-full py-4 bg-[#1a1a1b] text-white rounded-xl font-bold text-sm tracking-widest uppercase transition-all shadow-xl active:scale-[0.98] flex items-center justify-center gap-2 mt-4 hover:bg-[#2F2F2F] text-white"
+                className="w-full py-4 bg-[#1a1a1b] text-white rounded-xl font-bold text-sm tracking-widest uppercase transition-all shadow-xl active:scale-[0.98] flex items-center justify-center gap-2 mt-4 hover:bg-[#2F2F2F]"
               >
                 Continue <ArrowRight size={18} />
               </button>
@@ -1429,165 +1243,85 @@ export function ProductInfo() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="space-y-5 overflow-visible"
+              className="space-y-6"
             >
               <div className="flex justify-between items-center mb-2">
                 <button type="button" onClick={prevStep} className="flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-black transition-colors uppercase">
                   <ArrowLeft size={14} /> Back
                 </button>
                 <label className="block text-base font-medium text-[#1a1a1b]">
-                  Step 3: Payment
+                  Customer Details
                 </label>
               </div>
 
-              <div className="bg-[#faf8f5] rounded-2xl p-4 border border-[#efece8] space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">{displayQuote.productLabel}</span>
-                  <span className="font-bold">{formatRs(portraitBaseAmount)}</span>
-                </div>
-                {extraLines.map((line) => (
-                  <div key={line.id} className="flex justify-between">
-                    <span className="text-gray-500">{line.label}</span>
-                    <span className="font-bold">{formatRs(line.price)}</span>
-                  </div>
-                ))}
-                {displayQuote.couponDiscount > 0 && (
-                  <div className="flex justify-between text-green-700">
-                    <span>Coupon {displayQuote.couponCode} ({displayQuote.couponPercent}%)</span>
-                    <span className="font-bold">- {formatRs(displayQuote.couponDiscount)}</span>
-                  </div>
-                )}
-                {displayQuote.prepaidDiscount > 0 && (
-                  <div className="flex justify-between text-green-700">
-                    <span>Prepaid {displayQuote.prepaidPercent}% off</span>
-                    <span className="font-bold">- {formatRs(displayQuote.prepaidDiscount)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between pt-2 border-t border-dashed border-[#eadfc9] font-black">
-                  <span>Pay now</span>
-                  <span>{formatRs(displayQuote.payableNow)}</span>
-                </div>
+              <p className="text-[12px] text-gray-500 leading-relaxed">
+                Entered once and carried forward to checkout. You will not be asked again.
+              </p>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                  Full Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={customerName}
+                  onChange={(e) => {
+                    setCustomerName(e.target.value);
+                    clearFieldError("customerName");
+                  }}
+                  placeholder="Your full name"
+                  className={`w-full px-4 py-3 border-[1.5px] rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm ${fieldErrors.customerName ? "border-red-400 bg-red-50/40" : "border-gray-200"}`}
+                />
+                <FieldError message={fieldErrors.customerName} />
               </div>
 
-              {extraProductsPicker()}
-
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">
-                  Coupon code
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                  Email Address <span className="text-red-500">*</span>
                 </label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Tag size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="text"
-                      value={couponInput}
-                      onChange={(e) => {
-                        setCouponInput(e.target.value.toUpperCase());
-                        setCouponError(null);
-                      }}
-                      placeholder="WELCOME10"
-                      className={`w-full pl-9 pr-3 py-3 border-[1.5px] rounded-lg outline-none font-inter text-sm uppercase tracking-wider ${couponError ? "border-red-400 bg-red-50/40" : "border-gray-200 focus:border-[#1a1a1b]"}`}
-                    />
-                  </div>
-                  {appliedCoupon ? (
-                    <button
-                      type="button"
-                      onClick={removeCoupon}
-                      className="px-4 py-3 rounded-lg border border-gray-200 text-xs font-black uppercase tracking-wider text-gray-600 hover:bg-gray-50"
-                    >
-                      Remove
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={applyCoupon}
-                      disabled={isApplyingCoupon}
-                      className="px-4 py-3 rounded-lg bg-[#1a1a1b] text-white text-xs font-black uppercase tracking-wider hover:bg-[#2F2F2F] disabled:opacity-60"
-                    >
-                      {isApplyingCoupon ? "..." : "Apply"}
-                    </button>
-                  )}
-                </div>
-                {couponError && <p className="text-[11px] font-bold text-red-500">{couponError}</p>}
-                {couponMessage && <p className="text-[11px] font-bold text-green-700">{couponMessage}</p>}
-                <p className="text-[10px] text-gray-400">WELCOME10 is 10% off and can be combined with the 4% prepaid discount. Coupon is applied first.</p>
+                <input
+                  type="email"
+                  value={customerEmail}
+                  onChange={(e) => {
+                    setCustomerEmail(e.target.value);
+                    clearFieldError("customerEmail");
+                  }}
+                  placeholder="you@example.com"
+                  className={`w-full px-4 py-3 border-[1.5px] rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm ${fieldErrors.customerEmail ? "border-red-400 bg-red-50/40" : "border-gray-200"}`}
+                />
+                <FieldError message={fieldErrors.customerEmail} />
               </div>
 
-              <div className="space-y-3">
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">
-                  Payment method
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                  Mobile Number <span className="text-red-500">*</span>
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod("prepaid")}
-                  className={`w-full text-left p-4 rounded-2xl border-[2px] transition-all ${paymentMethod === "prepaid" ? "border-[#1a1a1b] bg-[#fafafa] shadow-md" : "border-gray-200 bg-white"}`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
-                      <Wallet size={18} className="text-[#A87B62] mt-0.5" />
-                      <div>
-                        <p className="font-black text-sm text-[#1a1a1b]">Prepaid Payment — {formatRs(paymentMethod === "prepaid" ? displayQuote.payableNow : Math.round(displayQuote.afterCouponAmount * 0.96))}</p>
-                        <p className="text-[11px] text-green-700 font-bold mt-1">4% discount on prepaid payment</p>
-                      </div>
-                    </div>
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === "prepaid" ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
-                      {paymentMethod === "prepaid" && <Check size={12} className="text-white" strokeWidth={3} />}
-                    </div>
-                  </div>
-                </button>
-
-                {displayQuote.allowsCod && (
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("cod")}
-                    className={`w-full text-left p-4 rounded-2xl border-[2px] transition-all ${paymentMethod === "cod" ? "border-[#1a1a1b] bg-[#fafafa] shadow-md" : "border-gray-200 bg-white"}`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-start gap-3">
-                        <IndianRupee size={18} className="text-[#A87B62] mt-0.5" />
-                        <div>
-                          <p className="font-black text-sm text-[#1a1a1b]">Cash on Delivery</p>
-                          <p className="text-[11px] text-gray-500 mt-1">
-                            40% Advance Payment — {formatRs(paymentMethod === "cod" ? displayQuote.advanceAmount : Math.round(displayQuote.afterCouponAmount * 0.4))}
-                          </p>
-                          <p className="text-[11px] text-gray-500">
-                            60% Remaining at delivery — {formatRs(paymentMethod === "cod" ? displayQuote.remainingAmount : displayQuote.afterCouponAmount - Math.round(displayQuote.afterCouponAmount * 0.4))}
-                          </p>
-                        </div>
-                      </div>
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === "cod" ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
-                        {paymentMethod === "cod" && <Check size={12} className="text-white" strokeWidth={3} />}
-                      </div>
-                    </div>
-                  </button>
-                )}
+                <input
+                  type="tel"
+                  value={customerPhone}
+                  onChange={(e) => {
+                    setCustomerPhone(e.target.value);
+                    clearFieldError("customerPhone");
+                  }}
+                  placeholder="+91 98765 43210"
+                  className={`w-full px-4 py-3 border-[1.5px] rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm ${fieldErrors.customerPhone ? "border-red-400 bg-red-50/40" : "border-gray-200"}`}
+                />
+                <FieldError message={fieldErrors.customerPhone} />
               </div>
 
               <button
                 type="button"
-                onClick={handleCheckout}
-                disabled={isSubmitting}
-                className="w-full py-4 bg-[#A87B62] hover:bg-[#966c55] text-white rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-60"
+                onClick={handleAddToCart}
+                className="w-full py-4 bg-[#A87B62] hover:bg-[#966c55] text-white rounded-xl font-bold text-sm tracking-widest uppercase transition-all shadow-xl active:scale-[0.98] flex items-center justify-center gap-2 mt-4"
               >
-                {isSubmitting ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    PROCESSING...
-                  </>
-                ) : (
-                  <>
-                    <span>Pay {formatRs(displayQuote.payableNow)}</span>
-                    <div className="flex items-center gap-1.5 bg-white/10 px-2 py-1 rounded-lg">
-                      <img src="https://img.icons8.com/color/48/google-logo.png" className="w-4 h-4 bg-white rounded p-0.5" alt="GPay" />
-                      <img src="https://img.icons8.com/color/48/paytm.png" className="w-4 h-4 bg-white rounded p-0.5" alt="Paytm" />
-                      <img src="https://img.icons8.com/color/48/bhim.png" className="w-4 h-4 bg-white rounded p-0.5" alt="BHIM" />
-                    </div>
-                  </>
-                )}
+                <ShoppingBag size={18} /> Add to Cart
               </button>
-              <p className="text-center text-[8px] font-bold text-gray-400 uppercase tracking-widest">
-                Powered By Razorpay
-              </p>
+              <div className="flex items-center justify-center gap-1.5 mt-3 text-gray-500 bg-gray-50/80 py-2.5 rounded-lg border border-gray-100">
+                <Truck size={14} className="text-[#A87B62]" />
+                <span className="text-[11px] font-medium tracking-wide uppercase">
+                  Order today, receive it by: <strong className="text-[#1a1a1b] font-black">{deliveryDates}</strong>
+                </span>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -1823,7 +1557,7 @@ export function ProductInfo() {
             >
               {/* Promo Banner at top */}
               <div className="bg-[#A87B62] text-white text-center py-2.5 text-xs font-black uppercase tracking-wider relative">
-                Save Extra 10% at Checkout
+                Your Selection
                 <button
                   type="button"
                   onClick={() => setShowCart(false)}
@@ -1838,7 +1572,7 @@ export function ProductInfo() {
                 {/* Header Title */}
                 <div>
                   <h2 className="text-xl font-extrabold text-[#1a1a1b] font-inter">
-                    Your Cart — {!hasCustomizedItem ? 0 : (1 + (addMagnet ? 1 : 0) + (addMug ? 1 : 0) + (addDigitalDownload && productType === "portrait" ? 1 : 0))}
+                    Your Cart
                   </h2>
                 </div>
 
@@ -1850,64 +1584,75 @@ export function ProductInfo() {
                     <div className="space-y-2">
                       <h3 className="font-extrabold text-[#1a1a1b] text-base font-inter">Your Cart is Empty</h3>
                       <p className="text-[11px] text-gray-500 max-w-[280px] leading-relaxed">
-                        You haven't customized a pet portrait yet. Design a masterpiece for your furry best friend today!
+                        Complete the 3-step customizer and tap Add to Cart to review your portrait here.
                       </p>
                     </div>
                     <button
                       type="button"
-                      onClick={() => {
-                        setShowCart(false);
-                        const customizerSection = document.getElementById("product-customizer");
-                        if (customizerSection) {
-                          customizerSection.scrollIntoView({ behavior: "smooth" });
-                        }
-                      }}
+                      onClick={() => setShowCart(false)}
                       className="px-6 py-3 bg-[#A87B62] hover:bg-[#966c55] text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md active:scale-95"
                     >
-                      START CUSTOMIZING
+                      Continue customizing
                     </button>
                   </div>
                 ) : (
                   <>
-                    {/* Cart Portrait Item Card */}
-                    <div className="flex gap-4 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm relative">
-                      {/* Left Column: Image Preview */}
-                      <div className="w-24 h-24 relative rounded-xl overflow-hidden bg-gray-50 border border-gray-100 flex-shrink-0">
-                        <img
-                          src={photoPreviewUrl}
-                          alt="Custom Pet Portrait"
-                          className="w-full h-full object-cover"
-                        />
+                    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+                      <div className="flex gap-4">
+                        <div className="w-24 h-24 relative rounded-xl overflow-hidden bg-gray-50 border border-gray-100 flex-shrink-0">
+                          <img
+                            src={photoPreviewUrl}
+                            alt="Custom Pet Portrait"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-extrabold text-sm text-[#1a1a1b] font-inter leading-tight">
+                            {productType === "portrait"
+                              ? PORTRAIT_STYLE_LABELS[portraitStyle]
+                              : PRODUCT_LABELS[productType]}
+                          </h3>
+                          <p className="text-[11px] font-bold text-[#A87B62] mt-1">
+                            {formatRs(portraitBaseAmount)}
+                          </p>
+                        </div>
                       </div>
 
-                      {/* Right Column: Spec Details */}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-extrabold text-sm text-[#1a1a1b] font-inter leading-tight">
-                          {PRODUCT_LABELS[productType]}
-                        </h3>
-                        <div className="text-[10px] text-gray-500 font-inter space-y-0.5 mt-1.5 leading-normal">
-                          {productType === "portrait" ? (
-                            <>
-                              <p><span className="font-bold">Size:</span> {selectedSize},</p>
-                              <p><span className="font-bold">Display Type:</span> {selectedFrame === "canva" ? "Canvas" : `${selectedFrame.charAt(0).toUpperCase() + selectedFrame.slice(1)} Frame`},</p>
-                              <p><span className="font-bold">Pets:</span> {selectedPets === "one" ? "1 Pet" : selectedPets === "two" ? "2 Pets" : selectedPets === "three" ? "3 Pets" : "4 Pets"},</p>
-                              <p><span className="font-bold">Pet Name:</span> {petName || "—"}</p>
-                              <p className="truncate"><span className="font-bold">Choose your Photo-1:</span> {selectedFile ? selectedFile.name : "—"}</p>
-                              <p><span className="font-bold">Background:</span> {selectedBg}</p>
-                            </>
-                          ) : (
-                            <>
-                              <p><span className="font-bold">Service:</span> {PRODUCT_LABELS[productType]}</p>
-                              {petName && <p><span className="font-bold">Pet Name:</span> {petName}</p>}
-                              {selectedFile && <p className="truncate"><span className="font-bold">Photo:</span> {selectedFile.name}</p>}
-                            </>
-                          )}
-                        </div>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-[11px] text-[#1a1a1b] border-t border-gray-50 pt-3">
+                        {productType === "portrait" ? (
+                          <>
+                            <p><span className="text-gray-400 block">Portrait style</span><span className="font-bold">{PORTRAIT_STYLE_LABELS[portraitStyle]}</span></p>
+                            <p><span className="text-gray-400 block">Size</span><span className="font-bold">{selectedSize}</span></p>
+                            <p><span className="text-gray-400 block">Number of pets</span><span className="font-bold">{PET_COUNT_LABELS[selectedPets]}</span></p>
+                            <p><span className="text-gray-400 block">Frame color</span><span className="font-bold">{frameColorLabel(selectedFrame, portraitStyle)}</span></p>
+                            <p><span className="text-gray-400 block">Background</span><span className="font-bold">{selectedBg}</span></p>
+                            <p><span className="text-gray-400 block">Add-on illustration</span><span className="font-bold">{selectedAddOn === "halo_effect" ? `Halo Effect · ${formatRs(ADDON_PRICES.halo_effect)}` : "None"}</span></p>
+                            <p><span className="text-gray-400 block">Gift wrap</span><span className="font-bold">{giftWrap ? `Yes · ${formatRs(GIFT_WRAP_PRICE)}` : "No"}</span></p>
+                            <p><span className="text-gray-400 block">Pet name</span><span className="font-bold">{petName || "—"}</span></p>
+                            <p className="col-span-2"><span className="text-gray-400 block">Memorial text</span><span className="font-bold">{memorialText || "—"}</span></p>
+                            <p className="col-span-2 truncate"><span className="text-gray-400 block">Uploaded photo</span><span className="font-bold">{selectedFile ? selectedFile.name : "—"}</span></p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="col-span-2"><span className="text-gray-400 block">Service</span><span className="font-bold">{PRODUCT_LABELS[productType]}</span></p>
+                            {petName && <p className="col-span-2"><span className="text-gray-400 block">Pet name</span><span className="font-bold">{petName}</span></p>}
+                          </>
+                        )}
+                      </div>
 
-                        {/* Qty & Subtotal Controls */}
-                        <div className="flex items-center justify-between mt-4">
-                          {/* Qty Counter */}
-                          {productType === "portrait" && (
+                      {breakdown.portraitLines.length > 0 && productType === "portrait" && (
+                        <div className="space-y-1.5 border-t border-gray-50 pt-3 text-[11px]">
+                          {breakdown.portraitLines.map((line) => (
+                            <div key={line.id} className="flex justify-between">
+                              <span className="text-gray-500">{line.label}</span>
+                              <span className="font-bold">{formatRs(line.price)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between pt-1">
+                        {productType === "portrait" && (
                           <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden h-7 bg-white">
                             <button
                               type="button"
@@ -1927,81 +1672,346 @@ export function ProductInfo() {
                               &#43;
                             </button>
                           </div>
-                          )}
-
-                          {/* Subtotal Display */}
-                          <div className="flex items-center gap-3">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedFile(null);
-                                setPetName("");
-                                setShowCart(false);
-                              }}
-                              className="text-gray-400 hover:text-red-500 transition-colors p-1"
-                              title="Remove item"
-                            >
-                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
-                            <span className="text-xs font-extrabold text-[#1a1a1b] font-inter">
-                              Rs. {totalPrice.toLocaleString()}
-                            </span>
-                          </div>
-                        </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAddedToCart(false);
+                            setShowCart(false);
+                          }}
+                          className="ml-auto text-[11px] font-bold uppercase tracking-wider text-gray-400 hover:text-red-500"
+                        >
+                          Remove
+                        </button>
                       </div>
                     </div>
 
-                    {extraProductsPicker()}
+                    {extraProductsPicker("Additional Products")}
+
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">
+                        Coupon Code
+                      </label>
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <Tag size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                          <input
+                            type="text"
+                            value={couponInput}
+                            onChange={(e) => {
+                              setCouponInput(e.target.value.toUpperCase());
+                              setCouponError(null);
+                            }}
+                            placeholder="Enter coupon code"
+                            className={`w-full pl-9 pr-3 py-3 border-[1.5px] rounded-lg outline-none font-inter text-sm uppercase tracking-wider ${couponError ? "border-red-400 bg-red-50/40" : "border-gray-200 focus:border-[#1a1a1b]"}`}
+                          />
+                        </div>
+                        {appliedCoupon ? (
+                          <button
+                            type="button"
+                            onClick={removeCoupon}
+                            className="px-4 py-3 rounded-lg border border-gray-200 text-xs font-black uppercase tracking-wider text-gray-600 hover:bg-gray-50"
+                          >
+                            Remove
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={applyCoupon}
+                            disabled={isApplyingCoupon}
+                            className="px-4 py-3 rounded-lg bg-[#1a1a1b] text-white text-xs font-black uppercase tracking-wider hover:bg-[#2F2F2F] disabled:opacity-60"
+                          >
+                            {isApplyingCoupon ? "..." : "Apply"}
+                          </button>
+                        )}
+                      </div>
+                      {couponError && <p className="text-[11px] font-bold text-red-500">{couponError}</p>}
+                      {couponMessage && <p className="text-[11px] font-bold text-green-700">{couponMessage}</p>}
+                    </div>
                   </>
                 )}
               </div>
 
-              {/* Checkout Summary Panel */}
               {hasCustomizedItem && (
                 <div className="p-5 border-t border-gray-100 bg-white space-y-4">
-                  {/* Total Row */}
-                  <div className="flex justify-between items-center">
-                    <span className="font-black text-sm uppercase tracking-wide text-[#1a1a1b]">
-                      Estimated total
-                    </span>
-                    <span className="font-black text-lg text-[#1a1a1b] font-inter">
-                      {formatRs(displayQuote.originalAmount)}
-                    </span>
+                  <div className="space-y-2 text-[13px]">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Subtotal</span>
+                      <span className="font-bold">{formatRs(portraitBaseAmount)}</span>
+                    </div>
+                    {extraLines.map((line) => (
+                      <div key={line.id} className="flex justify-between">
+                        <span className="text-gray-500">{line.label}</span>
+                        <span className="font-bold">{formatRs(line.price)}</span>
+                      </div>
+                    ))}
+                    {displayQuote.couponDiscount > 0 && (
+                      <div className="flex justify-between text-green-700">
+                        <span>Coupon {displayQuote.couponCode} ({displayQuote.couponPercent}%)</span>
+                        <span className="font-bold">- {formatRs(displayQuote.couponDiscount)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center pt-2 border-t border-dashed border-gray-200">
+                      <span className="font-black text-sm uppercase tracking-wide text-[#1a1a1b]">
+                        Total
+                      </span>
+                      <span className="font-black text-lg text-[#1a1a1b] font-inter">
+                        {formatRs(cartTotal)}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Checkout Button */}
                   <div>
                     <button
                       type="button"
-                      onClick={handleCartCheckout}
-                      disabled={isSubmitting}
+                      onClick={handleInitiateCheckout}
                       className="w-full py-4 bg-[#A87B62] hover:bg-[#966c55] text-white rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-3"
                     >
-                      {isSubmitting ? (
-                        <>
-                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          PROCESSING...
-                        </>
-                      ) : (
-                        <>
-                          <span>CHECKOUT</span>
-                          {/* Payment Logos inside checkout button */}
-                          <div className="flex items-center gap-1.5 bg-white/10 px-2 py-1 rounded-lg">
-                            <img src="https://img.icons8.com/color/48/google-logo.png" className="w-4 h-4 bg-white rounded p-0.5" alt="GPay" />
-                            <img src="https://img.icons8.com/color/48/paytm.png" className="w-4 h-4 bg-white rounded p-0.5" alt="Paytm" />
-                            <img src="https://img.icons8.com/color/48/bhim.png" className="w-4 h-4 bg-white rounded p-0.5" alt="BHIM" />
-                          </div>
-                        </>
-                      )}
+                      Initiate Checkout
                     </button>
-                    <p className="text-center text-[8px] font-bold text-gray-400 mt-2 uppercase tracking-widest">
-                      Powered By Razorpay
-                    </p>
                   </div>
                 </div>
               )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showCheckout && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[99998] flex justify-end">
+            <div className="absolute inset-0 cursor-default" onClick={() => setShowCheckout(false)} />
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="w-full max-w-[520px] bg-[#fdfdfb] h-full flex flex-col shadow-2xl relative z-10 overflow-hidden"
+            >
+              <div className="bg-[#1a1a1b] text-white py-3 px-5 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCheckout(false);
+                    setShowCart(true);
+                  }}
+                  className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-white/70 hover:text-white"
+                >
+                  <ArrowLeft size={14} /> Cart
+                </button>
+                <h2 className="text-sm font-black uppercase tracking-widest">Checkout</h2>
+                <button
+                  type="button"
+                  onClick={() => setShowCheckout(false)}
+                  className="text-white/80 hover:text-white font-black text-lg p-1 leading-none"
+                >
+                  &times;
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-5 space-y-6">
+                <div className="space-y-3">
+                  <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Delivery Details</h3>
+                  <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Full Name</label>
+                      <p className="text-sm font-bold text-[#1a1a1b]">{customerName}</p>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Email Address</label>
+                      <input
+                        type="email"
+                        value={customerEmail}
+                        readOnly
+                        className="w-full px-3 py-2.5 border-[1.5px] border-gray-100 rounded-lg bg-gray-50 text-sm font-medium text-[#1a1a1b]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Mobile Number</label>
+                      <input
+                        type="tel"
+                        value={customerPhone}
+                        readOnly
+                        className="w-full px-3 py-2.5 border-[1.5px] border-gray-100 rounded-lg bg-gray-50 text-sm font-medium text-[#1a1a1b]"
+                      />
+                    </div>
+                    {productType === "portrait" && (
+                      <>
+                        <div>
+                          <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                            Full Address <span className="text-red-500">*</span>
+                          </label>
+                          <textarea
+                            value={shippingAddress}
+                            onChange={(e) => {
+                              setShippingAddress(e.target.value);
+                              clearFieldError("shippingAddress");
+                            }}
+                            placeholder="House / Street / Area"
+                            rows={3}
+                            className={`w-full px-3 py-2.5 border-[1.5px] rounded-lg outline-none text-sm resize-none ${fieldErrors.shippingAddress ? "border-red-400 bg-red-50/40" : "border-gray-200 focus:border-[#1a1a1b]"}`}
+                          />
+                          <FieldError message={fieldErrors.shippingAddress} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                              PIN Code <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              value={shippingPincode}
+                              onChange={(e) => {
+                                setShippingPincode(e.target.value);
+                                clearFieldError("shippingPincode");
+                              }}
+                              placeholder="400001"
+                              className={`w-full px-3 py-2.5 border-[1.5px] rounded-lg outline-none text-sm ${fieldErrors.shippingPincode ? "border-red-400 bg-red-50/40" : "border-gray-200 focus:border-[#1a1a1b]"}`}
+                            />
+                            <FieldError message={fieldErrors.shippingPincode} />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                              City <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={shippingCity}
+                              onChange={(e) => {
+                                setShippingCity(e.target.value);
+                                clearFieldError("shippingCity");
+                              }}
+                              placeholder="Mumbai"
+                              className={`w-full px-3 py-2.5 border-[1.5px] rounded-lg outline-none text-sm ${fieldErrors.shippingCity ? "border-red-400 bg-red-50/40" : "border-gray-200 focus:border-[#1a1a1b]"}`}
+                            />
+                            <FieldError message={fieldErrors.shippingCity} />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                              State <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={shippingState}
+                              onChange={(e) => {
+                                setShippingState(e.target.value);
+                                clearFieldError("shippingState");
+                              }}
+                              placeholder="Maharashtra"
+                              className={`w-full px-3 py-2.5 border-[1.5px] rounded-lg outline-none text-sm ${fieldErrors.shippingState ? "border-red-400 bg-red-50/40" : "border-gray-200 focus:border-[#1a1a1b]"}`}
+                            />
+                            <FieldError message={fieldErrors.shippingState} />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Landmark</label>
+                            <input
+                              type="text"
+                              value={shippingLandmark}
+                              onChange={(e) => setShippingLandmark(e.target.value)}
+                              placeholder="Optional"
+                              className="w-full px-3 py-2.5 border-[1.5px] border-gray-200 rounded-lg outline-none text-sm focus:border-[#1a1a1b]"
+                            />
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Payment Options</h3>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("prepaid")}
+                    className={`w-full text-left p-4 rounded-2xl border-[2px] transition-all ${paymentMethod === "prepaid" ? "border-[#1a1a1b] bg-white shadow-md" : "border-gray-200 bg-white"}`}
+                  >
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="flex items-start gap-3">
+                        <Wallet size={18} className="text-[#A87B62] mt-0.5" />
+                        <div>
+                          <p className="font-black text-sm text-[#1a1a1b]">Full Payment / Prepaid</p>
+                          <p className="text-[11px] text-green-700 font-bold mt-0.5">4% discount for paying the full amount now</p>
+                        </div>
+                      </div>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === "prepaid" ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
+                        {paymentMethod === "prepaid" && <Check size={12} className="text-white" strokeWidth={3} />}
+                      </div>
+                    </div>
+                    <div className="space-y-1 text-[12px] bg-[#faf8f5] rounded-xl p-3">
+                      <div className="flex justify-between"><span className="text-gray-500">Order Total</span><span className="font-bold">{formatRs(prepaidQuote.afterCouponAmount)}</span></div>
+                      <div className="flex justify-between text-green-700"><span>Prepaid Discount (4%)</span><span className="font-bold">- {formatRs(prepaidQuote.prepaidDiscount)}</span></div>
+                      <div className="flex justify-between pt-1 border-t border-dashed border-[#eadfc9] font-black"><span>Pay Now</span><span>{formatRs(prepaidQuote.payableNow)}</span></div>
+                    </div>
+                  </button>
+
+                  {displayQuote.allowsCod && (
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("cod")}
+                      className={`w-full text-left p-4 rounded-2xl border-[2px] transition-all ${paymentMethod === "cod" ? "border-[#1a1a1b] bg-white shadow-md" : "border-gray-200 bg-white"}`}
+                    >
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex items-start gap-3">
+                          <IndianRupee size={18} className="text-[#A87B62] mt-0.5" />
+                          <div>
+                            <p className="font-black text-sm text-[#1a1a1b]">Cash on Delivery</p>
+                            <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">
+                              Pay 40% now to confirm your order. Remaining 60% will be payable at the time of delivery.
+                            </p>
+                          </div>
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === "cod" ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
+                          {paymentMethod === "cod" && <Check size={12} className="text-white" strokeWidth={3} />}
+                        </div>
+                      </div>
+                      <div className="space-y-1 text-[12px] bg-[#faf8f5] rounded-xl p-3">
+                        <div className="flex justify-between"><span className="text-gray-500">Order Total</span><span className="font-bold">{formatRs(codQuote.afterCouponAmount)}</span></div>
+                        <div className="flex justify-between"><span>40% Advance</span><span className="font-bold">{formatRs(codQuote.advanceAmount)}</span></div>
+                        <div className="flex justify-between pt-1 border-t border-dashed border-[#eadfc9]">
+                          <span>Remaining 60%</span>
+                          <span className="font-bold">{formatRs(codQuote.remainingAmount)} — Payable on Delivery</span>
+                        </div>
+                      </div>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-5 border-t border-gray-100 bg-white space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="font-bold text-gray-500">Amount to pay now</span>
+                  <span className="font-black text-[#1a1a1b]">{formatRs(displayQuote.payableNow)}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCheckout}
+                  disabled={isSubmitting}
+                  className="w-full py-4 bg-[#A87B62] hover:bg-[#966c55] text-white rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-60"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      PROCESSING...
+                    </>
+                  ) : (
+                    <>
+                      <span>Place Order & Pay</span>
+                      <div className="flex items-center gap-1.5 bg-white/10 px-2 py-1 rounded-lg">
+                        <img src="https://img.icons8.com/color/48/google-logo.png" className="w-4 h-4 bg-white rounded p-0.5" alt="GPay" />
+                        <img src="https://img.icons8.com/color/48/paytm.png" className="w-4 h-4 bg-white rounded p-0.5" alt="Paytm" />
+                        <img src="https://img.icons8.com/color/48/bhim.png" className="w-4 h-4 bg-white rounded p-0.5" alt="BHIM" />
+                      </div>
+                    </>
+                  )}
+                </button>
+                <p className="text-center text-[8px] font-bold text-gray-400 uppercase tracking-widest">
+                  Powered By Razorpay
+                </p>
+              </div>
             </motion.div>
           </div>
         )}
