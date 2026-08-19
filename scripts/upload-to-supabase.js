@@ -145,12 +145,12 @@ Then re-run this script.
 
   const images = await uploadFolder(
     supabase,
-    path.join(ROOT, "public", "new images"),
+    path.join(ROOT, "public", "new-images"),
     "new_images"
   );
   const videos = await uploadFolder(
     supabase,
-    path.join(ROOT, "public", "new videos"),
+    path.join(ROOT, "public", "new-videos"),
     "new_videos"
   );
 

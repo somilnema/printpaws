@@ -21,8 +21,8 @@ async function run() {
 
   const results = {};
 
-  const imagesDir = path.join(__dirname, '../public/new images');
-  const videosDir = path.join(__dirname, '../public/new videos');
+  const imagesDir = path.join(__dirname, '../public/new-images');
+  const videosDir = path.join(__dirname, '../public/new-videos');
 
   if (fs.existsSync(imagesDir)) {
     const files = fs.readdirSync(imagesDir);

@@ -48,6 +48,13 @@ function playableFileName(fileName: string): string {
   return fileName.replace(/\.MOV$/i, ".mp4");
 }
 
+function rewriteFolder(cleanKey: string): string {
+  return playableFileName(cleanKey)
+    .replace(/^new images\//, "new-images/")
+    .replace(/^new videos\//, "new-videos/")
+    .replace(/^new review\//, "new-review/");
+}
+
 /**
  * Resolves a gallery/media key to a public URL under /public.
  */
@@ -58,12 +65,12 @@ export const getCloudinaryUrl = (key: string): string => {
   const fileName = playableFileName(cleanKey.split("/").pop() || cleanKey);
 
   if (SITE_IMAGES.has(cleanKey) || SITE_IMAGES.has(fileName)) {
-    return `/${encodeURI(`new images/${fileName}`)}`;
+    return `/new-images/${fileName}`;
   }
 
   if (SITE_VIDEOS.has(cleanKey) || SITE_VIDEOS.has(fileName)) {
-    return `/${encodeURI(`new videos/${fileName}`)}`;
+    return `/new-videos/${fileName}`;
   }
 
-  return "/" + encodeURI(playableFileName(cleanKey));
+  return "/" + rewriteFolder(cleanKey);
 };
