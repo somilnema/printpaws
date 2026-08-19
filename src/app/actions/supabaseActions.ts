@@ -33,3 +33,29 @@ export async function getOrderDetails(orderId: string) {
   }
   return data;
 }
+
+export async function listOrders(password: string) {
+  const expected = process.env.ADMIN_PASSWORD;
+  const isDev = process.env.NODE_ENV !== 'production';
+
+  if (expected) {
+    if (password !== expected) {
+      throw new Error('Invalid password');
+    }
+  } else if (!isDev) {
+    throw new Error('ADMIN_PASSWORD is not configured');
+  }
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  if (error) {
+    console.error('Supabase list orders error:', error);
+    throw error;
+  }
+
+  return data ?? [];
+}

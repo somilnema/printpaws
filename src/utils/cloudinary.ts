@@ -1,8 +1,5 @@
-// Site media lives in a public Supabase Storage bucket (`site-media`).
-// Cloudinary is no longer used — that account is disabled.
-// If the Supabase URL is missing (local dev without env), we fall back to /public.
-
-const SITE_MEDIA_BUCKET = "site-media";
+// Gallery media is served from /public. HEVC .MOV files are rewritten to H.264 .mp4
+// siblings because Chrome on Linux cannot play HEVC.
 
 const SITE_IMAGES = new Set([
   "10th Image.png",
@@ -20,48 +17,53 @@ const SITE_IMAGES = new Set([
 ]);
 
 const SITE_VIDEOS = new Set([
+  "IMG_3784 (1).mp4",
   "IMG_3784 (1).MOV",
+  "IMG_4486.mp4",
   "IMG_4486.MOV",
+  "IMG_5470.mp4",
   "IMG_5470.MOV",
+  "IMG_5473.mp4",
   "IMG_5473.MOV",
+  "IMG_5498.mp4",
   "IMG_5498.MOV",
+  "IMG_5573.mp4",
   "IMG_5573.MOV",
+  "IMG_5576.mp4",
   "IMG_5576.MOV",
+  "IMG_6005.mp4",
   "IMG_6005.MOV",
+  "IMG_6007.mp4",
   "IMG_6007.MOV",
+  "IMG_6165.mp4",
   "IMG_6165.MOV",
+  "IMG_6181.mp4",
   "IMG_6181.MOV",
+  "IMG_6239.mp4",
   "IMG_6239.MOV",
 ]);
 
-function getSupabaseUrl(): string {
-  return (process.env.NEXT_PUBLIC_SUPABASE_URL || "").replace(/\/$/, "");
-}
-
-function supabasePublicUrl(folder: string, fileName: string): string | null {
-  const base = getSupabaseUrl();
-  if (!base) return null;
-  return `${base}/storage/v1/object/public/${SITE_MEDIA_BUCKET}/${folder}/${encodeURIComponent(fileName)}`;
+function playableFileName(fileName: string): string {
+  // Chrome on Linux cannot play HEVC .MOV; serve the H.264 mp4 sibling.
+  return fileName.replace(/\.MOV$/i, ".mp4");
 }
 
 /**
- * Resolves a gallery/media key to a durable public URL.
- * Production: Supabase Storage. Local without env: files in /public.
+ * Resolves a gallery/media key to a public URL under /public.
  */
 export const getCloudinaryUrl = (key: string): string => {
+  if (key.startsWith("http")) return key;
+
   const cleanKey = key.startsWith("/") ? key.substring(1) : key;
+  const fileName = playableFileName(cleanKey.split("/").pop() || cleanKey);
 
-  if (SITE_IMAGES.has(cleanKey)) {
-    return supabasePublicUrl("new_images", cleanKey) || `/${encodeURI(`new images/${cleanKey}`)}`;
+  if (SITE_IMAGES.has(cleanKey) || SITE_IMAGES.has(fileName)) {
+    return `/${encodeURI(`new images/${fileName}`)}`;
   }
 
-  if (SITE_VIDEOS.has(cleanKey)) {
-    return supabasePublicUrl("new_videos", cleanKey) || `/${encodeURI(`new videos/${cleanKey}`)}`;
+  if (SITE_VIDEOS.has(cleanKey) || SITE_VIDEOS.has(fileName)) {
+    return `/${encodeURI(`new videos/${fileName}`)}`;
   }
 
-  if (!cleanKey.startsWith("http")) {
-    return "/" + encodeURI(cleanKey);
-  }
-
-  return key;
+  return "/" + encodeURI(playableFileName(cleanKey));
 };
