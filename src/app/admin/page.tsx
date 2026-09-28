@@ -5,8 +5,7 @@ import Link from "next/link";
 import { getAdminDashboard, type AdminDashboard } from "@/app/actions/adminActions";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { PasswordInput } from "@/components/PasswordInput";
-import { buttonClass, errorClass, inputClass } from "@/components/admin/ui";
-import "./admin.css";
+import { buttonClass, DeskLogo, errorClass, inputClass } from "@/components/admin/ui";
 
 export default function AdminPage() {
   const [username, setUsername] = useState("");
@@ -75,7 +74,7 @@ export default function AdminPage() {
 
   if (checking) {
     return (
-      <div className="peternity-admin min-h-screen bg-[#f3f4f6] flex items-center justify-center text-sm text-[#667085]">
+      <div className="peternity-admin min-h-screen bg-[#F9F9F9] flex items-center justify-center text-sm text-[#6b7280]">
         Checking session…
       </div>
     );
@@ -83,17 +82,14 @@ export default function AdminPage() {
 
   if (!dashboard) {
     return (
-      <div className="peternity-admin min-h-screen bg-[#f3f4f6] text-[#1c2434] px-4 py-10">
-        <div className="mx-auto max-w-md rounded-sm border border-[#e6e8ee] bg-white p-6">
-          <div className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2F6BFF] text-sm font-semibold text-white">P</span>
-            <span className="font-semibold">Peternity</span>
-          </div>
-          <h1 className="mt-6 text-2xl font-semibold tracking-tight">Welcome back</h1>
-          <p className="mt-2 text-sm text-[#98a2b3]">Sign in to manage orders, prices, and coupons.</p>
+      <div className="peternity-admin min-h-screen bg-[#F9F9F9] text-[#1a1a1b] px-4 py-10">
+        <div className="mx-auto max-w-md rounded-[2rem] border border-[#eeeeee] bg-white p-6 shadow-sm sm:p-8">
+          <DeskLogo className="mx-auto" />
+          <h1 className="mt-4 text-center text-3xl font-bold tracking-tight">Welcome back</h1>
+          <p className="mt-2 text-center text-sm text-[#9ca3af]">Sign in to manage orders, prices, and coupons.</p>
           <form onSubmit={handleLogin} className="mt-8 space-y-4">
             <label className="block space-y-1.5">
-              <span className="text-xs font-medium text-[#667085]">Username</span>
+              <span className="text-xs font-medium text-[#6b7280]">Username</span>
               <input
                 type="text"
                 autoComplete="username"
@@ -104,7 +100,7 @@ export default function AdminPage() {
               />
             </label>
             <label className="block space-y-1.5">
-              <span className="text-xs font-medium text-[#667085]">Password</span>
+              <span className="text-xs font-medium text-[#6b7280]">Password</span>
               <PasswordInput
                 autoComplete="current-password"
                 value={password}
@@ -118,7 +114,7 @@ export default function AdminPage() {
               {loading ? "Signing in…" : "Sign in"}
             </button>
           </form>
-          <Link href="/" className="inline-block mt-6 text-sm font-medium text-[#2F6BFF]">
+          <Link href="/" className="inline-block mt-6 text-sm font-medium text-primary">
             Back to shop
           </Link>
         </div>

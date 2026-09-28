@@ -33,15 +33,15 @@ export function DateRangeBar({
   onChange: (range: DateRange) => void;
 }) {
   return (
-    <div className="rounded-sm border border-[#e6e8ee] bg-white p-2">
+    <div className="rounded-3xl border border-[#eeeeee] bg-white shadow-sm p-2">
       <div className="flex gap-1.5 overflow-x-auto">
         {PRESETS.map((preset) => (
           <button
             key={preset.id}
             type="button"
             onClick={() => onChange({ ...range, preset: preset.id })}
-            className={`shrink-0 rounded-sm px-3 py-1.5 text-xs font-medium ${
-              range.preset === preset.id ? "bg-[#1c2434] text-white" : "bg-[#f4f6f9] text-[#667085]"
+            className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+              range.preset === preset.id ? "bg-primary text-white" : "bg-[#f8f9fa] text-[#6b7280]"
             }`}
           >
             {preset.label}
@@ -51,21 +51,21 @@ export function DateRangeBar({
       {range.preset === "custom" ? (
         <div className="mt-3 flex flex-wrap items-end gap-3">
           <label className="block">
-            <span className="mb-1 block text-[11px] font-medium text-[#98a2b3]">From</span>
+            <span className="mb-1 block text-[11px] font-medium text-[#9ca3af]">From</span>
             <input
               type="date"
               value={range.from}
               onChange={(event) => onChange({ ...range, preset: "custom", from: event.target.value })}
-              className="rounded-xl border border-[#e6e8ee] bg-[#f7f8fa] px-3 py-2 text-sm text-[#1c2434] outline-none focus:border-[#2F6BFF] focus:bg-white"
+              className="rounded-xl border border-[#eeeeee] bg-[#f8f9fa] px-3 py-2 text-sm text-[#1a1a1b] outline-none focus:border-[#A87B62] focus:bg-white"
             />
           </label>
           <label className="block">
-            <span className="mb-1 block text-[11px] font-medium text-[#98a2b3]">To</span>
+            <span className="mb-1 block text-[11px] font-medium text-[#9ca3af]">To</span>
             <input
               type="date"
               value={range.to}
               onChange={(event) => onChange({ ...range, preset: "custom", to: event.target.value })}
-              className="rounded-xl border border-[#e6e8ee] bg-[#f7f8fa] px-3 py-2 text-sm text-[#1c2434] outline-none focus:border-[#2F6BFF] focus:bg-white"
+              className="rounded-xl border border-[#eeeeee] bg-[#f8f9fa] px-3 py-2 text-sm text-[#1a1a1b] outline-none focus:border-[#A87B62] focus:bg-white"
             />
           </label>
         </div>
@@ -142,9 +142,9 @@ function Delta({
   compare: boolean;
   previousLabel: string;
 }) {
-  if (!compare) return <p className="mt-1 text-xs text-[#98a2b3]">Lifetime</p>;
+  if (!compare) return <p className="mt-1 text-xs text-[#9ca3af]">Lifetime</p>;
   if (previous === 0 && current === 0) {
-    return <p className="mt-1 text-xs text-[#98a2b3]">No orders in either period</p>;
+    return <p className="mt-1 text-xs text-[#9ca3af]">No orders in either period</p>;
   }
   if (previous === 0) {
     return <p className="mt-1 text-xs text-[#067647]">First orders in this period</p>;
@@ -152,7 +152,7 @@ function Delta({
   const pct = ((current - previous) / previous) * 100;
   const flat = Math.abs(pct) < 0.05;
   const up = pct > 0;
-  const tone = flat ? "text-[#98a2b3]" : up ? "text-[#067647]" : "text-[#b42318]";
+  const tone = flat ? "text-[#9ca3af]" : up ? "text-[#067647]" : "text-[#b42318]";
   const arrow = flat ? "→" : up ? "↑" : "↓";
   const amount = Math.abs(pct) >= 10 ? Math.abs(pct).toFixed(0) : Math.abs(pct).toFixed(1);
   return (
@@ -180,10 +180,10 @@ function Stat({
   hint?: string;
 }) {
   return (
-    <div className="rounded-sm border border-[#e6e8ee] bg-white p-4">
-      <p className="text-xs font-medium text-[#667085]">{label}</p>
+    <div className="rounded-3xl border border-[#eeeeee] bg-white shadow-sm p-4">
+      <p className="text-xs font-medium text-[#6b7280]">{label}</p>
       <p className="mt-2 text-2xl font-semibold tracking-tight">{value}</p>
-      {hint ? <p className="mt-1 text-xs text-[#667085]">{hint}</p> : null}
+      {hint ? <p className="mt-1 text-xs text-[#6b7280]">{hint}</p> : null}
       <Delta current={current} previous={previous} compare={compare} previousLabel={previousLabel} />
     </div>
   );
@@ -203,10 +203,10 @@ function Mix({
   const visible = showEmpty ? slices : slices.filter((slice) => slice.orders > 0);
   const max = Math.max(...visible.map((slice) => slice.revenue), 1);
   return (
-    <div className="rounded-sm border border-[#e6e8ee] bg-white p-4">
-      <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
+    <div className="rounded-3xl border border-[#eeeeee] bg-white shadow-sm p-4">
+      <h3 className="text-base font-bold tracking-tight">{title}</h3>
       {visible.length === 0 || visible.every((slice) => slice.orders === 0 && !showEmpty) ? (
-        <p className="mt-4 text-sm text-[#98a2b3]">{empty}</p>
+        <p className="mt-4 text-sm text-[#9ca3af]">{empty}</p>
       ) : (
         <ul className="mt-4 space-y-3">
           {visible.map((slice) => (
@@ -215,13 +215,13 @@ function Mix({
                   <span className="truncate">{slice.label}</span>
                   <span className="shrink-0 font-semibold">{rupee(slice.revenue)}</span>
                 </div>
-                <div className="mt-1.5 h-1.5 rounded-full bg-[#eef2f8]">
+                <div className="mt-1.5 h-1.5 rounded-full bg-[#f3ece7]">
                   <div
-                    className="h-full rounded-full bg-[#2F6BFF]"
+                    className="h-full rounded-full bg-primary"
                     style={{ width: `${slice.revenue > 0 ? Math.max(4, (slice.revenue / max) * 100) : 0}%` }}
                   />
                 </div>
-                <p className="mt-1 text-[11px] text-[#98a2b3]">
+                <p className="mt-1 text-[11px] text-[#9ca3af]">
                   {slice.orders} {slice.orders === 1 ? "order" : "orders"}
                 </p>
               </li>
@@ -312,10 +312,10 @@ function RevenueChart({
                 x2={width - pad.r}
                 y1={yy}
                 y2={yy}
-                stroke={baseline ? "#e4e7ec" : "#eef1f6"}
+                stroke={baseline ? "#e5e7eb" : "#f3f4f6"}
                 strokeWidth="1"
               />
-              <text x={pad.l - 10} y={yy + 4} textAnchor="end" fill="#98a2b3" fontSize="11">
+              <text x={pad.l - 10} y={yy + 4} textAnchor="end" fill="#9ca3af" fontSize="11">
                 {axisRupee(tick)}
               </text>
             </g>
@@ -333,12 +333,12 @@ function RevenueChart({
                   y={pad.t}
                   width={slot}
                   height={innerH}
-                  fill={hover === index ? "#f4f7ff" : "transparent"}
+                  fill={hover === index ? "#fcf8f5" : "transparent"}
                 />
                 {barH > 0 ? (
                   <path
                     d={topRoundedBar(x, plotBottom - barH, barW, barH, 3)}
-                    fill={hover === index || hot ? "#2F6BFF" : "#d5e2ff"}
+                    fill={hover === index || hot ? "#A87B62" : "#e8d9cf"}
                     pointerEvents="none"
                   />
                 ) : null}
@@ -349,7 +349,7 @@ function RevenueChart({
             <path
               d={previousLine}
               fill="none"
-              stroke="#667085"
+              stroke="#6b7280"
               strokeWidth="1.75"
               strokeDasharray="4 4"
               strokeLinejoin="round"
@@ -363,7 +363,7 @@ function RevenueChart({
               x2={pad.l + slot * hover + slot / 2}
               y1={pad.t}
               y2={plotBottom}
-              stroke="#c5d4f7"
+              stroke="#d9c2b3"
               strokeWidth="1"
               pointerEvents="none"
             />
@@ -376,7 +376,7 @@ function RevenueChart({
           const half = 28;
           const x = Math.min(width - pad.r - half, Math.max(pad.l + half, center));
           return (
-            <text key={`label-${index}`} x={x} y={height - 12} textAnchor="middle" fill="#98a2b3" fontSize="11">
+            <text key={`label-${index}`} x={x} y={height - 12} textAnchor="middle" fill="#9ca3af" fontSize="11">
               {point.label}
             </text>
           );
@@ -384,7 +384,7 @@ function RevenueChart({
       </svg>
       {active && hover !== null ? (
         <div
-          className="pointer-events-none absolute top-3 z-10 -translate-x-1/2 rounded-2xl bg-[#1c2434] px-3 py-2 text-xs text-white shadow-lg"
+          className="pointer-events-none absolute top-3 z-10 -translate-x-1/2 rounded-2xl bg-[#1a1a1b] px-3 py-2 text-xs text-white shadow-lg"
           style={{ left: `${Math.min(88, Math.max(12, hoverCenter))}%` }}
         >
           <p className="font-semibold">{active.label}</p>
@@ -473,40 +473,40 @@ export function AnalyticsOverview({
       </section>
 
       <section className="grid grid-cols-1 xl:grid-cols-[1.6fr_0.8fr] gap-4">
-        <div className="rounded-sm border border-[#e6e8ee] bg-white p-4">
+        <div className="rounded-3xl border border-[#eeeeee] bg-white shadow-sm p-4">
           <div className="flex flex-wrap items-end justify-between gap-3 mb-2">
             <div>
-              <h2 className="text-lg font-semibold tracking-tight">Revenue</h2>
-              <p className="text-sm text-[#98a2b3] mt-1">
+              <h2 className="text-xl font-bold tracking-tight">Revenue</h2>
+              <p className="text-sm text-[#9ca3af] mt-1">
                 {report.grainLabel} · {report.label}
               </p>
             </div>
-            <div className="flex items-center gap-4 text-xs text-[#667085]">
+            <div className="flex items-center gap-4 text-xs text-[#6b7280]">
               <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-[#2F6BFF]" />
+                <span className="h-2 w-2 rounded-full bg-primary" />
                 This period
               </span>
               {report.compare && before.revenue > 0 ? (
                 <span className="inline-flex items-center gap-1.5">
-                  <span className="h-0.5 w-4 border-t border-dashed border-[#667085]" />
+                  <span className="h-0.5 w-4 border-t border-dashed border-[#6b7280]" />
                   {report.previousLabel}
                 </span>
               ) : null}
             </div>
           </div>
           {totals.orders === 0 ? (
-            <div className="flex h-52 items-center justify-center text-sm text-[#98a2b3]">No orders in this range.</div>
+            <div className="flex h-52 items-center justify-center text-sm text-[#9ca3af]">No orders in this range.</div>
           ) : (
             <RevenueChart series={report.series} compare={report.compare} />
           )}
           {report.peak ? (
-            <p className="mt-2 text-xs text-[#667085]">
+            <p className="mt-2 text-xs text-[#6b7280]">
               Peak {report.grainNoun}: {report.peak.label} · {rupee(report.peak.revenue)} ·{" "}
               {report.peak.orders} {report.peak.orders === 1 ? "order" : "orders"}
             </p>
           ) : null}
         </div>
-        <div className="flex flex-col justify-between rounded-sm bg-[#2F6BFF] p-4 text-white">
+        <div className="flex flex-col justify-between rounded-3xl bg-primary p-5 text-white shadow-sm">
           <div>
             <p className="text-sm text-white/80">{report.label}</p>
             <p className="mt-2 text-3xl font-semibold tracking-tight">{rupee(totals.revenue)}</p>
@@ -519,7 +519,7 @@ export function AnalyticsOverview({
           <button
             type="button"
             onClick={onOpenOrders}
-            className="mt-5 self-start rounded-sm bg-white px-3 py-1.5 text-sm font-semibold text-[#2F6BFF]"
+            className="mt-5 self-start rounded-xl bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-primary transition-colors hover:bg-white/90"
           >
             View these orders
           </button>
@@ -553,14 +553,14 @@ function Ledger({
   const rows = [...series].reverse().filter((point) => point.orders > 0 || point.revenue > 0);
   if (rows.length === 0) return null;
   return (
-    <div className="rounded-sm border border-[#e6e8ee] bg-white">
+    <div className="overflow-hidden rounded-3xl border border-[#eeeeee] bg-white shadow-sm">
       <div className="flex items-center justify-between px-5 py-4">
-        <h3 className="text-sm font-semibold tracking-tight">{grainLabel} breakdown</h3>
-        <p className="text-xs text-[#98a2b3]">{rupee(totals.revenue)}</p>
+        <h3 className="text-base font-bold tracking-tight">{grainLabel} breakdown</h3>
+        <p className="text-xs text-[#9ca3af]">{rupee(totals.revenue)}</p>
       </div>
       <div className="max-h-80 overflow-auto">
         <table className="w-full text-left text-sm">
-          <thead className="sticky top-0 bg-white text-xs text-[#98a2b3]">
+          <thead className="sticky top-0 bg-white text-xs text-[#9ca3af]">
             <tr>
               <th className="px-5 py-2 font-medium">{grainLabel === "Monthly" ? "Month" : "Date"}</th>
               <th className="px-3 py-2 font-medium">Orders</th>
@@ -570,11 +570,11 @@ function Ledger({
           </thead>
           <tbody>
             {rows.map((point, index) => (
-              <tr key={`${point.label}-${index}`} className="border-t border-[#f0f2f5]">
+              <tr key={`${point.label}-${index}`} className="border-t border-[#f3f4f6]">
                 <td className="px-5 py-3">{point.label}</td>
                 <td className="px-3 py-3">{point.orders}</td>
                 <td className="px-3 py-3 font-semibold">{rupee(point.revenue)}</td>
-                <td className="px-5 py-3 text-[#667085]">{point.orders ? rupee(point.revenue / point.orders) : "—"}</td>
+                <td className="px-5 py-3 text-[#6b7280]">{point.orders ? rupee(point.revenue / point.orders) : "—"}</td>
               </tr>
             ))}
           </tbody>

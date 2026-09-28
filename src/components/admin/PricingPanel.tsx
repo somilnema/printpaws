@@ -76,7 +76,7 @@ export function PricingPanel({
       {setupError ? (
         <p className={warnClass}>{setupError}</p>
       ) : null}
-      <p className="text-sm text-[#667085] leading-relaxed max-w-3xl">
+      <p className="text-sm text-[#6b7280] leading-relaxed max-w-3xl">
         Amounts are in rupees. A crossed-out price is shown on the shop only when it is higher than the selling price.
         The cash-on-delivery amount due later is always 100 minus the pay-now percent.
       </p>
@@ -141,7 +141,7 @@ export function PricingPanel({
           <Money label="Prepaid discount %" value={catalog.prepaidPercent} onChange={(prepaidPercent) => patch({ prepaidPercent })} hint="0 to 100" />
           <Money label="Cash on delivery, pay now %" value={catalog.codAdvancePercent} onChange={(codAdvancePercent) => patch({ codAdvancePercent })} hint="1 to 99" />
           <Field label="Due on delivery %">
-            <input readOnly value={dueLater} className={`${inputClass} bg-[#f3f5f8]`} />
+            <input readOnly value={dueLater} className={`${inputClass} bg-[#f8f9fa]`} />
           </Field>
         </div>
       </Panel>

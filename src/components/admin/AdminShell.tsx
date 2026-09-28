@@ -27,7 +27,7 @@ import { AnalyticsOverview, DateRangeBar, defaultRange } from "@/components/admi
 import { CouponsPanel } from "@/components/admin/CouponsPanel";
 import { PricingPanel } from "@/components/admin/PricingPanel";
 import { sectionTabClass } from "@/components/admin/DeskSwitch";
-import { buttonClass, errorClass, ghostButtonClass, inputClass, Panel, warnClass } from "@/components/admin/ui";
+import { buttonClass, DeskLogo, errorClass, ghostButtonClass, inputClass, Panel, warnClass } from "@/components/admin/ui";
 import { orderInRange, rangeBounds, type DateRange } from "@/lib/admin-analytics";
 import { adminCanAssign, adminCanCancel, adminCanHold, artworkIsOpen, maximumDueAt, safeTrackingUrl, stageLabel } from "@/lib/fulfillment";
 import { isWatermarkedProof, storedPetPhotoUrl } from "@/lib/pet-photo";
@@ -99,14 +99,11 @@ export function AdminShell({
   const title = NAV.find((item) => item.id === section)?.label;
 
   return (
-    <div className="peternity-admin min-h-screen bg-[#f3f4f6] text-[#1c2434]">
-      <div className="min-h-screen bg-[#f3f4f6]">
-        <header className="border-b border-[#e6e8ee] bg-white">
+    <div className="peternity-admin min-h-screen bg-[#F9F9F9] text-[#1a1a1b]">
+      <div className="min-h-screen bg-[#F9F9F9]">
+        <header className="border-b border-[#eeeeee] bg-white">
           <div className="flex items-center gap-3 px-4 py-3 md:px-6">
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2F6BFF] text-sm font-semibold text-white">P</span>
-              <span className="hidden sm:block font-semibold">Peternity</span>
-            </div>
+            <DeskLogo />
             <nav className="flex flex-1 gap-1.5 overflow-x-auto md:justify-center">
               {NAV.map((item) => (
                 <button
@@ -133,11 +130,11 @@ export function AdminShell({
         <div className="px-4 md:px-6 py-5 space-y-4">
           {section === "overview" ? (
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
-              <p className="mt-1 text-sm text-[#667085]">{dashboard.user}</p>
+              <h1 className="text-3xl font-bold tracking-tight">Welcome back</h1>
+              <p className="mt-1 text-sm text-[#6b7280]">{dashboard.user}</p>
             </div>
           ) : (
-            <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+            <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
           )}
 
           {dashboard.warning ? (
@@ -160,9 +157,9 @@ export function AdminShell({
           {section === "messages" ? <MessagesPanel /> : null}
           {section === "pricing" || section === "coupons" ? (
             storeState === "signed-out" ? (
-              <p className="text-sm text-[#667085]">Sign in again to edit prices and coupons.</p>
+              <p className="text-sm text-[#6b7280]">Sign in again to edit prices and coupons.</p>
             ) : storeState !== "ready" || !store ? (
-              <p className="text-sm text-[#667085]">Loading…</p>
+              <p className="text-sm text-[#6b7280]">Loading…</p>
             ) : section === "pricing" ? (
               <PricingPanel
                 initial={store.catalog}
@@ -180,7 +177,7 @@ export function AdminShell({
             )
           ) : null}
 
-          <Link href="/" className="inline-block text-sm font-medium text-[#2F6BFF]">
+          <Link href="/" className="inline-block text-sm font-medium text-primary">
             Back to shop
           </Link>
         </div>
@@ -246,10 +243,10 @@ function OrdersPanel({
       {dashboard.workload.length > 0 ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {dashboard.workload.map((artist) => (
-            <div key={artist.id} className="rounded-3xl border border-[#eef0f4] bg-white p-4">
+            <div key={artist.id} className="rounded-3xl border border-[#eeeeee] bg-white p-4">
               <p className="font-semibold">{artist.name}</p>
-              <p className="mt-1 text-sm text-[#667085]">{artist.open} open {artist.open === 1 ? "order" : "orders"}</p>
-              <p className={`text-sm ${artist.overdue ? "font-semibold text-[#b42318]" : "text-[#98a2b3]"}`}>
+              <p className="mt-1 text-sm text-[#6b7280]">{artist.open} open {artist.open === 1 ? "order" : "orders"}</p>
+              <p className={`text-sm ${artist.overdue ? "font-semibold text-[#b42318]" : "text-[#9ca3af]"}`}>
                 {artist.overdue} overdue
               </p>
             </div>
@@ -283,7 +280,7 @@ function OrdersPanel({
                 setVisible(20);
               }}
               className={`shrink-0 rounded-full px-3.5 py-2 text-xs font-medium ${
-                stage === item ? "bg-[#1c2434] text-white" : "bg-white text-[#667085]"
+                stage === item ? "bg-primary text-white" : "bg-white text-[#6b7280]"
               }`}
             >
               {item === "decision" ? "Decision needed" : item === "overdue" ? "Overdue" : item ? stageLabel(item) : "All"}
@@ -291,12 +288,12 @@ function OrdersPanel({
           ))}
         </div>
       </div>
-      <p className="text-xs text-[#98a2b3]">
+      <p className="text-xs text-[#9ca3af]">
         {filtered.length} {filtered.length === 1 ? "order" : "orders"} · {bounds.label}
       </p>
-      <div className="overflow-x-auto rounded-3xl border border-[#eef0f4] bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
+      <div className="overflow-x-auto rounded-3xl border border-[#eeeeee] bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
         <table className="w-full min-w-[720px] text-left text-sm">
-          <thead className="text-xs text-[#98a2b3]">
+          <thead className="text-xs text-[#9ca3af]">
             <tr>
               <th className="px-3 py-2 font-bold">Order</th>
               <th className="px-3 py-2 font-bold">Customer</th>
@@ -308,7 +305,7 @@ function OrdersPanel({
           <tbody>
             {shown.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-[#98a2b3]">
+                <td colSpan={5} className="px-4 py-8 text-[#9ca3af]">
                   No orders match.
                 </td>
               </tr>
@@ -355,14 +352,14 @@ function OrderRows({
 }) {
   return (
     <>
-      <tr className="border-t border-[#f0f2f5] cursor-pointer hover:bg-[#f8fafc]" onClick={onToggle}>
+      <tr className="border-t border-[#f3f4f6] cursor-pointer hover:bg-[#f8f9fa]" onClick={onToggle}>
         <td className="px-4 py-3.5">
           <p className="font-semibold">{order.pet_name || "Untitled pet"}</p>
-          <p className="text-[11px] text-[#98a2b3]">{order.id ? `#${String(order.id).slice(0, 8).toUpperCase()}` : ""}</p>
+          <p className="text-[11px] text-[#9ca3af]">{order.id ? `#${String(order.id).slice(0, 8).toUpperCase()}` : ""}</p>
         </td>
         <td className="px-3 py-3">
           <p>{order.customer_name || "—"}</p>
-          <p className="text-xs text-[#98a2b3]">{order.customer_email || "No email"}</p>
+          <p className="text-xs text-[#9ca3af]">{order.customer_email || "No email"}</p>
         </td>
         <td className="px-3 py-3">
           <p>{stageLabel(order.fulfillment_stage)}</p>
@@ -373,7 +370,7 @@ function OrderRows({
         <td className="px-3 py-3 text-xs">{formatDate(order.created_at)}</td>
       </tr>
       {open ? (
-        <tr className="border-t border-[#f0f2f5] bg-[#f8fafc]">
+        <tr className="border-t border-[#f3f4f6] bg-[#f8f9fa]">
           <td colSpan={5} className="px-3 py-4">
             <OrderDetail order={order} artists={artists} onChanged={onChanged} />
           </td>
@@ -437,11 +434,11 @@ function OrderDetail({
   return (
     <div className="grid md:grid-cols-[9rem_1fr] gap-4 text-sm">
       {photo && !broken ? (
-        <a href={photo} target="_blank" rel="noreferrer" className="block h-36 rounded-2xl overflow-hidden bg-[#f3f5f8]">
+        <a href={photo} target="_blank" rel="noreferrer" className="block h-36 rounded-2xl overflow-hidden bg-[#f8f9fa]">
           <img src={photo} alt={order.pet_name || "Pet photo"} className="w-full h-full object-cover" onError={() => setBroken(true)} />
         </a>
       ) : (
-        <div className="h-36 rounded-2xl bg-[#f3f5f8] flex items-center justify-center text-xs text-[#98a2b3] px-3 text-center">
+        <div className="h-36 rounded-2xl bg-[#f8f9fa] flex items-center justify-center text-xs text-[#9ca3af] px-3 text-center">
           {order.photo_url ? "Photo not saved" : "Waiting for photos"}
         </div>
       )}
@@ -452,13 +449,13 @@ function OrderDetail({
           {order.status ? ` · ${order.status}` : ""}
           {Number(order.cod_due) > 0 ? ` · due ${rupee(Number(order.cod_due))}` : ""}
         </p>
-        <p className="text-[#667085]">
+        <p className="text-[#6b7280]">
           {[order.customer_phone, order.size, order.frame_style, order.num_pets && `${order.num_pets} pet(s)`, order.background, order.font]
             .filter(Boolean)
             .join(" · ")}
         </p>
         {(order.addon || order.gift_wrap) && (
-          <p className="text-[#667085]">
+          <p className="text-[#6b7280]">
             {order.addon ? `Add-on: ${order.addon}` : ""}
             {order.addon && order.gift_wrap ? " · " : ""}
             {order.gift_wrap ? "Gift wrap" : ""}
@@ -486,7 +483,7 @@ function OrderDetail({
         {approvedPreview?.image_url ? (
           <div className="max-w-xs space-y-2">
             <img src={storedPetPhotoUrl(approvedPreview.image_url)} alt="Approved picture" className="w-full rounded-2xl" />
-            <span className="block text-xs text-[#667085]">
+            <span className="block text-xs text-[#6b7280]">
               Locked picture{order.approved_at ? ` · ${formatDate(order.approved_at)}` : ""}
               {order.approved_by ? ` · ${order.approved_by}` : ""}
             </span>
@@ -495,7 +492,7 @@ function OrderDetail({
                 Download original
               </a>
             ) : (
-              <a href={storedPetPhotoUrl(approvedPreview.image_url)} target="_blank" rel="noreferrer" className="text-xs font-medium text-[#2F6BFF]">
+              <a href={storedPetPhotoUrl(approvedPreview.image_url)} target="_blank" rel="noreferrer" className="text-xs font-medium text-primary">
                 Open picture
               </a>
             )}
@@ -535,7 +532,7 @@ function OrderDetail({
               run(() => extendArtworkDeadline(order.id || "", new Date(dueAt).toISOString(), extensionReason), "Deadline extended.");
             }}
           >
-            <p className="text-xs text-[#667085]">Extend the artwork deadline up to {formatDate(cap)}. Nights and weekends count.</p>
+            <p className="text-xs text-[#6b7280]">Extend the artwork deadline up to {formatDate(cap)}. Nights and weekends count.</p>
             <input type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} required className={inputClass} />
             <input value={extensionReason} onChange={(e) => setExtensionReason(e.target.value)} placeholder="Reason for the extension" required className={inputClass} />
             <button type="submit" disabled={busy} className={ghostButtonClass}>
@@ -546,13 +543,13 @@ function OrderDetail({
         {order.fulfillment_stage === "final_approval" || order.fulfillment_stage === "shipped" ? (
           <div className="space-y-2">
             {order.vendor ? (
-              <p className="text-[#667085]">
+              <p className="text-[#6b7280]">
                 Vendor {order.vendor.status === "sent" ? "accepted this order" : "could not take this order"}
                 {order.vendor.attempted_at ? ` · ${formatDate(order.vendor.attempted_at)}` : ""}
                 {order.vendor.error ? ` · ${order.vendor.error}` : ""}
               </p>
             ) : (
-              <p className="text-[#667085]">No vendor call yet. The shipment desk can still paste the tracking link.</p>
+              <p className="text-[#6b7280]">No vendor call yet. The shipment desk can still paste the tracking link.</p>
             )}
             <button
               type="button"
@@ -572,7 +569,7 @@ function OrderDetail({
           </div>
         ) : null}
         {order.fulfillment_stage === "final_approval" ? (
-          <p className="text-[#667085]">This order is on the shipment dashboard, waiting for a tracking link.</p>
+          <p className="text-[#6b7280]">This order is on the shipment dashboard, waiting for a tracking link.</p>
         ) : null}
         {trackingLink ? (
           <p>
@@ -635,7 +632,7 @@ function OrderDetail({
                   {email.subject} · {email.status}
                   {email.attempt_count ? ` · ${email.attempt_count} ${email.attempt_count === 1 ? "try" : "tries"}` : ""}
                 </p>
-                <p className="text-xs text-[#98a2b3]">
+                <p className="text-xs text-[#9ca3af]">
                   {email.recipient}
                   {email.sent_at ? ` · ${formatDate(email.sent_at)}` : ` · ${formatDate(email.created_at)}`}
                 </p>
@@ -658,7 +655,7 @@ function OrderDetail({
           <div className="space-y-2">
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">History of changes</p>
             {order.events.map((event) => (
-              <p key={event.id} className="text-xs text-[#667085]">
+              <p key={event.id} className="text-xs text-[#6b7280]">
                 {formatDate(event.created_at)} · {event.actor} · {event.action}
                 {event.detail ? ` · ${event.detail}` : ""}
               </p>
@@ -719,13 +716,13 @@ function ShippersPanel({ shippers, onCreated }: { shippers: ArtistAccount[]; onC
       </Panel>
       <Panel title="Shipment accounts">
         {shippers.length === 0 ? (
-          <p className="text-sm text-[#98a2b3]">No shipment accounts yet.</p>
+          <p className="text-sm text-[#9ca3af]">No shipment accounts yet.</p>
         ) : (
-          <ul className="divide-y divide-[#f0f2f5] rounded-sm bg-[#f7f8fa]">
+          <ul className="divide-y divide-[#f3f4f6] overflow-hidden rounded-2xl bg-[#f8f9fa]">
             {shippers.map((shipper) => (
               <li key={shipper.id} className="px-3 py-3">
                 <p className="font-semibold">{shipper.name}</p>
-                <p className="text-xs text-[#98a2b3]">{shipper.email}</p>
+                <p className="text-xs text-[#9ca3af]">{shipper.email}</p>
               </li>
             ))}
           </ul>
@@ -784,13 +781,13 @@ function ArtistsPanel({ artists, onCreated }: { artists: ArtistAccount[]; onCrea
       </Panel>
       <Panel title="Artist accounts">
         {artists.length === 0 ? (
-          <p className="text-sm text-[#98a2b3]">No artists yet.</p>
+          <p className="text-sm text-[#9ca3af]">No artists yet.</p>
         ) : (
-          <ul className="divide-y divide-[#f0f2f5] rounded-2xl bg-[#f7f8fa]">
+          <ul className="divide-y divide-[#f3f4f6] overflow-hidden rounded-2xl bg-[#f8f9fa]">
             {artists.map((artist) => (
               <li key={artist.id} className="px-3 py-3">
                 <p className="font-semibold">{artist.name}</p>
-                <p className="text-xs text-[#98a2b3]">{artist.email}</p>
+                <p className="text-xs text-[#9ca3af]">{artist.email}</p>
               </li>
             ))}
           </ul>

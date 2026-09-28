@@ -45,15 +45,15 @@ export function TeamNotes({
   }
 
   return (
-    <div className="space-y-2 border-t border-[#f0f2f5] pt-4">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-[#98a2b3]">Private team notes</p>
-      <p className="text-xs text-[#98a2b3]">Only the artist, shipment desk, and admin can see these. The customer cannot.</p>
+    <div className="space-y-2 border-t border-[#f3f4f6] pt-4">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-[#9ca3af]">Private team notes</p>
+      <p className="text-xs text-[#9ca3af]">Only the artist, shipment desk, and admin can see these. The customer cannot.</p>
       {notes.length ? (
         <div className="space-y-2">
           {notes.map((note) => (
-            <div key={note.id} className="rounded-2xl bg-[#f7f8fa] p-3">
+            <div key={note.id} className="rounded-2xl bg-[#f8f9fa] p-3">
               <p className="whitespace-pre-wrap text-sm">{note.body}</p>
-              <p className="mt-1 text-xs text-[#98a2b3]">
+              <p className="mt-1 text-xs text-[#9ca3af]">
                 {note.author}
                 {note.created_at ? ` · ${formatDate(note.created_at)}` : ""}
               </p>
@@ -61,7 +61,7 @@ export function TeamNotes({
           ))}
         </div>
       ) : (
-        <p className="text-xs text-[#98a2b3]">No private notes yet.</p>
+        <p className="text-xs text-[#9ca3af]">No private notes yet.</p>
       )}
       <form onSubmit={handleSubmit} className="space-y-2">
         <textarea

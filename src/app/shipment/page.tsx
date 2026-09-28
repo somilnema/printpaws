@@ -14,10 +14,9 @@ import { TeamNotes } from "@/components/TeamNotes";
 import { OrderTimeline } from "@/components/OrderTimeline";
 import { PasswordInput } from "@/components/PasswordInput";
 import { sectionTabClass } from "@/components/admin/DeskSwitch";
-import { buttonClass, errorClass, ghostButtonClass, inputClass, okClass, warnClass } from "@/components/admin/ui";
+import { buttonClass, DeskLogo, errorClass, ghostButtonClass, inputClass, okClass, warnClass } from "@/components/admin/ui";
 import { safeTrackingUrl, shipperCanAddTracking, shipperCanMarkDelivered, stageLabel } from "@/lib/fulfillment";
 import { isWatermarkedProof, storedPetPhotoUrl } from "@/lib/pet-photo";
-import "../admin/admin.css";
 
 type Section = "overview" | "orders";
 type Filter = "" | "final_approval" | "shipped" | "delivered";
@@ -106,7 +105,7 @@ export default function ShipmentPage() {
 
   if (checking) {
     return (
-      <div className="peternity-admin flex min-h-[100dvh] items-center justify-center bg-[#f3f4f6] px-4 text-sm text-[#667085]">
+      <div className="peternity-admin flex min-h-[100dvh] items-center justify-center bg-[#F9F9F9] px-4 text-sm text-[#6b7280]">
         Checking session…
       </div>
     );
@@ -114,19 +113,16 @@ export default function ShipmentPage() {
 
   if (!dashboard) {
     return (
-      <div className="peternity-admin flex min-h-[100dvh] flex-col bg-[#f3f4f6] px-4 py-8 text-[#1c2434] sm:py-10">
-        <div className="mx-auto my-auto w-full max-w-md rounded-sm border border-[#e6e8ee] bg-white p-6">
-          <div className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2F6BFF] text-sm font-semibold text-white">P</span>
-            <span className="font-semibold">Peternity</span>
-          </div>
-          <h1 className="mt-6 text-2xl font-semibold tracking-tight">Shipment</h1>
-          <p className="mt-2 text-sm leading-relaxed text-[#98a2b3]">
+      <div className="peternity-admin flex min-h-[100dvh] flex-col bg-[#F9F9F9] px-4 py-8 text-[#1a1a1b] sm:py-10">
+        <div className="mx-auto my-auto w-full max-w-md rounded-[2rem] border border-[#eeeeee] bg-white p-6 shadow-sm sm:p-8">
+          <DeskLogo className="mx-auto" />
+          <h1 className="mt-4 text-center text-3xl font-bold tracking-tight">Shipment</h1>
+          <p className="mt-2 text-center text-sm leading-relaxed text-[#9ca3af]">
             Sign in with the email and password created in admin.
           </p>
           <form onSubmit={handleLogin} className="mt-8 space-y-4">
             <label className="block space-y-1.5">
-              <span className="text-xs font-medium text-[#667085]">Email</span>
+              <span className="text-xs font-medium text-[#6b7280]">Email</span>
               <input
                 type="email"
                 autoComplete="username"
@@ -137,7 +133,7 @@ export default function ShipmentPage() {
               />
             </label>
             <label className="block space-y-1.5">
-              <span className="text-xs font-medium text-[#667085]">Password</span>
+              <span className="text-xs font-medium text-[#6b7280]">Password</span>
               <PasswordInput
                 autoComplete="current-password"
                 value={password}
@@ -151,7 +147,7 @@ export default function ShipmentPage() {
               {loading ? "Signing in…" : "Sign in"}
             </button>
           </form>
-          <Link href="/" className="mt-6 inline-block text-sm font-medium text-[#2F6BFF]">
+          <Link href="/" className="mt-6 inline-block text-sm font-medium text-primary">
             Back to shop
           </Link>
         </div>
@@ -207,14 +203,11 @@ function ShipmentShell({
   }
 
   return (
-    <div className="peternity-admin min-h-[100dvh] overflow-x-hidden bg-[#f3f4f6] text-[#1c2434]">
-      <div className="min-h-[100dvh] bg-[#f3f4f6]">
-        <header className="border-b border-[#e6e8ee] bg-white">
+    <div className="peternity-admin min-h-[100dvh] overflow-x-hidden bg-[#F9F9F9] text-[#1a1a1b]">
+      <div className="min-h-[100dvh] bg-[#F9F9F9]">
+        <header className="border-b border-[#eeeeee] bg-white">
           <div className="flex items-center gap-2 px-3 py-3 sm:gap-3 sm:px-4 sm:py-4 md:px-8">
-            <div className="flex shrink-0 items-center gap-2">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2F6BFF] text-sm font-semibold text-white">P</span>
-              <span className="hidden font-semibold sm:block">Peternity</span>
-            </div>
+            <DeskLogo />
             <nav className="hidden min-w-0 flex-1 justify-center gap-1 md:flex">
               {NAV.map((item) => (
                 <button
@@ -253,11 +246,11 @@ function ShipmentShell({
         <div className="space-y-5 px-3 py-5 sm:px-4 sm:py-6 md:px-8">
           {section === "overview" ? (
             <div>
-              <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
-              <p className="mt-2 text-sm text-[#98a2b3]">{dashboard.user} · shipment</p>
+              <h1 className="text-3xl font-bold tracking-tight">Welcome back</h1>
+              <p className="mt-2 text-sm text-[#9ca3af]">{dashboard.user} · shipment</p>
             </div>
           ) : (
-            <h1 className="text-2xl font-semibold tracking-tight">Orders</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Orders</h1>
           )}
 
           {dashboard.warning ? <p className={warnClass}>{dashboard.warning}</p> : null}
@@ -289,21 +282,21 @@ function ShipmentShell({
                     key={id || "all"}
                     type="button"
                     onClick={() => setFilter(id)}
-                    className={`shrink-0 rounded-full px-3.5 py-2 text-xs font-medium ${filter === id ? "bg-[#1c2434] text-white" : "bg-white text-[#667085]"}`}
+                    className={`shrink-0 rounded-full px-3.5 py-2 text-xs font-medium ${filter === id ? "bg-primary text-white" : "bg-white text-[#6b7280]"}`}
                   >
                     {label}
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-[#98a2b3]">
+              <p className="text-xs text-[#9ca3af]">
                 {filtered.length} of {dashboard.orders.length} {dashboard.orders.length === 1 ? "order" : "orders"}
               </p>
               {dashboard.orders.length === 0 ? (
-                <div className="rounded-3xl border border-[#eef0f4] bg-white p-5 text-sm text-[#98a2b3]">
+                <div className="rounded-3xl border border-[#eeeeee] bg-white p-5 text-sm text-[#9ca3af]">
                   No approved orders are waiting. They appear here as soon as the customer approves the picture.
                 </div>
               ) : filtered.length === 0 ? (
-                <div className="rounded-3xl border border-[#eef0f4] bg-white p-5 text-sm text-[#98a2b3]">No orders match.</div>
+                <div className="rounded-3xl border border-[#eeeeee] bg-white p-5 text-sm text-[#9ca3af]">No orders match.</div>
               ) : (
                 filtered.map((order) => (
                   <ShipmentCard
@@ -318,7 +311,7 @@ function ShipmentShell({
             </div>
           )}
 
-          <Link href="/" className="inline-block text-sm font-medium text-[#2F6BFF]">
+          <Link href="/" className="inline-block text-sm font-medium text-primary">
             Back to shop
           </Link>
         </div>
@@ -329,10 +322,10 @@ function ShipmentShell({
 
 function Stat({ label, value, hint, onClick }: { label: string; value: number; hint: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="rounded-3xl border border-[#eef0f4] bg-white p-4 text-left shadow-[0_8px_30px_rgba(15,23,42,0.04)] sm:p-5">
-      <p className="text-xs font-medium text-[#98a2b3]">{label}</p>
+    <button type="button" onClick={onClick} className="rounded-3xl border border-[#eeeeee] bg-white p-4 text-left shadow-[0_8px_30px_rgba(15,23,42,0.04)] sm:p-5">
+      <p className="text-xs font-medium text-[#9ca3af]">{label}</p>
       <p className="mt-2 text-2xl font-semibold tracking-tight sm:mt-3 sm:text-3xl">{value}</p>
-      <p className="mt-1 text-xs leading-snug text-[#667085]">{hint}</p>
+      <p className="mt-1 text-xs leading-snug text-[#6b7280]">{hint}</p>
     </button>
   );
 }
@@ -392,57 +385,57 @@ function ShipmentCard({
   }
 
   return (
-    <article className="overflow-hidden rounded-3xl border border-[#eef0f4] bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
+    <article className="overflow-hidden rounded-3xl border border-[#eeeeee] bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
       <button type="button" onClick={onToggle} className="flex w-full items-center gap-3 px-4 py-4 text-left">
-        <span className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-[#f3f5f8]">
+        <span className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-[#f8f9fa]">
           {approvedPhoto || photo ? (
             <img src={approvedPhoto || photo} alt="" className="h-full w-full object-cover" />
           ) : (
-            <span className="flex h-full items-center justify-center text-[10px] text-[#98a2b3]">Pet</span>
+            <span className="flex h-full items-center justify-center text-[10px] text-[#9ca3af]">Pet</span>
           )}
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate font-semibold">{order.pet_name || "Untitled pet"}</span>
-          <span className="mt-0.5 block truncate text-xs text-[#98a2b3]">
+          <span className="mt-0.5 block truncate text-xs text-[#9ca3af]">
             #{order.id.slice(0, 8).toUpperCase()} · {order.customer_name || "Customer"} · {order.shipping_city || "No city"}
           </span>
         </span>
-        <span className="max-w-[7rem] shrink-0 truncate rounded-full bg-[#f4f6f9] px-2.5 py-1 text-[11px] font-medium text-[#667085]">
+        <span className="max-w-[7rem] shrink-0 truncate rounded-full bg-[#f8f9fa] px-2.5 py-1 text-[11px] font-medium text-[#6b7280]">
           {stageLabel(order.fulfillment_stage)}
         </span>
       </button>
 
       {open ? (
-        <div className="space-y-4 border-t border-[#f0f2f5] px-4 py-4 text-sm sm:px-5">
+        <div className="space-y-4 border-t border-[#f3f4f6] px-4 py-4 text-sm sm:px-5">
           <div className="grid gap-4 sm:grid-cols-[9rem_1fr]">
             {approvedPhoto ? (
-              <div className="h-36 overflow-hidden rounded-2xl bg-[#f3f5f8]">
+              <div className="h-36 overflow-hidden rounded-2xl bg-[#f8f9fa]">
                 <img src={approvedPhoto} alt="Approved picture" className="h-full w-full object-cover" />
               </div>
             ) : (
-              <div className="flex h-36 items-center justify-center rounded-2xl bg-[#f3f5f8] px-3 text-center text-xs text-[#98a2b3]">
+              <div className="flex h-36 items-center justify-center rounded-2xl bg-[#f8f9fa] px-3 text-center text-xs text-[#9ca3af]">
                 Approved picture not saved
               </div>
             )}
             <div className="min-w-0 space-y-2">
               <p className="font-semibold">{order.customer_name || "Customer"}</p>
-              <p className="break-words text-[#667085]">
+              <p className="break-words text-[#6b7280]">
                 {[order.customer_phone, order.customer_email].filter(Boolean).join(" · ") || "No contact saved"}
               </p>
               <p className="break-words">{address || "No shipping address saved"}</p>
-              <p className="text-[#667085]">
+              <p className="text-[#6b7280]">
                 {[order.size, order.frame_style, order.addon, order.gift_wrap ? "Gift wrap" : ""].filter(Boolean).join(" · ")}
               </p>
               {Number(order.cod_due) > 0 ? <p>Cash on delivery due ₹{Math.round(Number(order.cod_due)).toLocaleString("en-IN")}</p> : <p>Prepaid</p>}
               {order.memorial_text ? <p className="break-words">Memorial text: {order.memorial_text}</p> : null}
-              {order.approved_at ? <p className="text-xs text-[#98a2b3]">Approved {formatDate(order.approved_at)}</p> : null}
+              {order.approved_at ? <p className="text-xs text-[#9ca3af]">Approved {formatDate(order.approved_at)}</p> : null}
               <OrderTimeline stage={order.fulfillment_stage} updates={order.updates} trackingUrl={order.tracking_url} />
               {approved && isWatermarkedProof(approved.image_url) ? (
                 <a href={`/api/artwork/original?version=${approved.id}`} className={`${buttonClass} inline-flex`}>
                   Download original for print
                 </a>
               ) : approvedPhoto ? (
-                <a href={approvedPhoto} target="_blank" rel="noreferrer" className="font-semibold text-[#2F6BFF]">
+                <a href={approvedPhoto} target="_blank" rel="noreferrer" className="font-semibold text-primary">
                   Open picture
                 </a>
               ) : null}
@@ -450,7 +443,7 @@ function ShipmentCard({
           </div>
 
           {order.vendor ? (
-            <p className="text-[#667085]">
+            <p className="text-[#6b7280]">
               Vendor {order.vendor.status === "sent" ? "accepted this order" : "could not take this order"}
               {order.vendor.error ? ` · ${order.vendor.error}` : ""}
             </p>
@@ -483,8 +476,8 @@ function ShipmentCard({
           ) : null}
 
           {shipperCanAddTracking(order.fulfillment_stage) ? (
-            <form onSubmit={handleTrack} className="space-y-2 border-t border-[#f0f2f5] pt-4">
-              <p className="text-xs font-medium text-[#667085]">
+            <form onSubmit={handleTrack} className="space-y-2 border-t border-[#f3f4f6] pt-4">
+              <p className="text-xs font-medium text-[#6b7280]">
                 {order.fulfillment_stage === "shipped" ? "Update the tracking link" : "Courier tracking link"}
               </p>
               <div className="flex flex-col gap-2 sm:flex-row">
@@ -504,7 +497,7 @@ function ShipmentCard({
 
           {link ? (
             <p>
-              <a href={link} target="_blank" rel="noreferrer" className="font-semibold text-[#2F6BFF] underline">
+              <a href={link} target="_blank" rel="noreferrer" className="font-semibold text-primary underline">
                 Open tracking link
               </a>
               {order.tracking_saved_by ? ` · ${order.tracking_saved_by}` : ""}

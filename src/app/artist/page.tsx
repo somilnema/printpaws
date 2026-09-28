@@ -10,10 +10,9 @@ import { TeamNotes } from "@/components/TeamNotes";
 import { OrderTimeline } from "@/components/OrderTimeline";
 import { PasswordInput } from "@/components/PasswordInput";
 import { sectionTabClass } from "@/components/admin/DeskSwitch";
-import { buttonClass, errorClass, ghostButtonClass, inputClass, warnClass } from "@/components/admin/ui";
+import { buttonClass, DeskLogo, errorClass, ghostButtonClass, inputClass, warnClass } from "@/components/admin/ui";
 import { artistCanStartRevision, artistCanUpload, isOverdue, stageLabel } from "@/lib/fulfillment";
 import { storedPetPhotoUrl } from "@/lib/pet-photo";
-import "../admin/admin.css";
 
 type Section = "overview" | "orders";
 
@@ -113,7 +112,7 @@ export default function ArtistPage() {
 
   if (checking) {
     return (
-      <div className="peternity-admin flex min-h-[100dvh] items-center justify-center bg-[#f3f4f6] px-4 text-sm text-[#667085]">
+      <div className="peternity-admin flex min-h-[100dvh] items-center justify-center bg-[#F9F9F9] px-4 text-sm text-[#6b7280]">
         Checking session…
       </div>
     );
@@ -121,17 +120,14 @@ export default function ArtistPage() {
 
   if (!portal) {
     return (
-      <div className="peternity-admin flex min-h-[100dvh] flex-col bg-[#f3f4f6] px-4 py-8 text-[#1c2434] sm:py-10">
-        <div className="mx-auto my-auto w-full max-w-md rounded-sm border border-[#e6e8ee] bg-white p-6">
-          <div className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2F6BFF] text-sm font-semibold text-white">P</span>
-            <span className="font-semibold">Peternity</span>
-          </div>
-          <h1 className="mt-6 text-2xl font-semibold tracking-tight">Artist</h1>
-          <p className="mt-2 text-sm leading-relaxed text-[#98a2b3]">Sign in with the email and password from admin.</p>
+      <div className="peternity-admin flex min-h-[100dvh] flex-col bg-[#F9F9F9] px-4 py-8 text-[#1a1a1b] sm:py-10">
+        <div className="mx-auto my-auto w-full max-w-md rounded-[2rem] border border-[#eeeeee] bg-white p-6 shadow-sm sm:p-8">
+          <DeskLogo className="mx-auto" />
+          <h1 className="mt-4 text-center text-3xl font-bold tracking-tight">Artist</h1>
+          <p className="mt-2 text-center text-sm leading-relaxed text-[#9ca3af]">Sign in with the email and password from admin.</p>
           <form onSubmit={handleLogin} className="mt-8 space-y-4">
             <label className="block space-y-1.5">
-              <span className="text-xs font-medium text-[#667085]">Email</span>
+              <span className="text-xs font-medium text-[#6b7280]">Email</span>
               <input
                 type="email"
                 autoComplete="username"
@@ -142,7 +138,7 @@ export default function ArtistPage() {
               />
             </label>
             <label className="block space-y-1.5">
-              <span className="text-xs font-medium text-[#667085]">Password</span>
+              <span className="text-xs font-medium text-[#6b7280]">Password</span>
               <PasswordInput
                 autoComplete="current-password"
                 value={password}
@@ -156,7 +152,7 @@ export default function ArtistPage() {
               {loading ? "Signing in…" : "Sign in"}
             </button>
           </form>
-          <Link href="/" className="mt-6 inline-block text-sm font-medium text-[#2F6BFF]">
+          <Link href="/" className="mt-6 inline-block text-sm font-medium text-primary">
             Back to shop
           </Link>
         </div>
@@ -240,14 +236,11 @@ function ArtistShell({
   }
 
   return (
-    <div className="peternity-admin min-h-[100dvh] overflow-x-hidden bg-[#f3f4f6] text-[#1c2434]">
-      <div className="min-h-[100dvh] bg-[#f3f4f6]">
-        <header className="border-b border-[#e6e8ee] bg-white">
+    <div className="peternity-admin min-h-[100dvh] overflow-x-hidden bg-[#F9F9F9] text-[#1a1a1b]">
+      <div className="min-h-[100dvh] bg-[#F9F9F9]">
+        <header className="border-b border-[#eeeeee] bg-white">
           <div className="flex items-center gap-2 px-3 py-3 sm:gap-3 sm:px-4 sm:py-4 md:px-8">
-            <div className="flex shrink-0 items-center gap-2">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2F6BFF] text-sm font-semibold text-white">P</span>
-              <span className="hidden font-semibold sm:block">Peternity</span>
-            </div>
+            <DeskLogo />
             <nav className="hidden min-w-0 flex-1 justify-center gap-1 md:flex">
               <SectionNav section={section} onChange={setSection} />
             </nav>
@@ -268,14 +261,14 @@ function ArtistShell({
         <div className="space-y-5 px-3 py-5 sm:px-4 sm:py-6 md:px-8">
           {section === "overview" ? (
             <div className="min-w-0">
-              <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
-              <p className="mt-2 break-words text-sm text-[#98a2b3]">
+              <h1 className="text-3xl font-bold tracking-tight">Welcome back</h1>
+              <p className="mt-2 break-words text-sm text-[#9ca3af]">
                 {portal.artist.name}
                 {portal.artist.email ? ` · ${portal.artist.email}` : ""}
               </p>
             </div>
           ) : (
-            <h1 className="text-2xl font-semibold tracking-tight">Orders</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Orders</h1>
           )}
 
           {portal.warning ? <p className={warnClass}>Could not load every order: {portal.warning}</p> : null}
@@ -289,22 +282,22 @@ function ArtistShell({
                 <Stat label="Overdue" value={counts.overdue} hint="Past the artwork deadline" onClick={() => openOrders("overdue")} />
               </div>
 
-              <section className="rounded-3xl border border-[#eef0f4] bg-white p-4 shadow-[0_8px_30px_rgba(15,23,42,0.04)] sm:p-5">
+              <section className="rounded-3xl border border-[#eeeeee] bg-white p-4 shadow-[0_8px_30px_rgba(15,23,42,0.04)] sm:p-5">
                 <header className="mb-4 flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h2 className="text-lg font-semibold tracking-tight">Needs you</h2>
-                    <p className="mt-1 text-sm leading-relaxed text-[#98a2b3]">Assigned portraits and revision requests.</p>
+                    <h2 className="text-xl font-bold tracking-tight">Needs you</h2>
+                    <p className="mt-1 text-sm leading-relaxed text-[#9ca3af]">Assigned portraits and revision requests.</p>
                   </div>
-                  <button type="button" onClick={() => openOrders("turn")} className="shrink-0 text-sm font-medium text-[#2F6BFF]">
+                  <button type="button" onClick={() => openOrders("turn")} className="shrink-0 text-sm font-medium text-primary">
                     View
                   </button>
                 </header>
                 {urgent.length === 0 ? (
-                  <p className="text-sm text-[#98a2b3]">
+                  <p className="text-sm text-[#9ca3af]">
                     {portal.orders.length === 0 ? "No orders are assigned to you yet." : "Nothing is waiting on you right now."}
                   </p>
                 ) : (
-                  <ul className="divide-y divide-[#f0f2f5] overflow-hidden rounded-2xl bg-[#f7f8fa]">
+                  <ul className="divide-y divide-[#f3f4f6] overflow-hidden rounded-2xl bg-[#f8f9fa]">
                     {urgent.slice(0, 5).map((order) => (
                       <li key={order.id}>
                         <button
@@ -318,7 +311,7 @@ function ArtistShell({
                           <OrderThumb order={order} />
                           <span className="min-w-0 flex-1">
                             <span className="block truncate font-semibold">{order.pet_name || "Untitled pet"}</span>
-                            <span className="mt-0.5 block truncate text-xs text-[#98a2b3]">
+                            <span className="mt-0.5 block truncate text-xs text-[#9ca3af]">
                               #{order.id.slice(0, 8).toUpperCase()} · {stageLabel(order.fulfillment_stage)}
                             </span>
                           </span>
@@ -343,7 +336,7 @@ function ArtistShell({
             />
           )}
 
-          <Link href="/" className="inline-block text-sm font-medium text-[#2F6BFF]">
+          <Link href="/" className="inline-block text-sm font-medium text-primary">
             Back to shop
           </Link>
         </div>
@@ -367,11 +360,11 @@ function Stat({
     <button
       type="button"
       onClick={onClick}
-      className="rounded-3xl border border-[#eef0f4] bg-white p-4 text-left shadow-[0_8px_30px_rgba(15,23,42,0.04)] sm:p-5"
+      className="rounded-3xl border border-[#eeeeee] bg-white p-4 text-left shadow-[0_8px_30px_rgba(15,23,42,0.04)] sm:p-5"
     >
-      <p className="text-xs font-medium text-[#98a2b3]">{label}</p>
+      <p className="text-xs font-medium text-[#9ca3af]">{label}</p>
       <p className="mt-2 text-2xl font-semibold tracking-tight sm:mt-3 sm:text-3xl">{value}</p>
-      <p className="mt-1 text-xs leading-snug text-[#667085]">{hint}</p>
+      <p className="mt-1 text-xs leading-snug text-[#6b7280]">{hint}</p>
     </button>
   );
 }
@@ -421,7 +414,7 @@ function OrdersList({
               type="button"
               onClick={() => onStage(item.id)}
               className={`shrink-0 rounded-full px-3.5 py-2 text-xs font-medium ${
-                stage === item.id ? "bg-[#1c2434] text-white" : "bg-white text-[#667085]"
+                stage === item.id ? "bg-primary text-white" : "bg-white text-[#6b7280]"
               }`}
             >
               {item.label}
@@ -429,15 +422,15 @@ function OrdersList({
           ))}
         </div>
       </div>
-      <p className="text-xs text-[#98a2b3]">
+      <p className="text-xs text-[#9ca3af]">
         {orders.length} of {total} {total === 1 ? "order" : "orders"}
       </p>
       {total === 0 ? (
-        <div className="rounded-3xl border border-[#eef0f4] bg-white p-5 text-sm text-[#98a2b3] shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
+        <div className="rounded-3xl border border-[#eeeeee] bg-white p-5 text-sm text-[#9ca3af] shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
           No orders are assigned to you yet.
         </div>
       ) : orders.length === 0 ? (
-        <div className="rounded-3xl border border-[#eef0f4] bg-white p-5 text-sm text-[#98a2b3] shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
+        <div className="rounded-3xl border border-[#eeeeee] bg-white p-5 text-sm text-[#9ca3af] shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
           No orders match.
         </div>
       ) : (
@@ -463,14 +456,14 @@ function OrderThumb({ order }: { order: ArtistOrder }) {
 
   if (photo && !broken) {
     return (
-      <span className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-[#f3f5f8]">
+      <span className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-[#f8f9fa]">
         <img src={photo} alt="" className="h-full w-full object-cover" onError={() => setBroken(true)} />
       </span>
     );
   }
 
   return (
-    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#f3f5f8] text-[10px] text-[#98a2b3]">
+    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#f8f9fa] text-[10px] text-[#9ca3af]">
       Pet
     </span>
   );
@@ -528,43 +521,43 @@ function ArtistOrderCard({
   }
 
   return (
-    <article className="overflow-hidden rounded-3xl border border-[#eef0f4] bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
+    <article className="overflow-hidden rounded-3xl border border-[#eeeeee] bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
       <button type="button" onClick={onToggle} className="flex w-full items-center gap-3 px-4 py-4 text-left">
         <OrderThumb order={order} />
         <span className="min-w-0 flex-1">
           <span className="block truncate font-semibold">{order.pet_name || "Untitled pet"}</span>
-          <span className="mt-0.5 block truncate text-xs text-[#98a2b3]">
+          <span className="mt-0.5 block truncate text-xs text-[#9ca3af]">
             #{order.id.slice(0, 8).toUpperCase()} · {formatDate(order.created_at)}
           </span>
         </span>
-        <span className="max-w-[6.5rem] shrink-0 truncate rounded-full bg-[#f4f6f9] px-2.5 py-1 text-[11px] font-medium text-[#667085] sm:max-w-[9rem]">
+        <span className="max-w-[6.5rem] shrink-0 truncate rounded-full bg-[#f8f9fa] px-2.5 py-1 text-[11px] font-medium text-[#6b7280] sm:max-w-[9rem]">
           {stageLabel(order.fulfillment_stage)}
         </span>
       </button>
 
       {open ? (
-        <div className="space-y-4 border-t border-[#f0f2f5] px-4 py-4 sm:px-5">
+        <div className="space-y-4 border-t border-[#f3f4f6] px-4 py-4 sm:px-5">
           <div className="grid gap-4 sm:grid-cols-[9rem_1fr]">
             {photo && !broken ? (
-              <a href={photo} target="_blank" rel="noreferrer" className="block h-44 overflow-hidden rounded-2xl bg-[#f3f5f8] sm:h-36">
+              <a href={photo} target="_blank" rel="noreferrer" className="block h-44 overflow-hidden rounded-2xl bg-[#f8f9fa] sm:h-36">
                 <img src={photo} alt={order.pet_name || "Pet photo"} className="h-full w-full object-cover" onError={() => setBroken(true)} />
               </a>
             ) : (
-              <div className="flex h-36 items-center justify-center rounded-2xl bg-[#f3f5f8] px-3 text-center text-xs text-[#98a2b3]">
+              <div className="flex h-36 items-center justify-center rounded-2xl bg-[#f8f9fa] px-3 text-center text-xs text-[#9ca3af]">
                 {order.photo_url ? "Photo not saved" : "No photo"}
               </div>
             )}
             <div className="min-w-0 space-y-2 text-sm">
-              {specs ? <p className="break-words text-[#667085]">{specs}</p> : null}
+              {specs ? <p className="break-words text-[#6b7280]">{specs}</p> : null}
               {order.memorial_text ? <p className="break-words">Memorial text: {order.memorial_text}</p> : null}
-              <p className="text-[#667085]">
+              <p className="text-[#6b7280]">
                 Revisions: {order.revision_count ?? 0} of 2
                 {order.due_at ? ` · Due ${formatDate(order.due_at)}` : ""}
                 {isOverdue(order.fulfillment_stage, order.due_at) ? " · Overdue" : ""}
               </p>
               {revisionNotes.map((update) => (
-                <div key={update.id} className="rounded-2xl bg-[#f7f8fa] p-3">
-                  <p className="mb-1 text-xs font-medium text-[#98a2b3]">Customer changes</p>
+                <div key={update.id} className="rounded-2xl bg-[#f8f9fa] p-3">
+                  <p className="mb-1 text-xs font-medium text-[#9ca3af]">Customer changes</p>
                   <NoteBody note={update.note} />
                 </div>
               ))}
@@ -593,9 +586,9 @@ function ArtistOrderCard({
             </button>
           ) : null}
           {canUpload ? (
-            <form onSubmit={handleUpload} className="space-y-3 border-t border-[#f0f2f5] pt-4">
-              <p className="text-xs font-medium text-[#667085]">Upload artwork</p>
-              <p className="text-xs leading-relaxed text-[#98a2b3]">
+            <form onSubmit={handleUpload} className="space-y-3 border-t border-[#f3f4f6] pt-4">
+              <p className="text-xs font-medium text-[#6b7280]">Upload artwork</p>
+              <p className="text-xs leading-relaxed text-[#9ca3af]">
                 The customer gets a smaller preview with a Peternity watermark. Shipment downloads the original after approval.
               </p>
               <label className={`${ghostButtonClass} flex w-full cursor-pointer items-center justify-center text-center sm:w-auto`}>
@@ -608,7 +601,7 @@ function ArtistOrderCard({
                   className="sr-only"
                 />
               </label>
-              {file ? <p className="break-all text-xs text-[#98a2b3]">{file.name}</p> : null}
+              {file ? <p className="break-all text-xs text-[#9ca3af]">{file.name}</p> : null}
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}

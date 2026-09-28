@@ -101,8 +101,8 @@ export function MessagesPanel() {
     if (next) applySettings(next);
   }
 
-  if (loading) return <p className="text-sm text-[#667085]">Loading…</p>;
-  if (!settings) return <p className="text-sm text-[#667085]">Sign in again to edit messages.</p>;
+  if (loading) return <p className="text-sm text-[#6b7280]">Loading…</p>;
+  if (!settings) return <p className="text-sm text-[#6b7280]">Sign in again to edit messages.</p>;
 
   return (
     <div className="space-y-4">
@@ -126,9 +126,9 @@ export function MessagesPanel() {
               </option>
             ))}
           </select>
-          {template?.hint ? <p className="text-xs text-[#667085]">{template.hint}</p> : null}
+          {template?.hint ? <p className="text-xs text-[#6b7280]">{template.hint}</p> : null}
           {template?.tokens.length ? (
-            <p className="text-xs text-[#98a2b3]">Tokens: {template.tokens.map((token) => `{{${token}}}`).join(", ")}</p>
+            <p className="text-xs text-[#9ca3af]">Tokens: {template.tokens.map((token) => `{{${token}}}`).join(", ")}</p>
           ) : null}
           <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" required className={inputClass} />
           <input value={heading} onChange={(e) => setHeading(e.target.value)} placeholder="Heading inside the email" className={inputClass} />
@@ -166,7 +166,7 @@ export function MessagesPanel() {
             className={inputClass}
             autoComplete="off"
           />
-          <p className="text-xs text-[#98a2b3]">
+          <p className="text-xs text-[#9ca3af]">
             The vendor receives the order as JSON and can reply with {`{ "trackingUrl": "https://..." }`}. Leave the key blank to keep the saved one.
           </p>
           <button type="submit" disabled={busy} className={buttonClass}>

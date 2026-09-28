@@ -151,7 +151,7 @@ export function CouponsPanel({
       {setupError ? (
         <p className={warnClass}>{setupError}</p>
       ) : null}
-      <p className="text-sm text-[#667085] leading-relaxed max-w-3xl">
+      <p className="text-sm text-[#6b7280] leading-relaxed max-w-3xl">
         A coupon is checked when the customer applies it and again when they pay. Usage is the number of orders that
         saved that code. One use per email is checked at payment, because the email may not be entered when the code is
         first applied. Leave dates, minimum, and usage limit empty when you do not want that rule.
@@ -226,7 +226,7 @@ export function CouponsPanel({
             One use per customer email
           </label>
           <fieldset>
-            <legend className="text-xs font-medium text-[#667085] mb-2">Applies to</legend>
+            <legend className="text-xs font-medium text-[#6b7280] mb-2">Applies to</legend>
             <div className="flex flex-wrap gap-2">
               {COUPON_SCOPES.map((scope) => {
                 const on = draft.appliesTo.includes(scope);
@@ -235,7 +235,7 @@ export function CouponsPanel({
                     key={scope}
                     type="button"
                     onClick={() => toggleScope(scope)}
-                    className={`rounded-full px-3 py-1.5 text-xs font-medium ${on ? "bg-[#2F6BFF] text-white" : "bg-[#f3f5f8] text-[#667085]"}`}
+                    className={`rounded-full px-3 py-1.5 text-xs font-medium ${on ? "bg-primary text-white" : "bg-[#f8f9fa] text-[#6b7280]"}`}
                   >
                     {SCOPE_LABELS[scope]}
                   </button>
@@ -258,9 +258,9 @@ export function CouponsPanel({
         </form>
       </Panel>
 
-      <div className="overflow-x-auto rounded-3xl border border-[#eef0f4] bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
+      <div className="overflow-x-auto rounded-3xl border border-[#eeeeee] bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
         <table className="w-full min-w-[760px] text-left text-sm">
-          <thead className="text-xs text-[#98a2b3]">
+          <thead className="text-xs text-[#9ca3af]">
             <tr>
               <th className="px-3 py-2 font-bold">Code</th>
               <th className="px-3 py-2 font-bold">Discount</th>
@@ -274,17 +274,17 @@ export function CouponsPanel({
           <tbody>
             {coupons.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-[#98a2b3]">
+                <td colSpan={7} className="px-4 py-8 text-[#9ca3af]">
                   No coupons yet.
                 </td>
               </tr>
             ) : (
               coupons.map((coupon) => (
-                <tr key={coupon.id} className="border-t border-[#f0f2f5] align-top">
+                <tr key={coupon.id} className="border-t border-[#f3f4f6] align-top">
                   <td className="px-4 py-3.5 font-semibold">{coupon.code}</td>
                   <td className="px-3 py-3">
                     {coupon.discountType === "percent" ? `${coupon.discountValue}%` : `₹${coupon.discountValue.toLocaleString("en-IN")}`}
-                    <div className="text-[11px] text-[#98a2b3] mt-1">{coupon.appliesTo.map((scope) => SCOPE_LABELS[scope]).join(", ")}</div>
+                    <div className="text-[11px] text-[#9ca3af] mt-1">{coupon.appliesTo.map((scope) => SCOPE_LABELS[scope]).join(", ")}</div>
                   </td>
                   <td className="px-3 py-3">{coupon.active ? "Active" : "Off"}</td>
                   <td className="px-3 py-3 text-xs leading-relaxed">
