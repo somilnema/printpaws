@@ -103,7 +103,6 @@ export function IllustratedCarousel() {
                       fill
                       className="object-cover transition-transform duration-700 group-hover/card:scale-105"
                       sizes="(max-width: 768px) 240px, 320px"
-                      priority={idx < 8}
                     />
                   </div>
 

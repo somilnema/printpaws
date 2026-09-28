@@ -1,21 +1,13 @@
 import { NextResponse } from "next/server";
-import { calculateQuote, getCoupon, type PricingInput } from "@/lib/pricing";
+import { quoteCheckout } from "@/lib/quote-order";
+import type { PricingInput } from "@/lib/pricing";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as PricingInput & { couponCode?: string };
-
-    if (body.couponCode) {
-      const coupon = getCoupon(body.couponCode);
-      if (!coupon.ok) {
-        return NextResponse.json(
-          { success: false, error: coupon.error },
-          { status: 400 }
-        );
-      }
-    }
-
-    const quote = calculateQuote(body);
+    const body = (await req.json()) as PricingInput & { customerEmail?: string };
+    const quote = await quoteCheckout(body, body.customerEmail);
     return NextResponse.json({ success: true, quote });
   } catch (error: any) {
     return NextResponse.json(

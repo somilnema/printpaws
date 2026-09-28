@@ -3,19 +3,28 @@ import type { NextConfig } from "next";
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "";
 const supabaseHost = supabaseUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
+const supabasePublishableKey =
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY ||
+  process.env.SUPABASE_PUBLISHABLE_KEY ||
+  process.env.SUPABASE_PUBLISHABLE_DEFAULT_KEY ||
+  "";
 
 const nextConfig: NextConfig = {
-  // Expose the existing Vercel SUPABASE_URL to the client at build time.
-  // The project URL is not a secret; the anon/service keys stay server-side.
+  serverExternalPackages: ["better-sqlite3", "sharp"],
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "22mb",
+    },
+  },
+  // The project URL and publishable key are safe in the browser.
+  // The service role key stays server-side.
   env: {
     NEXT_PUBLIC_SUPABASE_URL: supabaseUrl,
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: supabasePublishableKey,
   },
   images: {
     remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "i.pravatar.cc",
-      },
       {
         protocol: "https",
         hostname: "ui-avatars.com",

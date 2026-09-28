@@ -1,0 +1,639 @@
+"use client";
+
+import { FormEvent, useMemo, useState, useEffect } from "react";
+import Link from "next/link";
+import { getArtistPortal, startRevision, uploadOrderPreview, type ArtistOrder, type ArtistPortal } from "@/app/actions/artistActions";
+import { addTeamNote } from "@/app/actions/opsActions";
+import { NoteBody } from "@/components/NoteBody";
+import { OrderHistory } from "@/components/OrderHistory";
+import { TeamNotes } from "@/components/TeamNotes";
+import { OrderTimeline } from "@/components/OrderTimeline";
+import { PasswordInput } from "@/components/PasswordInput";
+import { sectionTabClass } from "@/components/admin/DeskSwitch";
+import { buttonClass, errorClass, ghostButtonClass, inputClass, warnClass } from "@/components/admin/ui";
+import { artistCanStartRevision, artistCanUpload, isOverdue, stageLabel } from "@/lib/fulfillment";
+import { storedPetPhotoUrl } from "@/lib/pet-photo";
+import "../admin/admin.css";
+
+type Section = "overview" | "orders";
+
+const NAV: { id: Section; label: string }[] = [
+  { id: "overview", label: "Overview" },
+  { id: "orders", label: "Orders" },
+];
+
+const STAGE_FILTERS = [
+  "artwork_in_progress",
+  "artwork_review",
+  "revision_requested",
+  "revision_in_progress",
+  "final_approval",
+  "shipped",
+  "delivered",
+];
+
+function formatDate(value?: string | null) {
+  if (!value) return "—";
+  return new Date(value).toLocaleString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function needsArtist(order: ArtistOrder) {
+  return (
+    order.fulfillment_stage === "artwork_in_progress" ||
+    order.fulfillment_stage === "revision_requested" ||
+    order.fulfillment_stage === "revision_in_progress"
+  );
+}
+
+export default function ArtistPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [portal, setPortal] = useState<ArtistPortal | null>(null);
+  const [checking, setChecking] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    getArtistPortal()
+      .then((data) => setPortal(data))
+      .catch(() => setPortal(null))
+      .finally(() => setChecking(false));
+  }, []);
+
+  async function handleLogin(e: FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/artist/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(json.error || "Invalid email or password");
+        return;
+      }
+      const data = await getArtistPortal();
+      if (!data) {
+        setError("Signed in, but the portal could not load. Refresh and try again.");
+        return;
+      }
+      setPortal(data);
+      setPassword("");
+    } catch {
+      setError("Could not sign in. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleLogout() {
+    await fetch("/api/artist/logout", { method: "POST" });
+    setPortal(null);
+  }
+
+  async function refresh() {
+    setLoading(true);
+    try {
+      const data = await getArtistPortal();
+      if (data) setPortal(data);
+      else setPortal(null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (checking) {
+    return (
+      <div className="peternity-admin flex min-h-[100dvh] items-center justify-center bg-[#f3f4f6] px-4 text-sm text-[#667085]">
+        Checking session…
+      </div>
+    );
+  }
+
+  if (!portal) {
+    return (
+      <div className="peternity-admin flex min-h-[100dvh] flex-col bg-[#f3f4f6] px-4 py-8 text-[#1c2434] sm:py-10">
+        <div className="mx-auto my-auto w-full max-w-md rounded-sm border border-[#e6e8ee] bg-white p-6">
+          <div className="flex items-center gap-2">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2F6BFF] text-sm font-semibold text-white">P</span>
+            <span className="font-semibold">Peternity</span>
+          </div>
+          <h1 className="mt-6 text-2xl font-semibold tracking-tight">Artist</h1>
+          <p className="mt-2 text-sm leading-relaxed text-[#98a2b3]">Sign in with the email and password from admin.</p>
+          <form onSubmit={handleLogin} className="mt-8 space-y-4">
+            <label className="block space-y-1.5">
+              <span className="text-xs font-medium text-[#667085]">Email</span>
+              <input
+                type="email"
+                autoComplete="username"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={`${inputClass} text-base sm:text-sm`}
+                required
+              />
+            </label>
+            <label className="block space-y-1.5">
+              <span className="text-xs font-medium text-[#667085]">Password</span>
+              <PasswordInput
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={`${inputClass} text-base sm:text-sm`}
+                required
+              />
+            </label>
+            {error ? <p className={errorClass}>{error}</p> : null}
+            <button type="submit" disabled={loading} className={`${buttonClass} w-full`}>
+              {loading ? "Signing in…" : "Sign in"}
+            </button>
+          </form>
+          <Link href="/" className="mt-6 inline-block text-sm font-medium text-[#2F6BFF]">
+            Back to shop
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <ArtistShell portal={portal} refreshing={loading} onRefresh={refresh} onLogout={handleLogout} />
+  );
+}
+
+function SectionNav({ section, onChange }: { section: Section; onChange: (section: Section) => void }) {
+  return (
+    <>
+      {NAV.map((item) => (
+        <button
+          key={item.id}
+          type="button"
+          onClick={() => onChange(item.id)}
+          className={sectionTabClass(section === item.id)}
+        >
+          {item.label}
+        </button>
+      ))}
+    </>
+  );
+}
+
+function ArtistShell({
+  portal,
+  refreshing,
+  onRefresh,
+  onLogout,
+}: {
+  portal: ArtistPortal;
+  refreshing: boolean;
+  onRefresh: () => Promise<void>;
+  onLogout: () => Promise<void>;
+}) {
+  const [section, setSection] = useState<Section>("overview");
+  const [query, setQuery] = useState("");
+  const [stage, setStage] = useState("");
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  const counts = useMemo(() => {
+    const orders = portal.orders;
+    return {
+      all: orders.length,
+      turn: orders.filter(needsArtist).length,
+      customer: orders.filter((order) => order.fulfillment_stage === "artwork_review").length,
+      production: orders.filter((order) =>
+        order.fulfillment_stage === "final_approval" || order.fulfillment_stage === "shipped" || order.fulfillment_stage === "delivered"
+      ).length,
+      overdue: orders.filter((order) => isOverdue(order.fulfillment_stage, order.due_at)).length,
+    };
+  }, [portal.orders]);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return portal.orders.filter((order) => {
+      if (stage === "turn" && !needsArtist(order)) return false;
+      if (stage === "production" && order.fulfillment_stage !== "final_approval" && order.fulfillment_stage !== "shipped" && order.fulfillment_stage !== "delivered") return false;
+      if (stage === "overdue" && !isOverdue(order.fulfillment_stage, order.due_at)) return false;
+      if (stage && stage !== "turn" && stage !== "production" && stage !== "overdue" && (order.fulfillment_stage || "ready_for_artwork") !== stage) return false;
+      if (!q) return true;
+      return [order.id, order.pet_name, order.size, order.frame_style, order.background, order.font, stageLabel(order.fulfillment_stage)]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(q);
+    });
+  }, [portal.orders, query, stage]);
+
+  const urgent = portal.orders.filter(needsArtist);
+
+  function openOrders(nextStage: string) {
+    setStage(nextStage);
+    setQuery("");
+    setSection("orders");
+  }
+
+  return (
+    <div className="peternity-admin min-h-[100dvh] overflow-x-hidden bg-[#f3f4f6] text-[#1c2434]">
+      <div className="min-h-[100dvh] bg-[#f3f4f6]">
+        <header className="border-b border-[#e6e8ee] bg-white">
+          <div className="flex items-center gap-2 px-3 py-3 sm:gap-3 sm:px-4 sm:py-4 md:px-8">
+            <div className="flex shrink-0 items-center gap-2">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2F6BFF] text-sm font-semibold text-white">P</span>
+              <span className="hidden font-semibold sm:block">Peternity</span>
+            </div>
+            <nav className="hidden min-w-0 flex-1 justify-center gap-1 md:flex">
+              <SectionNav section={section} onChange={setSection} />
+            </nav>
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+              <button type="button" onClick={onRefresh} disabled={refreshing} className={`${ghostButtonClass} px-3 py-2 sm:px-4 sm:py-2.5`}>
+                {refreshing ? "Refreshing…" : "Refresh"}
+              </button>
+              <button type="button" onClick={onLogout} className={`${ghostButtonClass} px-3 py-2 sm:px-4 sm:py-2.5`}>
+                Log out
+              </button>
+            </div>
+          </div>
+          <nav className="flex gap-1.5 overflow-x-auto px-3 pb-3 md:hidden">
+            <SectionNav section={section} onChange={setSection} />
+          </nav>
+        </header>
+
+        <div className="space-y-5 px-3 py-5 sm:px-4 sm:py-6 md:px-8">
+          {section === "overview" ? (
+            <div className="min-w-0">
+              <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
+              <p className="mt-2 break-words text-sm text-[#98a2b3]">
+                {portal.artist.name}
+                {portal.artist.email ? ` · ${portal.artist.email}` : ""}
+              </p>
+            </div>
+          ) : (
+            <h1 className="text-2xl font-semibold tracking-tight">Orders</h1>
+          )}
+
+          {portal.warning ? <p className={warnClass}>Could not load every order: {portal.warning}</p> : null}
+
+          {section === "overview" ? (
+            <>
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <Stat label="Assigned" value={counts.all} hint="Orders on your desk" onClick={() => openOrders("")} />
+                <Stat label="Your turn" value={counts.turn} hint="Preview or revision" onClick={() => openOrders("turn")} />
+                <Stat label="With customer" value={counts.customer} hint="Waiting on approval" onClick={() => openOrders("artwork_review")} />
+                <Stat label="Overdue" value={counts.overdue} hint="Past the artwork deadline" onClick={() => openOrders("overdue")} />
+              </div>
+
+              <section className="rounded-3xl border border-[#eef0f4] bg-white p-4 shadow-[0_8px_30px_rgba(15,23,42,0.04)] sm:p-5">
+                <header className="mb-4 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="text-lg font-semibold tracking-tight">Needs you</h2>
+                    <p className="mt-1 text-sm leading-relaxed text-[#98a2b3]">Assigned portraits and revision requests.</p>
+                  </div>
+                  <button type="button" onClick={() => openOrders("turn")} className="shrink-0 text-sm font-medium text-[#2F6BFF]">
+                    View
+                  </button>
+                </header>
+                {urgent.length === 0 ? (
+                  <p className="text-sm text-[#98a2b3]">
+                    {portal.orders.length === 0 ? "No orders are assigned to you yet." : "Nothing is waiting on you right now."}
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-[#f0f2f5] overflow-hidden rounded-2xl bg-[#f7f8fa]">
+                    {urgent.slice(0, 5).map((order) => (
+                      <li key={order.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpenId(order.id);
+                            openOrders("");
+                          }}
+                          className="flex w-full items-center gap-3 px-3 py-3 text-left"
+                        >
+                          <OrderThumb order={order} />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate font-semibold">{order.pet_name || "Untitled pet"}</span>
+                            <span className="mt-0.5 block truncate text-xs text-[#98a2b3]">
+                              #{order.id.slice(0, 8).toUpperCase()} · {stageLabel(order.fulfillment_stage)}
+                            </span>
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            </>
+          ) : (
+            <OrdersList
+              orders={filtered}
+              total={portal.orders.length}
+              query={query}
+              stage={stage}
+              openId={openId}
+              onQuery={(value) => setQuery(value)}
+              onStage={(value) => setStage(value)}
+              onToggle={(id) => setOpenId((current) => (current === id ? null : id))}
+              onUploaded={onRefresh}
+            />
+          )}
+
+          <Link href="/" className="inline-block text-sm font-medium text-[#2F6BFF]">
+            Back to shop
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  hint,
+  onClick,
+}: {
+  label: string;
+  value: number;
+  hint: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-3xl border border-[#eef0f4] bg-white p-4 text-left shadow-[0_8px_30px_rgba(15,23,42,0.04)] sm:p-5"
+    >
+      <p className="text-xs font-medium text-[#98a2b3]">{label}</p>
+      <p className="mt-2 text-2xl font-semibold tracking-tight sm:mt-3 sm:text-3xl">{value}</p>
+      <p className="mt-1 text-xs leading-snug text-[#667085]">{hint}</p>
+    </button>
+  );
+}
+
+function OrdersList({
+  orders,
+  total,
+  query,
+  stage,
+  openId,
+  onQuery,
+  onStage,
+  onToggle,
+  onUploaded,
+}: {
+  orders: ArtistOrder[];
+  total: number;
+  query: string;
+  stage: string;
+  openId: string | null;
+  onQuery: (value: string) => void;
+  onStage: (value: string) => void;
+  onToggle: (id: string) => void;
+  onUploaded: () => Promise<void>;
+}) {
+  const filters = [
+    { id: "", label: "All" },
+    { id: "turn", label: "Your turn" },
+    { id: "overdue", label: "Overdue" },
+    { id: "production", label: "Approved or shipped" },
+    ...STAGE_FILTERS.filter(Boolean).map((id) => ({ id, label: stageLabel(id) })),
+  ];
+
+  return (
+    <div className="space-y-3">
+      <input
+        value={query}
+        onChange={(e) => onQuery(e.target.value)}
+        placeholder="Search pet, size, or order"
+        className={`${inputClass} text-base sm:text-sm`}
+      />
+      <div className="-mx-1 overflow-x-auto px-1 pb-1">
+        <div className="flex w-max gap-1">
+          {filters.map((item) => (
+            <button
+              key={item.id || "all"}
+              type="button"
+              onClick={() => onStage(item.id)}
+              className={`shrink-0 rounded-full px-3.5 py-2 text-xs font-medium ${
+                stage === item.id ? "bg-[#1c2434] text-white" : "bg-white text-[#667085]"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <p className="text-xs text-[#98a2b3]">
+        {orders.length} of {total} {total === 1 ? "order" : "orders"}
+      </p>
+      {total === 0 ? (
+        <div className="rounded-3xl border border-[#eef0f4] bg-white p-5 text-sm text-[#98a2b3] shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
+          No orders are assigned to you yet.
+        </div>
+      ) : orders.length === 0 ? (
+        <div className="rounded-3xl border border-[#eef0f4] bg-white p-5 text-sm text-[#98a2b3] shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
+          No orders match.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {orders.map((order) => (
+            <ArtistOrderCard
+              key={order.id}
+              order={order}
+              open={openId === order.id}
+              onToggle={() => onToggle(order.id)}
+              onUploaded={onUploaded}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OrderThumb({ order }: { order: ArtistOrder }) {
+  const photo = storedPetPhotoUrl(order.photo_url);
+  const [broken, setBroken] = useState(false);
+
+  if (photo && !broken) {
+    return (
+      <span className="h-12 w-12 shrink-0 overflow-hidden rounded-2xl bg-[#f3f5f8]">
+        <img src={photo} alt="" className="h-full w-full object-cover" onError={() => setBroken(true)} />
+      </span>
+    );
+  }
+
+  return (
+    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#f3f5f8] text-[10px] text-[#98a2b3]">
+      Pet
+    </span>
+  );
+}
+
+function ArtistOrderCard({
+  order,
+  open,
+  onToggle,
+  onUploaded,
+}: {
+  order: ArtistOrder;
+  open: boolean;
+  onToggle: () => void;
+  onUploaded: () => Promise<void>;
+}) {
+  const photo = storedPetPhotoUrl(order.photo_url);
+  const [broken, setBroken] = useState(false);
+  const [note, setNote] = useState("");
+  const [teamNote, setTeamNote] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [fileKey, setFileKey] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const canUpload = artistCanUpload(order.fulfillment_stage);
+  const canStart = artistCanStartRevision(order.fulfillment_stage);
+  const revisionNotes = order.updates.filter((update) => update.kind === "revision" && update.note);
+  const specs = [order.size, order.frame_style, order.background, order.font].filter(Boolean).join(" · ");
+
+  async function handleUpload(e: FormEvent) {
+    e.preventDefault();
+    if (!file) {
+      setError("Choose the artwork image.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    const body = new FormData();
+    body.set("orderId", order.id);
+    body.set("note", note);
+    body.set("teamNote", teamNote);
+    body.set("preview", file);
+    const result = await uploadOrderPreview(body);
+    setBusy(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    if ("warning" in result && result.warning) setError(result.warning);
+    setNote("");
+    setTeamNote("");
+    setFile(null);
+    setFileKey((current) => current + 1);
+    await onUploaded();
+  }
+
+  return (
+    <article className="overflow-hidden rounded-3xl border border-[#eef0f4] bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
+      <button type="button" onClick={onToggle} className="flex w-full items-center gap-3 px-4 py-4 text-left">
+        <OrderThumb order={order} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-semibold">{order.pet_name || "Untitled pet"}</span>
+          <span className="mt-0.5 block truncate text-xs text-[#98a2b3]">
+            #{order.id.slice(0, 8).toUpperCase()} · {formatDate(order.created_at)}
+          </span>
+        </span>
+        <span className="max-w-[6.5rem] shrink-0 truncate rounded-full bg-[#f4f6f9] px-2.5 py-1 text-[11px] font-medium text-[#667085] sm:max-w-[9rem]">
+          {stageLabel(order.fulfillment_stage)}
+        </span>
+      </button>
+
+      {open ? (
+        <div className="space-y-4 border-t border-[#f0f2f5] px-4 py-4 sm:px-5">
+          <div className="grid gap-4 sm:grid-cols-[9rem_1fr]">
+            {photo && !broken ? (
+              <a href={photo} target="_blank" rel="noreferrer" className="block h-44 overflow-hidden rounded-2xl bg-[#f3f5f8] sm:h-36">
+                <img src={photo} alt={order.pet_name || "Pet photo"} className="h-full w-full object-cover" onError={() => setBroken(true)} />
+              </a>
+            ) : (
+              <div className="flex h-36 items-center justify-center rounded-2xl bg-[#f3f5f8] px-3 text-center text-xs text-[#98a2b3]">
+                {order.photo_url ? "Photo not saved" : "No photo"}
+              </div>
+            )}
+            <div className="min-w-0 space-y-2 text-sm">
+              {specs ? <p className="break-words text-[#667085]">{specs}</p> : null}
+              {order.memorial_text ? <p className="break-words">Memorial text: {order.memorial_text}</p> : null}
+              <p className="text-[#667085]">
+                Revisions: {order.revision_count ?? 0} of 2
+                {order.due_at ? ` · Due ${formatDate(order.due_at)}` : ""}
+                {isOverdue(order.fulfillment_stage, order.due_at) ? " · Overdue" : ""}
+              </p>
+              {revisionNotes.map((update) => (
+                <div key={update.id} className="rounded-2xl bg-[#f7f8fa] p-3">
+                  <p className="mb-1 text-xs font-medium text-[#98a2b3]">Customer changes</p>
+                  <NoteBody note={update.note} />
+                </div>
+              ))}
+              <OrderTimeline stage={order.fulfillment_stage} updates={order.updates} />
+            </div>
+          </div>
+
+          {canStart ? (
+            <button
+              type="button"
+              disabled={busy}
+              className={`${ghostButtonClass} w-full sm:w-auto`}
+              onClick={async () => {
+                setBusy(true);
+                setError("");
+                const result = await startRevision(order.id);
+                setBusy(false);
+                if (!result.ok) {
+                  setError(result.error);
+                  return;
+                }
+                await onUploaded();
+              }}
+            >
+              {busy ? "Starting…" : "Start revision"}
+            </button>
+          ) : null}
+          {canUpload ? (
+            <form onSubmit={handleUpload} className="space-y-3 border-t border-[#f0f2f5] pt-4">
+              <p className="text-xs font-medium text-[#667085]">Upload artwork</p>
+              <p className="text-xs leading-relaxed text-[#98a2b3]">
+                The customer gets a smaller preview with a Peternity watermark. Shipment downloads the original after approval.
+              </p>
+              <label className={`${ghostButtonClass} flex w-full cursor-pointer items-center justify-center text-center sm:w-auto`}>
+                {file ? "Change image" : "Choose image"}
+                <input
+                  key={fileKey}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  className="sr-only"
+                />
+              </label>
+              {file ? <p className="break-all text-xs text-[#98a2b3]">{file.name}</p> : null}
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Optional note for the customer"
+                rows={3}
+                className={`${inputClass} text-base sm:text-sm`}
+              />
+              <textarea
+                value={teamNote}
+                onChange={(e) => setTeamNote(e.target.value)}
+                placeholder="Private note for the team. The customer will not see this."
+                rows={3}
+                className={`${inputClass} text-base sm:text-sm`}
+              />
+              <button type="submit" disabled={busy} className={`${buttonClass} w-full sm:w-auto`}>
+                {busy ? "Preparing preview…" : "Send for review"}
+              </button>
+            </form>
+          ) : null}
+          {error ? <p className={errorClass}>{error}</p> : null}
+
+          <OrderHistory updates={order.updates} />
+          <TeamNotes notes={order.teamNotes || []} onAdd={(body) => addTeamNote(order.id, body)} />
+        </div>
+      ) : null}
+    </article>
+  );
+}

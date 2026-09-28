@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
-import { calculateQuote, type PricingInput } from "@/lib/pricing";
+import { quoteCheckout } from "@/lib/quote-order";
+import type { PricingInput } from "@/lib/pricing";
 
 export async function POST(req: Request) {
   try {
-    const body = (await req.json()) as PricingInput;
+    const body = (await req.json()) as PricingInput & { customerEmail?: string };
 
     let quote;
     try {
-      quote = calculateQuote(body);
+      quote = await quoteCheckout(body, body.customerEmail);
     } catch (err: any) {
       return NextResponse.json(
         { success: false, error: err.message || "Invalid order details." },

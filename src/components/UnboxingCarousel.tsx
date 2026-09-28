@@ -4,6 +4,7 @@ import React, { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { getCloudinaryUrl } from "@/utils/cloudinary";
+import { ViewportVideo } from "@/components/ViewportVideo";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const CARDS = [
@@ -145,13 +146,8 @@ export function UnboxingCarousel() {
               className="relative flex-shrink-0 w-[85vw] md:w-[320px] aspect-[9/16] rounded-[2rem] overflow-hidden border-4 border-white shadow-xl bg-gray-100 snap-center first:ml-0"
             >
               {card.video ? (
-                <video
+                <ViewportVideo
                   src={getCloudinaryUrl(card.video)}
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  preload="metadata"
                   className="absolute inset-0 w-full h-full object-cover"
                 />
               ) : (

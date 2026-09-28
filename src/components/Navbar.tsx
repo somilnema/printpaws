@@ -4,9 +4,11 @@ import { useState, useEffect } from "react";
 import { Menu, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { TrackOrderPanel } from "@/components/TrackOrderPanel";
 
 export function Navbar() {
   const [cartCount, setCartCount] = useState(0);
+  const [tracking, setTracking] = useState(false);
 
   useEffect(() => {
     // 1. Initial count check from persisted localStorage cache
@@ -34,7 +36,13 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-100">
       <nav className="container mx-auto px-4 h-16 md:h-24 flex items-center justify-between font-playfair">
-        <button className="p-2 -ml-2 hover:bg-gray-50 rounded-full transition-colors">
+        <button
+          type="button"
+          aria-label="Track order"
+          aria-expanded={tracking}
+          onClick={() => setTracking(true)}
+          className="p-2 -ml-2 hover:bg-gray-50 rounded-full transition-colors"
+        >
           <Menu size={24} className="text-secondary" />
         </button>
 
@@ -45,6 +53,7 @@ export function Navbar() {
               alt="Peternity Logo"
               fill
               className="object-contain"
+              sizes="(max-width: 768px) 180px, 400px"
               priority
             />
           </div>
@@ -65,6 +74,7 @@ export function Navbar() {
           </button>
         </div>
       </nav>
+      {tracking && <TrackOrderPanel onClose={() => setTracking(false)} />}
     </header>
   );
 }

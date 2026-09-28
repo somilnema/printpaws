@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { uploadPetPhoto } from "@/app/actions/supabaseActions";
+import { storedPetPhotoUrl } from "@/lib/pet-photo";
+import { uploadPetPhotoFile } from "@/lib/uploadPetPhoto";
 import {
   Upload,
   Star,
@@ -25,18 +26,21 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { getCloudinaryUrl } from "@/utils/cloudinary";
 import {
-  ADDON_PRICES,
   calculateQuote,
+  couponOffLabel,
+  DEFAULT_CATALOG,
   extraProductLines,
   extrasTotal,
+  formatRupee,
   frameColorLabel,
   formatRs,
   getPortraitBreakdown,
-  GIFT_WRAP_PRICE,
   PET_COUNT_LABELS,
   PORTRAIT_STYLE_LABELS,
   PRODUCT_LABELS,
+  type CouponRule,
   type PaymentMethod,
+  type PriceCatalog,
   type PricingInput,
   type ProductType,
 } from "@/lib/pricing";
@@ -91,6 +95,8 @@ export function ProductInfo() {
     });
   };
   const [productType, setProductType] = useState<ProductType>("portrait");
+  const [catalog, setCatalog] = useState<PriceCatalog>(DEFAULT_CATALOG);
+  const [couponRule, setCouponRule] = useState<CouponRule | null>(null);
   const [customPaymentAmount, setCustomPaymentAmount] = useState<number>(500);
   const [digitalDownloadAmount, setDigitalDownloadAmount] = useState<number>(300);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("prepaid");
@@ -129,6 +135,11 @@ export function ProductInfo() {
   const [addMug, setAddMug] = useState(false);
   const [addDigitalDownload, setAddDigitalDownload] = useState(false);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string>("/feature-detail.png");
+  const [photoStatus, setPhotoStatus] = useState<"idle" | "uploading" | "saved" | "error">("idle");
+  const [photoError, setPhotoError] = useState("");
+  const uploadedPhotoUrlRef = useRef("");
+  const uploadPromiseRef = useRef<Promise<string> | null>(null);
+  const photoUploadGeneration = useRef(0);
   const [showSandboxModal, setShowSandboxModal] = useState(false);
   const [sandboxOrderData, setSandboxOrderData] = useState<any>(null);
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
@@ -160,6 +171,19 @@ export function ProductInfo() {
     };
     window.addEventListener('toggleCart', handleToggleCart);
     return () => window.removeEventListener('toggleCart', handleToggleCart);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/pricing", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled && data?.catalog) setCatalog(data.catalog);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // 2. Load customizer choices & cart details from persisted cache on mount
@@ -277,6 +301,12 @@ export function ProductInfo() {
 
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const SOCIAL_PROOF_AVATARS = [
+    { bg: "#E7C4A8", skin: "#F6D7C3", hairColor: "#3D2B1F", hair: "M18 30c0-12 5-20 14-20s14 8 14 20c-3-6-7-9-14-9s-11 3-14 9z" },
+    { bg: "#C9B7A2", skin: "#E8C4B0", hairColor: "#1F1A17", hair: "M16 28c1-14 8-20 16-20s15 6 16 20c-2-4-6-7-16-7s-14 3-16 7z" },
+    { bg: "#D4A574", skin: "#F3CDB4", hairColor: "#5C3A2E", hair: "M20 26c0-14 4-18 12-18s12 4 12 18c-2-8-6-12-12-12s-10 4-12 12z" },
+  ];
+
   const testimonials = [
     {
       content: "Didn’t think I’d get emotional over a portrait honestly… but they captured him so perfectly. My family loved it instantly.",
@@ -315,39 +345,43 @@ export function ProductInfo() {
     customPaymentAmount,
     digitalDownloadAmount,
     couponCode: appliedCoupon,
+    couponRule,
     paymentMethod: productType === "portrait" ? paymentMethod : "prepaid",
   };
 
   let quote;
   try {
-    quote = calculateQuote(pricingInput);
+    quote = calculateQuote(pricingInput, catalog);
   } catch {
-    quote = calculateQuote({ ...pricingInput, couponCode: null });
+    quote = calculateQuote({ ...pricingInput, couponCode: null, couponRule: null }, catalog);
   }
 
   const prepaidQuote = calculateQuote({
     ...pricingInput,
     couponCode: quote.couponCode,
+    couponRule: quote.couponRule,
     paymentMethod: "prepaid",
-  });
+  }, catalog);
   const codQuote = calculateQuote({
     ...pricingInput,
     couponCode: quote.couponCode,
+    couponRule: quote.couponRule,
     paymentMethod: "cod",
-  });
+  }, catalog);
 
   const totalPrice = quote.originalAmount;
   const cutPrice = Math.round(totalPrice / 0.70);
   const displayQuote = quote;
-  const extraLines = extraProductLines(pricingInput);
-  const extrasAmount = extrasTotal(pricingInput);
+  const extraLines = extraProductLines(pricingInput, catalog);
+  const extrasAmount = extrasTotal(pricingInput, catalog);
   const portraitBaseAmount = Math.max(0, quote.originalAmount - extrasAmount);
-  const breakdown = getPortraitBreakdown(pricingInput);
+  const breakdown = getPortraitBreakdown(pricingInput, catalog);
   const cartTotal = quote.afterCouponAmount;
 
   const extraProductsPicker = (title?: string) =>
     productType === "portrait" ? (
     <ExtraProducts
+      catalog={catalog}
       addMug={addMug}
       addMagnet={addMagnet}
       addGift={addDigitalDownload}
@@ -369,7 +403,7 @@ export function ProductInfo() {
 
   const validateStep1 = () => {
     const errors: Record<string, string> = {};
-    if (productType === "custom_payment" && ![500, 600].includes(customPaymentAmount)) {
+    if (productType === "custom_payment" && !catalog.customPayments.includes(customPaymentAmount)) {
       errors.customPayment = "Please select a Custom Payment amount.";
     }
     setFieldErrors(errors);
@@ -425,8 +459,23 @@ export function ProductInfo() {
     goToStep(2);
   };
 
-  const handleContinueFromStep2 = () => {
+  const handleContinueFromStep2 = async () => {
     if (!validateStep2()) return;
+    if (productType === "portrait" || productType === "digital_download") {
+      try {
+        const url = await ensurePhotoUploaded();
+        if (!storedPetPhotoUrl(url)) {
+          setFieldErrors((prev) => ({ ...prev, photo: "Please choose a pet photo to continue." }));
+          return;
+        }
+      } catch (err) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          photo: err instanceof Error ? err.message : "We couldn't save the pet photo. Please try again.",
+        }));
+        return;
+      }
+    }
     goToStep(3);
   };
 
@@ -483,6 +532,45 @@ export function ProductInfo() {
     photoUrl,
   });
 
+  const startPhotoUpload = (file: File) => {
+    const generation = ++photoUploadGeneration.current;
+    uploadedPhotoUrlRef.current = "";
+    setPhotoStatus("uploading");
+    setPhotoError("");
+    const promise = uploadPetPhotoFile(file)
+      .then((url) => {
+        if (photoUploadGeneration.current !== generation) return "";
+        uploadedPhotoUrlRef.current = url;
+        setPhotoStatus("saved");
+        setPhotoError("");
+        return url;
+      })
+      .catch((err: unknown) => {
+        if (photoUploadGeneration.current !== generation) return "";
+        const message = err instanceof Error ? err.message : "We couldn't save the pet photo. Please try again.";
+        uploadedPhotoUrlRef.current = "";
+        setPhotoStatus("error");
+        setPhotoError(message);
+        throw new Error(message);
+      });
+    uploadPromiseRef.current = promise;
+    return promise;
+  };
+
+  const ensurePhotoUploaded = async () => {
+    if (storedPetPhotoUrl(uploadedPhotoUrlRef.current)) return uploadedPhotoUrlRef.current;
+    if (uploadPromiseRef.current) {
+      try {
+        const url = await uploadPromiseRef.current;
+        if (storedPetPhotoUrl(url)) return url;
+      } catch {
+        uploadPromiseRef.current = null;
+      }
+    }
+    if (!selectedFile) return "";
+    return startPhotoUpload(selectedFile);
+  };
+
   const submitFinalOrder = async (
     razorpayPaymentId: string,
     razorpayOrderId: string,
@@ -492,18 +580,10 @@ export function ProductInfo() {
     setOrderStatus('idle');
 
     try {
-      let publicUrl = "";
-      try {
-        if (selectedFile) {
-          const formData = new FormData();
-          formData.append('file', selectedFile);
-          publicUrl = await uploadPetPhoto(formData);
-        }
-      } catch (uploadError: any) {
-        console.warn("Supabase Storage Upload Failed. Falling back to local object URL:", uploadError);
-        if (selectedFile) {
-          publicUrl = URL.createObjectURL(selectedFile);
-        }
+      const publicUrl = await ensurePhotoUploaded();
+      const photoRequired = productType === "portrait" || productType === "digital_download";
+      if (photoRequired && !storedPetPhotoUrl(publicUrl)) {
+        throw new Error("The pet photo was not saved. Please upload it again before paying.");
       }
 
       const response = await fetch('/api/checkout', {
@@ -556,11 +636,13 @@ export function ProductInfo() {
       const data = await res.json();
       if (!data.success) {
         setAppliedCoupon(null);
+        setCouponRule(null);
         setCouponError(data.error || "This coupon code is invalid.");
         return;
       }
       setAppliedCoupon(data.quote.couponCode);
-      setCouponMessage(`${data.quote.couponCode} applied — ${data.quote.couponPercent}% off`);
+      setCouponRule(data.quote.couponRule || null);
+      setCouponMessage(`${data.quote.couponCode} applied — ${couponOffLabel(data.quote)} off`);
     } catch {
       setCouponError("Could not validate coupon. Please try again.");
     } finally {
@@ -570,6 +652,7 @@ export function ProductInfo() {
 
   const removeCoupon = () => {
     setAppliedCoupon(null);
+    setCouponRule(null);
     setCouponInput("");
     setCouponError(null);
     setCouponMessage(null);
@@ -597,6 +680,10 @@ export function ProductInfo() {
     const payload = checkoutPayload();
 
     try {
+      if (selectedFile) {
+        await ensurePhotoUploaded();
+      }
+
       const res = await fetch("/api/razorpay/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -725,7 +812,8 @@ export function ProductInfo() {
             <Image 
               src={getCloudinaryUrl("Nandini review image.jpg.jpeg")} 
               alt="Review attachment" 
-              fill 
+              fill
+              sizes="48px"
               className="object-cover" 
             />
           </div>
@@ -802,7 +890,7 @@ export function ProductInfo() {
                         }`}
                     >
                       <div className="relative w-16 h-16 flex-shrink-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
-                        <Image src="/framestyle/black-frame.png" alt="Framed" fill className="object-cover" />
+                        <Image src="/framestyle/black-frame.png" alt="Framed" fill sizes="64px" className="object-cover" />
                       </div>
                       <div className="flex-1 flex flex-col items-center md:items-start w-full">
                         <span className="block font-black text-[#1a1a1b] text-[11px] md:text-sm">Framed Portrait</span>
@@ -826,7 +914,7 @@ export function ProductInfo() {
                         }`}
                     >
                       <div className="relative w-16 h-16 flex-shrink-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
-                        <Image src="/framestyle/canvas-frame.png" alt="Canvas" fill className="object-cover" />
+                        <Image src="/framestyle/canvas-frame.png" alt="Canvas" fill sizes="64px" className="object-cover" />
                       </div>
                       <div className="flex-1 flex flex-col items-center md:items-start w-full">
                         <span className="block font-black text-[#1a1a1b] text-[11px] md:text-sm">Canvas Portrait</span>
@@ -852,7 +940,7 @@ export function ProductInfo() {
                         <button onClick={() => { setSelectedSize('8"x10"'); window.dispatchEvent(new CustomEvent('sizeSelectionChanged', { detail: 'framed_size' })); }} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '8"x10"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
                           <div>
                             <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">8×10</span></div>
-                            <span className="text-xs font-bold text-gray-500">₹1,499</span>
+                            <span className="text-xs font-bold text-gray-500">{formatRupee(catalog.framed['8"x10"'])}</span>
                           </div>
                           <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedSize === '8"x10"' ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
                             {selectedSize === '8"x10"' && <Check size={12} className="text-white" strokeWidth={3} />}
@@ -861,7 +949,7 @@ export function ProductInfo() {
                         <button onClick={() => { setSelectedSize('12"x16"'); window.dispatchEvent(new CustomEvent('sizeSelectionChanged', { detail: 'framed_size' })); }} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '12"x16"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
                           <div>
                             <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">12×16</span><span className="text-[10px] font-black text-white bg-[#A87B62] px-1.5 py-0.5 rounded uppercase tracking-wider">⭐ Most Popular</span></div>
-                            <span className="text-xs font-bold text-gray-500">₹1,999</span>
+                            <span className="text-xs font-bold text-gray-500">{formatRupee(catalog.framed['12"x16"'])}</span>
                           </div>
                           <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedSize === '12"x16"' ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
                             {selectedSize === '12"x16"' && <Check size={12} className="text-white" strokeWidth={3} />}
@@ -870,7 +958,7 @@ export function ProductInfo() {
                         <button onClick={() => { setSelectedSize('18"x24"'); window.dispatchEvent(new CustomEvent('sizeSelectionChanged', { detail: 'framed_size' })); }} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '18"x24"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
                           <div>
                             <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">18×24</span></div>
-                            <span className="text-xs font-bold text-gray-500">₹2,499</span>
+                            <span className="text-xs font-bold text-gray-500">{formatRupee(catalog.framed['18"x24"'])}</span>
                           </div>
                           <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedSize === '18"x24"' ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
                             {selectedSize === '18"x24"' && <Check size={12} className="text-white" strokeWidth={3} />}
@@ -882,7 +970,7 @@ export function ProductInfo() {
                         <button onClick={() => { setSelectedSize('8"x12"'); window.dispatchEvent(new CustomEvent('sizeSelectionChanged', { detail: 'canvas_size' })); }} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '8"x12"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
                           <div>
                             <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">8×12</span></div>
-                            <span className="text-xs font-bold text-gray-500">₹1,699</span>
+                            <span className="text-xs font-bold text-gray-500">{formatRupee(catalog.canvas['8"x12"'])}</span>
                           </div>
                           <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedSize === '8"x12"' ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
                             {selectedSize === '8"x12"' && <Check size={12} className="text-white" strokeWidth={3} />}
@@ -891,7 +979,7 @@ export function ProductInfo() {
                         <button onClick={() => { setSelectedSize('16"x20"'); window.dispatchEvent(new CustomEvent('sizeSelectionChanged', { detail: 'canvas_size' })); }} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '16"x20"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
                           <div>
                             <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">16×20</span><span className="text-[10px] font-black text-white bg-[#A87B62] px-1.5 py-0.5 rounded uppercase tracking-wider">⭐ Best Seller</span></div>
-                            <span className="text-xs font-bold text-gray-500">₹2,499</span>
+                            <span className="text-xs font-bold text-gray-500">{formatRupee(catalog.canvas['16"x20"'])}</span>
                           </div>
                           <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedSize === '16"x20"' ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
                             {selectedSize === '16"x20"' && <Check size={12} className="text-white" strokeWidth={3} />}
@@ -900,7 +988,7 @@ export function ProductInfo() {
                         <button onClick={() => { setSelectedSize('20"x30"'); window.dispatchEvent(new CustomEvent('sizeSelectionChanged', { detail: 'canvas_size' })); }} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '20"x30"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
                           <div>
                             <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">20×30</span></div>
-                            <span className="text-xs font-bold text-gray-500">₹3,499</span>
+                            <span className="text-xs font-bold text-gray-500">{formatRupee(catalog.canvas['20"x30"'])}</span>
                           </div>
                           <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedSize === '20"x30"' ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
                             {selectedSize === '20"x30"' && <Check size={12} className="text-white" strokeWidth={3} />}
@@ -931,12 +1019,12 @@ export function ProductInfo() {
                       >
                         <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4 w-full">
                            <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl overflow-hidden bg-gray-50 border border-gray-100 flex-shrink-0 relative shadow-sm">
-                             <Image src={pet.image} alt={pet.label} fill className="object-cover" />
+                             <Image src={pet.image} alt={pet.label} fill sizes="64px" className="object-cover" />
                            </div>
                            <div className="text-center md:text-left flex-1">
                              <span className="block font-black text-[11px] md:text-sm text-[#1a1a1b]">{pet.label} Pet{pet.id !== "one" ? "s" : ""}</span>
                              <span className="hidden md:block text-[10px] font-bold text-gray-500 uppercase mt-0.5">
-                               {pet.id === "one" ? "Included" : pet.id === "two" ? "+₹300" : pet.id === "three" ? "+₹600" : "+₹1,500"}
+                               {pet.id === "one" || !(catalog.pets[pet.id] > 0) ? "Included" : `+${formatRupee(catalog.pets[pet.id])}`}
                              </span>
                            </div>
                         </div>
@@ -1085,13 +1173,14 @@ export function ProductInfo() {
                         >
                           <div className="absolute top-1.5 right-1.5 z-10">
                             <span className="text-[7px] font-black text-white bg-black/60 px-1 py-0.5 rounded font-inter tracking-wider">
-                              +{ADDON_PRICES[addon.id] || 200}
+                              +{catalog.halo}
                             </span>
                           </div>
                           <Image
                             src={addon.image}
                             alt={addon.label}
                             fill
+                            sizes="96px"
                             className="object-cover"
                           />
                           <div className={`absolute inset-0 flex items-center justify-center transition-colors ${selectedAddOn === addon.id ? 'bg-black/20' : 'bg-black/0 group-hover:bg-black/10'}`}>
@@ -1112,7 +1201,7 @@ export function ProductInfo() {
                       <div className="flex items-center gap-3">
                         <ShieldCheck size={20} className="text-primary" />
                         <div>
-                          <p className="text-xs font-bold text-[#1a1a1b] uppercase">Premium Gift Wrap (+Rs. {GIFT_WRAP_PRICE})</p>
+                          <p className="text-xs font-bold text-[#1a1a1b] uppercase">Premium Gift Wrap (+Rs. {catalog.giftWrap})</p>
                           <p className="text-[10px] text-gray-500">Ready to give portrait</p>
                         </div>
                       </div>
@@ -1194,10 +1283,11 @@ export function ProductInfo() {
                         className="hidden"
                         accept="image/*"
                         onChange={(e) => {
-                          if (e.target.files && e.target.files[0]) {
-                            setSelectedFile(e.target.files[0]);
-                            clearFieldError("photo");
-                          }
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setSelectedFile(file);
+                          clearFieldError("photo");
+                          void startPhotoUpload(file).catch(() => undefined);
                         }}
                       />
                       <label
@@ -1213,7 +1303,27 @@ export function ProductInfo() {
                         <div className="w-14 h-14 rounded-lg overflow-hidden border border-gray-100">
                           <img src={photoPreviewUrl} alt="Uploaded pet" className="w-full h-full object-cover" />
                         </div>
-                        <p className="text-[11px] text-gray-500 font-medium truncate">{selectedFile.name}</p>
+                        <div className="min-w-0">
+                          <p className="text-[11px] text-gray-500 font-medium truncate">{selectedFile.name}</p>
+                          {photoStatus === "uploading" && (
+                            <p className="text-[11px] font-medium text-gray-500">Saving photo…</p>
+                          )}
+                          {photoStatus === "saved" && (
+                            <p className="text-[11px] font-medium text-green-700">Photo saved</p>
+                          )}
+                          {photoStatus === "error" && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!selectedFile) return;
+                                void startPhotoUpload(selectedFile).catch(() => undefined);
+                              }}
+                              className="text-left text-[11px] font-bold text-red-600"
+                            >
+                              {photoError || "We couldn't save the pet photo."} Tap to retry.
+                            </button>
+                          )}
+                        </div>
                       </div>
                     )}
                     <FieldError message={fieldErrors.photo} />
@@ -1401,14 +1511,14 @@ export function ProductInfo() {
       {/* Social Proof Banner */}
       <div className="border border-dashed border-gray-300 rounded-xl p-4 flex items-center justify-center gap-3 bg-gray-50/30 mt-5 mb-5">
         <div className="flex -space-x-2">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-gray-100 shadow-sm relative">
-              <Image
-                src={`https://i.pravatar.cc/100?u=${i + 20}`}
-                alt="user"
-                fill
-                className="object-cover"
-              />
+          {SOCIAL_PROOF_AVATARS.map((avatar) => (
+            <div key={avatar.bg} className="w-8 h-8 rounded-full border-2 border-white overflow-hidden shadow-sm">
+              <svg viewBox="0 0 64 64" aria-hidden="true" className="w-full h-full">
+                <rect width="64" height="64" fill={avatar.bg} />
+                <circle cx="32" cy="58" r="22" fill={avatar.skin} />
+                <circle cx="32" cy="28" r="14" fill={avatar.skin} />
+                <path d={avatar.hair} fill={avatar.hairColor} />
+              </svg>
             </div>
           ))}
         </div>
@@ -1429,7 +1539,7 @@ export function ProductInfo() {
             <p>Every piece is carefully created to reflect their personality, so when you see it… it feels like they’re right there, exactly as you know them.</p>
             <ul className="list-disc pl-5 space-y-1 mt-2">
               <li>Preview your artwork before it’s printed</li>
-              <li>Unlimited revisions until it feels perfect</li>
+              <li>2 revision rounds included</li>
               <li>Ready to hang, made to stay with you</li>
             </ul>
             <p className="font-bold italic">Because some bonds don’t fade. They deserve to be remembered, beautifully.</p>
@@ -1626,8 +1736,8 @@ export function ProductInfo() {
                             <p><span className="text-gray-400 block">Number of pets</span><span className="font-bold">{PET_COUNT_LABELS[selectedPets]}</span></p>
                             <p><span className="text-gray-400 block">Frame color</span><span className="font-bold">{frameColorLabel(selectedFrame, portraitStyle)}</span></p>
                             <p><span className="text-gray-400 block">Background</span><span className="font-bold">{selectedBg}</span></p>
-                            <p><span className="text-gray-400 block">Add-on illustration</span><span className="font-bold">{selectedAddOn === "halo_effect" ? `Halo Effect · ${formatRs(ADDON_PRICES.halo_effect)}` : "None"}</span></p>
-                            <p><span className="text-gray-400 block">Gift wrap</span><span className="font-bold">{giftWrap ? `Yes · ${formatRs(GIFT_WRAP_PRICE)}` : "No"}</span></p>
+                            <p><span className="text-gray-400 block">Add-on illustration</span><span className="font-bold">{selectedAddOn === "halo_effect" ? `Halo Effect · ${formatRs(catalog.halo)}` : "None"}</span></p>
+                            <p><span className="text-gray-400 block">Gift wrap</span><span className="font-bold">{giftWrap ? `Yes · ${formatRs(catalog.giftWrap)}` : "No"}</span></p>
                             <p><span className="text-gray-400 block">Pet name</span><span className="font-bold">{petName || "—"}</span></p>
                             <p className="col-span-2"><span className="text-gray-400 block">Memorial text</span><span className="font-bold">{memorialText || "—"}</span></p>
                             <p className="col-span-2 truncate"><span className="text-gray-400 block">Uploaded photo</span><span className="font-bold">{selectedFile ? selectedFile.name : "—"}</span></p>
@@ -1747,7 +1857,7 @@ export function ProductInfo() {
                     ))}
                     {displayQuote.couponDiscount > 0 && (
                       <div className="flex justify-between text-green-700">
-                        <span>Coupon {displayQuote.couponCode} ({displayQuote.couponPercent}%)</span>
+                        <span>Coupon {displayQuote.couponCode} ({couponOffLabel(displayQuote)})</span>
                         <span className="font-bold">- {formatRs(displayQuote.couponDiscount)}</span>
                       </div>
                     )}
@@ -1934,7 +2044,7 @@ export function ProductInfo() {
                         <Wallet size={18} className="text-[#A87B62] mt-0.5" />
                         <div>
                           <p className="font-black text-sm text-[#1a1a1b]">Full Payment / Prepaid</p>
-                          <p className="text-[11px] text-green-700 font-bold mt-0.5">4% discount for paying the full amount now</p>
+                          <p className="text-[11px] text-green-700 font-bold mt-0.5">{catalog.prepaidPercent}% discount for paying the full amount now</p>
                         </div>
                       </div>
                       <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === "prepaid" ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
@@ -1943,7 +2053,7 @@ export function ProductInfo() {
                     </div>
                     <div className="space-y-1 text-[12px] bg-[#faf8f5] rounded-xl p-3">
                       <div className="flex justify-between"><span className="text-gray-500">Order Total</span><span className="font-bold">{formatRs(prepaidQuote.afterCouponAmount)}</span></div>
-                      <div className="flex justify-between text-green-700"><span>Prepaid Discount (4%)</span><span className="font-bold">- {formatRs(prepaidQuote.prepaidDiscount)}</span></div>
+                      <div className="flex justify-between text-green-700"><span>Prepaid Discount ({catalog.prepaidPercent}%)</span><span className="font-bold">- {formatRs(prepaidQuote.prepaidDiscount)}</span></div>
                       <div className="flex justify-between pt-1 border-t border-dashed border-[#eadfc9] font-black"><span>Pay Now</span><span>{formatRs(prepaidQuote.payableNow)}</span></div>
                     </div>
                   </button>
@@ -1960,7 +2070,7 @@ export function ProductInfo() {
                           <div>
                             <p className="font-black text-sm text-[#1a1a1b]">Cash on Delivery</p>
                             <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">
-                              Pay 40% now to confirm your order. Remaining 60% will be payable at the time of delivery.
+                              Pay {catalog.codAdvancePercent}% now to confirm your order. Remaining {100 - catalog.codAdvancePercent}% will be payable at the time of delivery.
                             </p>
                           </div>
                         </div>
@@ -1970,9 +2080,9 @@ export function ProductInfo() {
                       </div>
                       <div className="space-y-1 text-[12px] bg-[#faf8f5] rounded-xl p-3">
                         <div className="flex justify-between"><span className="text-gray-500">Order Total</span><span className="font-bold">{formatRs(codQuote.afterCouponAmount)}</span></div>
-                        <div className="flex justify-between"><span>40% Advance</span><span className="font-bold">{formatRs(codQuote.advanceAmount)}</span></div>
+                        <div className="flex justify-between"><span>{catalog.codAdvancePercent}% Advance</span><span className="font-bold">{formatRs(codQuote.advanceAmount)}</span></div>
                         <div className="flex justify-between pt-1 border-t border-dashed border-[#eadfc9]">
-                          <span>Remaining 60%</span>
+                          <span>Remaining {100 - catalog.codAdvancePercent}%</span>
                           <span className="font-bold">{formatRs(codQuote.remainingAmount)} — Payable on Delivery</span>
                         </div>
                       </div>

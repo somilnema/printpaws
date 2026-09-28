@@ -32,7 +32,7 @@ export function HowItWorks() {
                 width={700}
                 height={500}
                 className="w-full h-auto object-contain block"
-                priority
+                sizes="(max-width: 1024px) 100vw, 700px"
               />
             </div>
           </div>

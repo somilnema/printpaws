@@ -1,7 +1,46 @@
 "use client";
 
-import { Instagram, Facebook, Twitter } from "lucide-react";
+import { useState } from "react";
+import { Instagram, Facebook, Twitter, Shield, Palette, Truck } from "lucide-react";
 import Link from "next/link";
+
+const DESKS = [
+  { href: "/admin", label: "Admin", Icon: Shield },
+  { href: "/artist", label: "Artist", Icon: Palette },
+  { href: "/shipment", label: "Shipment", Icon: Truck },
+];
+
+function StaffBadge() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2">
+      <button
+        type="button"
+        aria-label="Open team desks"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        className="flex h-7 w-7 items-center justify-center rounded-full border border-white/25 bg-white/10 text-[10px] font-bold text-white/80 hover:bg-white/20 hover:text-white"
+      >
+        P
+      </button>
+      {open ? (
+        <div className="absolute bottom-full left-1/2 mb-3 flex -translate-x-1/2 gap-2 rounded-sm bg-white p-2 shadow-[0_12px_30px_rgba(0,0,0,0.18)]">
+          {DESKS.map(({ href, label, Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              className="flex w-16 flex-col items-center gap-1 rounded-sm px-2 py-2 text-[#1a1a1b] hover:bg-[#f3f4f6]"
+            >
+              <Icon size={18} />
+              <span className="text-[10px] font-semibold">{label}</span>
+            </Link>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export function Footer() {
   return (
@@ -59,7 +98,6 @@ export function Footer() {
                 <li><Link href="/#how-it-works" className="hover:text-white transition-colors font-inter">How it Works</Link></li>
                 <li><Link href="/#faq" className="hover:text-white transition-colors font-inter">FAQ</Link></li>
                 <li><Link href="/contact" className="hover:text-white transition-colors font-inter">Contact Us</Link></li>
-                <li><Link href="/admin" className="hover:text-white transition-colors font-inter">Admin</Link></li>
               </ul>
             </div>
 
@@ -78,7 +116,8 @@ export function Footer() {
 
           <hr className="border-white/10 mb-8" />
 
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="relative flex flex-col md:flex-row items-center justify-between gap-6">
+            <StaffBadge />
             <p className="text-xs font-inter text-white/50">
               © 2026, Peternity. All rights reserved.
             </p>

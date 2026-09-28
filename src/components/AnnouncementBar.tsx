@@ -4,31 +4,51 @@ import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const ANNOUNCEMENTS = [
-  "Forever Starts Here",
-  "Refined Until Perfect",
-  "10% Off (Prepaid Orders)",
-];
-
 export function AnnouncementBar() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(0); // -1 for left, 1 for right
+  const [prepaidPercent, setPrepaidPercent] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/pricing", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => {
+        const value = Number(data?.catalog?.prepaidPercent);
+        if (!cancelled && Number.isFinite(value)) setPrepaidPercent(value);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const announcements = [
+    "Forever Starts Here",
+    "Refined Until Perfect",
+    prepaidPercent && prepaidPercent > 0 ? `${prepaidPercent}% Off (Prepaid Orders)` : "",
+  ].filter(Boolean);
+
+  useEffect(() => {
+    if (currentIndex >= announcements.length) setCurrentIndex(0);
+  }, [announcements.length, currentIndex]);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      handleNext();
+      setDirection(1);
+      setCurrentIndex((prev) => (prev + 1) % announcements.length);
     }, 4000);
     return () => clearInterval(timer);
-  }, [currentIndex]);
+  }, [announcements.length]);
 
   const handlePrev = () => {
     setDirection(-1);
-    setCurrentIndex((prev) => (prev - 1 + ANNOUNCEMENTS.length) % ANNOUNCEMENTS.length);
+    setCurrentIndex((prev) => (prev - 1 + announcements.length) % announcements.length);
   };
 
   const handleNext = () => {
     setDirection(1);
-    setCurrentIndex((prev) => (prev + 1) % ANNOUNCEMENTS.length);
+    setCurrentIndex((prev) => (prev + 1) % announcements.length);
   };
 
   const variants = {
@@ -67,7 +87,7 @@ export function AnnouncementBar() {
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className="w-full text-center"
           >
-            {ANNOUNCEMENTS[currentIndex]}
+            {announcements[currentIndex]}
           </motion.div>
         </AnimatePresence>
       </div>

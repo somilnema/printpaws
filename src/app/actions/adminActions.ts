@@ -1,6 +1,44 @@
 "use server";
 
+import { headers } from "next/headers";
 import { getAdminSession } from "@/lib/admin-auth";
+import {
+  adminCanAssign,
+  adminCanCancel,
+  adminCanHold,
+  artworkIsOpen,
+  isOverdue,
+  maximumDueAt,
+  type OrderUpdate,
+} from "@/lib/fulfillment";
+import { notifyArtistAssigned, retryEmail } from "@/lib/notifications";
+import { sendOverdueReminders } from "@/lib/overdue";
+import { hashPassword } from "@/lib/passwords";
+import {
+  derivedWorkflow,
+  emailLogFor,
+  ensureWorkflow,
+  eventsFor,
+  findArtistById,
+  insertArtist,
+  insertShipper,
+  latestVendorAttempts,
+  listArtists,
+  listShippers,
+  notesFor,
+  recordEvent,
+  saveWorkflow,
+  SETUP_MESSAGE,
+  updatesFor,
+  workflowFor,
+  workflowsFor,
+  type EmailLogRow,
+  type OrderEvent,
+  type OrderWorkflow,
+  type TeamNote,
+  type VendorAttempt,
+} from "@/lib/portal-db";
+import { acceptLatestForShipment } from "@/app/actions/trackActions";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export type AdminOrder = {
@@ -25,6 +63,41 @@ export type AdminOrder = {
   cod_due?: string | number;
   status?: string;
   shipping_address?: string;
+  shipping_landmark?: string | null;
+  shipping_city?: string | null;
+  shipping_state?: string | null;
+  shipping_pincode?: string | null;
+  artist_id?: string | null;
+  fulfillment_stage?: string | null;
+  tracking_url?: string | null;
+  tracking_saved_by?: string | null;
+  tracking_saved_at?: string | null;
+  due_at?: string | null;
+  sla_started_at?: string | null;
+  extension_reason?: string | null;
+  revision_count?: number;
+  approved_update_id?: string | null;
+  approved_at?: string | null;
+  approved_by?: string | null;
+  needs_decision?: boolean;
+  hold_reason?: string | null;
+  cancel_reason?: string | null;
+  delivered_at?: string | null;
+  delivered_by?: string | null;
+  overdue?: boolean;
+  memorial_text?: string | null;
+  updates?: OrderUpdate[];
+  events?: OrderEvent[];
+  emails?: EmailLogRow[];
+  teamNotes?: TeamNote[];
+  vendor?: VendorAttempt | null;
+};
+
+export type ArtistAccount = {
+  id: string;
+  name: string;
+  email: string;
+  created_at?: string;
 };
 
 export type RevenuePoint = {
@@ -48,6 +121,9 @@ export type AdminDashboard = {
   };
   chart: RevenuePoint[];
   orders: AdminOrder[];
+  artists: ArtistAccount[];
+  shippers: ArtistAccount[];
+  workload: { id: string; name: string; open: number; overdue: number }[];
 };
 
 function parsePrice(value: unknown) {
@@ -67,7 +143,13 @@ function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
-function buildDashboard(user: string, orders: AdminOrder[], warning?: string): AdminDashboard {
+function buildDashboard(
+  user: string,
+  orders: AdminOrder[],
+  artists: ArtistAccount[],
+  shippers: ArtistAccount[],
+  warning?: string
+): AdminDashboard {
   const now = new Date();
   const today = startOfDay(now);
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -114,6 +196,16 @@ function buildDashboard(user: string, orders: AdminOrder[], warning?: string): A
     }
   }
 
+  const workload = artists.map((artist) => {
+    const assigned = orders.filter((order) => order.artist_id === artist.id && order.fulfillment_stage !== "cancelled");
+    return {
+      id: artist.id,
+      name: artist.name,
+      open: assigned.filter((order) => artworkIsOpen(order.fulfillment_stage) || order.fulfillment_stage === "final_approval").length,
+      overdue: assigned.filter((order) => order.overdue).length,
+    };
+  });
+
   return {
     user,
     warning,
@@ -128,34 +220,357 @@ function buildDashboard(user: string, orders: AdminOrder[], warning?: string): A
     },
     chart: Array.from(chartMap.values()),
     orders,
+    artists,
+    shippers,
+    workload,
   };
 }
 
-async function loadOrders(): Promise<{ orders: AdminOrder[]; warning?: string }> {
-  const { data, error } = await supabaseAdmin
-    .from("orders")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(500);
+async function portalOrigin() {
+  try {
+    const h = await headers();
+    const host = h.get("x-forwarded-host") || h.get("host");
+    if (!host) return "";
+    const proto = h.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
+    return `${proto}://${host}`;
+  } catch {
+    return "";
+  }
+}
 
-  if (error) {
-    console.error("Admin orders fetch error:", error);
-    return { orders: [], warning: error.message };
+async function loadOrders(): Promise<{ orders: AdminOrder[]; warning?: string }> {
+  const pageSize = 1000;
+  const orders: AdminOrder[] = [];
+
+  for (let from = 0; from < 10000; from += pageSize) {
+    const { data, error } = await supabaseAdmin
+      .from("orders")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .range(from, from + pageSize - 1);
+
+    if (error) {
+      console.error("Admin orders fetch error:", error);
+      return {
+        orders,
+        warning: orders.length ? `${error.message} Showing ${orders.length} orders.` : error.message,
+      };
+    }
+
+    const batch = (data as AdminOrder[]) ?? [];
+    orders.push(...batch);
+    if (batch.length < pageSize) return { orders };
   }
 
-  return { orders: (data as AdminOrder[]) ?? [] };
+  return { orders, warning: "Showing the latest 10,000 orders." };
+}
+
+function applyWorkflow(order: AdminOrder, workflow: OrderWorkflow | undefined): AdminOrder {
+  const resolved = workflow ?? (order.id ? derivedWorkflow({ id: order.id, photo_url: order.photo_url, created_at: order.created_at }) : null);
+  return {
+    ...order,
+    artist_id: resolved?.artist_id ?? null,
+    fulfillment_stage: resolved?.status ?? "ready_for_artwork",
+    tracking_url: resolved?.tracking_url ?? null,
+    tracking_saved_by: resolved?.tracking_saved_by ?? null,
+    tracking_saved_at: resolved?.tracking_saved_at ?? null,
+    due_at: resolved?.due_at ?? null,
+    sla_started_at: resolved?.sla_started_at ?? null,
+    extension_reason: resolved?.extension_reason ?? null,
+    revision_count: resolved?.revision_count ?? 0,
+    approved_update_id: resolved?.approved_update_id ?? null,
+    approved_at: resolved?.approved_at ?? null,
+    approved_by: resolved?.approved_by ?? null,
+    needs_decision: resolved?.needs_decision ?? false,
+    hold_reason: resolved?.hold_reason ?? null,
+    cancel_reason: resolved?.cancel_reason ?? null,
+    delivered_at: resolved?.delivered_at ?? null,
+    delivered_by: resolved?.delivered_by ?? null,
+    overdue: isOverdue(resolved?.status, resolved?.due_at),
+  };
 }
 
 export async function getAdminDashboard(): Promise<AdminDashboard | null> {
   try {
     const session = await getAdminSession();
     if (!session) return null;
+    await sendOverdueReminders().catch((error) => console.error("Overdue reminder error:", error));
     const { orders, warning } = await loadOrders();
-    return buildDashboard(session.user, orders, warning);
+    const ids = orders.map((order) => order.id).filter((id): id is string => !!id);
+    const [{ map: portals, missing }, updates, events, emails, artists, shippers, teamNotes, vendorAttempts] = await Promise.all([
+      workflowsFor(ids),
+      updatesFor(ids),
+      eventsFor(ids),
+      emailLogFor(ids),
+      listArtists(),
+      listShippers(),
+      notesFor(ids),
+      latestVendorAttempts(ids),
+    ]);
+    const byOrder = new Map<string, OrderUpdate[]>();
+    for (const update of updates) {
+      const list = byOrder.get(update.order_id) ?? [];
+      list.push(update);
+      byOrder.set(update.order_id, list);
+    }
+    const eventsByOrder = new Map<string, OrderEvent[]>();
+    for (const event of events) {
+      const list = eventsByOrder.get(event.order_id) ?? [];
+      list.push(event);
+      eventsByOrder.set(event.order_id, list);
+    }
+    const emailsByOrder = new Map<string, EmailLogRow[]>();
+    for (const email of emails) {
+      if (!email.order_id) continue;
+      const list = emailsByOrder.get(email.order_id) ?? [];
+      list.push(email);
+      emailsByOrder.set(email.order_id, list);
+    }
+
+    const notesByOrder = new Map<string, TeamNote[]>();
+    for (const note of teamNotes) {
+      const list = notesByOrder.get(note.order_id) ?? [];
+      list.push(note);
+      notesByOrder.set(note.order_id, list);
+    }
+    const vendorByOrder = new Map(vendorAttempts.map((attempt) => [attempt.order_id, attempt]));
+
+    const withHistory = orders.map((order) => ({
+      ...applyWorkflow(order, order.id ? portals.get(order.id) : undefined),
+      updates: order.id ? byOrder.get(order.id) ?? [] : [],
+      events: order.id ? eventsByOrder.get(order.id) ?? [] : [],
+      emails: order.id ? emailsByOrder.get(order.id) ?? [] : [],
+      teamNotes: order.id ? notesByOrder.get(order.id) ?? [] : [],
+      vendor: order.id ? vendorByOrder.get(order.id) ?? null : null,
+    }));
+
+    return buildDashboard(session.user, withHistory, artists, shippers, missing ? SETUP_MESSAGE : warning);
   } catch (err) {
     console.error("Admin dashboard error:", err);
     return null;
   }
+}
+
+function isEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+export async function createArtist(input: { name: string; email: string; password: string }) {
+  const session = await getAdminSession();
+  if (!session) return { ok: false as const, error: "Sign in again to continue." };
+
+  const name = input.name.trim();
+  const email = input.email.trim().toLowerCase();
+  const password = input.password;
+  if (!name) return { ok: false as const, error: "Enter the artist's name." };
+  if (!isEmail(email)) return { ok: false as const, error: "Enter a valid artist email." };
+  if (password.length < 8) return { ok: false as const, error: "Use a password of at least 8 characters." };
+
+  const password_hash = await hashPassword(password);
+  const created = await insertArtist({ name, email, password_hash });
+  if (!created.ok) return created;
+  return { ok: true as const };
+}
+
+export async function createShipper(input: { name: string; email: string; password: string }) {
+  const session = await getAdminSession();
+  if (!session) return { ok: false as const, error: "Sign in again to continue." };
+
+  const name = input.name.trim();
+  const email = input.email.trim().toLowerCase();
+  const password = input.password;
+  if (!name) return { ok: false as const, error: "Enter the person's name." };
+  if (!isEmail(email)) return { ok: false as const, error: "Enter a valid email." };
+  if (password.length < 8) return { ok: false as const, error: "Use a password of at least 8 characters." };
+
+  const password_hash = await hashPassword(password);
+  const created = await insertShipper({ name, email, password_hash });
+  if (!created.ok) return created;
+  return { ok: true as const };
+}
+
+async function loadOrder(orderId: string) {
+  const { data, error } = await supabaseAdmin
+    .from("orders")
+    .select("id, pet_name, customer_email, photo_url, created_at")
+    .eq("id", orderId)
+    .maybeSingle();
+  if (error || !data) return { order: null, error: error?.message || "Order not found." };
+  return { order: data, error: "" };
+}
+
+export async function assignOrderToArtist(orderId: string, artistId: string) {
+  const session = await getAdminSession();
+  if (!session) return { ok: false as const, error: "Sign in again to continue." };
+  if (!orderId || !artistId) return { ok: false as const, error: "Choose an artist for this order." };
+
+  const { order, error: orderError } = await loadOrder(orderId);
+  const artist = await findArtistById(artistId);
+  if (!order) return { ok: false as const, error: orderError };
+  if (!order.photo_url) return { ok: false as const, error: "This order is still waiting for a pet photo, so the artwork clock has not started." };
+  if (!artist?.email) return { ok: false as const, error: "Artist not found." };
+
+  const workflow = await ensureWorkflow(order);
+  if (!adminCanAssign(workflow.status)) {
+    return { ok: false as const, error: "The artist can only be changed before the picture is approved." };
+  }
+
+  const nextStatus = workflow.status === "ready_for_artwork" ? "artwork_in_progress" : workflow.status;
+  const saved = await saveWorkflow(orderId, workflow.status, {
+    artist_id: artistId,
+    status: nextStatus,
+  });
+  if (!saved) return { ok: false as const, error: "This order could not be assigned. Refresh and try again." };
+
+  await recordEvent({
+    order_id: orderId,
+    actor: session.user,
+    action: workflow.artist_id ? "artist_reassigned" : "artist_assigned",
+    detail: `${artist.name} (${artist.email})`,
+  });
+
+  const origin = await portalOrigin();
+  try {
+    await notifyArtistAssigned({
+      orderId,
+      artistId,
+      to: artist.email,
+      artistName: artist.name || "",
+      petName: order.pet_name || "",
+      portalUrl: origin ? `${origin}/artist` : "",
+    });
+  } catch (err) {
+    console.error("Assign email error:", err);
+  }
+
+  return { ok: true as const };
+}
+
+export async function extendArtworkDeadline(orderId: string, dueAt: string, reason: string) {
+  const session = await getAdminSession();
+  if (!session) return { ok: false as const, error: "Sign in again to continue." };
+  const trimmed = reason.trim();
+  if (!trimmed) return { ok: false as const, error: "Write the reason for the extension." };
+  if (trimmed.length > 500) return { ok: false as const, error: "Keep the reason under 500 characters." };
+
+  const nextDue = new Date(dueAt);
+  if (Number.isNaN(nextDue.getTime())) return { ok: false as const, error: "Choose a valid deadline." };
+
+  const { order, error } = await loadOrder(orderId);
+  if (!order) return { ok: false as const, error };
+  const workflow = await ensureWorkflow(order);
+  if (!workflow.sla_started_at || !workflow.due_at) {
+    return { ok: false as const, error: "The 48-hour clock has not started because the pet photo is not saved." };
+  }
+  if (!artworkIsOpen(workflow.status)) {
+    return { ok: false as const, error: "The artwork deadline can only be extended while the picture is still being made." };
+  }
+
+  const cap = new Date(maximumDueAt(workflow.sla_started_at));
+  const current = new Date(workflow.due_at);
+  if (nextDue.getTime() <= current.getTime()) {
+    return { ok: false as const, error: "The new deadline has to be later than the current one." };
+  }
+  if (nextDue.getTime() > cap.getTime()) {
+    return { ok: false as const, error: "The deadline cannot go past 72 hours from when the photo and details were ready." };
+  }
+
+  const saved = await saveWorkflow(orderId, workflow.status, {
+    due_at: nextDue.toISOString(),
+    extension_reason: trimmed,
+    extended_by: session.user,
+    extended_at: new Date().toISOString(),
+  });
+  if (!saved) return { ok: false as const, error: "The deadline could not be extended. Refresh and try again." };
+
+  await recordEvent({
+    order_id: orderId,
+    actor: session.user,
+    action: "deadline_extended",
+    detail: `${trimmed} New deadline: ${nextDue.toISOString()}`,
+  });
+  return { ok: true as const };
+}
+
+export async function holdOrder(orderId: string, reason: string) {
+  const session = await getAdminSession();
+  if (!session) return { ok: false as const, error: "Sign in again to continue." };
+  const trimmed = reason.trim();
+  if (!trimmed) return { ok: false as const, error: "Write why this order is on hold." };
+  const { order, error } = await loadOrder(orderId);
+  if (!order) return { ok: false as const, error };
+  const workflow = await ensureWorkflow(order);
+  if (!adminCanHold(workflow.status)) {
+    return { ok: false as const, error: "This order cannot be put on hold from its current status." };
+  }
+  const saved = await saveWorkflow(orderId, workflow.status, {
+    status: "on_hold",
+    status_before_hold: workflow.status,
+    hold_reason: trimmed,
+  });
+  if (!saved) return { ok: false as const, error: "This order could not be put on hold. Refresh and try again." };
+  await recordEvent({ order_id: orderId, actor: session.user, action: "on_hold", detail: trimmed });
+  return { ok: true as const };
+}
+
+export async function resumeOrder(orderId: string) {
+  const session = await getAdminSession();
+  if (!session) return { ok: false as const, error: "Sign in again to continue." };
+  const workflow = await workflowFor(orderId);
+  if (!workflow || workflow.status !== "on_hold" || !workflow.status_before_hold) {
+    return { ok: false as const, error: "This order is not on hold." };
+  }
+  const saved = await saveWorkflow(orderId, "on_hold", {
+    status: workflow.status_before_hold as OrderWorkflow["status"],
+    hold_reason: null,
+    status_before_hold: null,
+  });
+  if (!saved) return { ok: false as const, error: "This order could not be resumed. Refresh and try again." };
+  await recordEvent({
+    order_id: orderId,
+    actor: session.user,
+    action: "resumed",
+    detail: `Returned to ${workflow.status_before_hold}.`,
+  });
+  return { ok: true as const };
+}
+
+export async function cancelOrder(orderId: string, reason: string) {
+  const session = await getAdminSession();
+  if (!session) return { ok: false as const, error: "Sign in again to continue." };
+  const trimmed = reason.trim();
+  if (!trimmed) return { ok: false as const, error: "Write why this order is cancelled." };
+  const { order, error } = await loadOrder(orderId);
+  if (!order) return { ok: false as const, error };
+  const workflow = await ensureWorkflow(order);
+  if (!adminCanCancel(workflow.status)) {
+    return { ok: false as const, error: "A shipped or delivered order stays as it is." };
+  }
+  const saved = await saveWorkflow(orderId, workflow.status, {
+    status: "cancelled",
+    cancel_reason: trimmed,
+    needs_decision: false,
+  });
+  if (!saved) return { ok: false as const, error: "This order could not be cancelled. Refresh and try again." };
+  await recordEvent({ order_id: orderId, actor: session.user, action: "cancelled", detail: trimmed });
+  return { ok: true as const };
+}
+
+export async function acceptLatestArtwork(orderId: string) {
+  const session = await getAdminSession();
+  if (!session) return { ok: false as const, error: "Sign in again to continue." };
+  const result = await acceptLatestForShipment(orderId, session.user);
+  if (!result.ok) return result;
+  return { ok: true as const };
+}
+
+export async function retryLoggedEmail(eventKey: string) {
+  const session = await getAdminSession();
+  if (!session) return { ok: false as const, error: "Sign in again to continue." };
+  if (!eventKey) return { ok: false as const, error: "Missing email." };
+  const result = await retryEmail(eventKey);
+  if (!result.ok) return result;
+  return { ok: true as const };
 }
 
 export async function refreshAdminDashboard(): Promise<AdminDashboard | null> {

@@ -1,8 +1,6 @@
 "use client";
 
-import { EXTRA_PRODUCTS } from "@/lib/pricing";
-
-type ExtraKey = keyof typeof EXTRA_PRODUCTS;
+import { extraCatalog, DEFAULT_CATALOG, type PriceCatalog } from "@/lib/pricing";
 
 type ExtraProductsProps = {
   addMug: boolean;
@@ -12,6 +10,7 @@ type ExtraProductsProps = {
   onToggleMagnet: () => void;
   onToggleGift: () => void;
   title?: string;
+  catalog?: PriceCatalog;
 };
 
 function ExtraCard({
@@ -19,7 +18,7 @@ function ExtraCard({
   selected,
   onToggle,
 }: {
-  product: (typeof EXTRA_PRODUCTS)[ExtraKey];
+  product: ReturnType<typeof extraCatalog>;
   selected: boolean;
   onToggle: () => void;
 }) {
@@ -72,15 +71,16 @@ export function ExtraProducts({
   onToggleMagnet,
   onToggleGift,
   title = "Additional Products",
+  catalog = DEFAULT_CATALOG,
 }: ExtraProductsProps) {
   return (
     <div className="rounded-2xl bg-[#A87B62] p-4 space-y-2.5">
       <h4 className="text-center font-semibold uppercase tracking-[0.18em] text-[10px] text-white/95">
         {title}
       </h4>
-      <ExtraCard product={EXTRA_PRODUCTS.mug} selected={addMug} onToggle={onToggleMug} />
-      <ExtraCard product={EXTRA_PRODUCTS.magnet} selected={addMagnet} onToggle={onToggleMagnet} />
-      <ExtraCard product={EXTRA_PRODUCTS.digital} selected={addGift} onToggle={onToggleGift} />
+      <ExtraCard product={extraCatalog(catalog, "mug")} selected={addMug} onToggle={onToggleMug} />
+      <ExtraCard product={extraCatalog(catalog, "magnet")} selected={addMagnet} onToggle={onToggleMagnet} />
+      <ExtraCard product={extraCatalog(catalog, "digital")} selected={addGift} onToggle={onToggleGift} />
     </div>
   );
 }

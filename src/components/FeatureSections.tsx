@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { getCloudinaryUrl } from "@/utils/cloudinary";
+import { ViewportVideo } from "@/components/ViewportVideo";
 
 const FEATURES = [
   {
@@ -62,16 +63,10 @@ export function FeatureSections() {
             >
               {feature.video ? (
                 <div className="relative w-full h-[400px] md:h-[580px] rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.1)]">
-                  <video
-                    autoPlay
-                    muted
-                    loop
-                    playsInline
+                  <ViewportVideo
+                    src={getCloudinaryUrl(feature.video)}
                     className="absolute inset-0 w-full h-full object-cover"
-                  >
-                    <source src={getCloudinaryUrl(feature.video)} type="video/mp4" />
-                    Your browser does not support the video tag.
-                  </video>
+                  />
                 </div>
               ) : (
                 <div className="relative w-full h-[400px] md:h-[580px] rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.1)]">

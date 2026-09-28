@@ -45,3 +45,9 @@ next-env.d.ts
 # local scratch scripts and temporary directories
 /scratch/
 /smart-commit.ps1
+
+# artist portal database, created on this machine
+/data/
+
+# full-size masters kept locally; the site serves the smaller copies in public/
+/media-masters/

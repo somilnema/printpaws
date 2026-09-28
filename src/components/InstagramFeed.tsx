@@ -3,6 +3,7 @@
 import React, { useRef, useState } from "react";
 import { Heart, Volume2, VolumeX, Sparkles } from "lucide-react";
 import { getCloudinaryUrl } from "@/utils/cloudinary";
+import { ViewportVideo } from "@/components/ViewportVideo";
 
 export function InstagramFeed() {
   const videoRef1 = useRef<HTMLVideoElement>(null);
@@ -70,13 +71,9 @@ export function InstagramFeed() {
               onClick={toggleMute1}
               className="relative w-full sm:w-1/2 aspect-[9/16] max-w-[280px] rounded-[2rem] overflow-hidden cursor-pointer group shadow-lg hover:shadow-2xl transition-all duration-500 border-4 border-[#FAF7F2]"
             >
-              <video
+              <ViewportVideo
                 ref={videoRef1}
                 src={getCloudinaryUrl("socialproof/Social proof video -1.mp4")}
-                autoPlay
-                muted
-                loop
-                playsInline
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               />
               
@@ -106,13 +103,9 @@ export function InstagramFeed() {
               onClick={toggleMute2}
               className="relative w-full sm:w-1/2 aspect-[9/16] max-w-[280px] rounded-[2rem] overflow-hidden cursor-pointer group shadow-lg hover:shadow-2xl transition-all duration-500 border-4 border-[#FAF7F2] sm:-translate-y-4"
             >
-              <video
+              <ViewportVideo
                 ref={videoRef2}
                 src={getCloudinaryUrl("socialproof/Social proof video - 2.mp4")}
-                autoPlay
-                muted
-                loop
-                playsInline
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
               />
 

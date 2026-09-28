@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { renderPortalEmail } from "@/lib/email-templates";
 
 const isEmailConfigured = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
 
@@ -36,8 +37,14 @@ export const sendOrderEmail = async (orderData: any) => {
   const codDue = orderData.cod_due ?? orderData.codDue ?? 0;
   const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER || "";
 
-  const subject = `🐾 Order Confirmed! Peternity Masterpiece #${id.slice(0, 8).toUpperCase()}`;
-  
+  const rendered = await renderPortalEmail("order_confirmed", {
+    petName,
+    orderShort: id.slice(0, 8).toUpperCase(),
+    customerName,
+  });
+  const subject = rendered.subject || `Order confirmed #${id.slice(0, 8).toUpperCase()}`;
+  const intro = rendered.bodyHtml.replace(/^<p>|<\/p>$/g, "") || "We have received your custom order details.";
+
   const html = `
     <div style="background-color: #fcf9f6; padding: 20px 10px; font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #2C2623; line-height: 1.5;">
       <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 30px rgba(180, 142, 117, 0.15); border: 1px solid #f3ece5;">
@@ -50,7 +57,7 @@ export const sendOrderEmail = async (orderData: any) => {
           <div style="font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: #B38E75; font-weight: 700; margin-bottom: 8px;">Peternity</div>
           <h1 style="font-size: 26px; margin: 0; color: #2C2623; font-weight: 800;">Masterpiece Confirmed! 🐾</h1>
           <p style="color: #6E6259; font-size: 14px; margin-top: 10px; margin-bottom: 0; line-height: 1.6;">
-            We have received your custom order details. Our master artists are ready to transform your uploaded photo into a magnificent, premium portrait!
+            ${intro}
           </p>
         </div>
 
@@ -335,7 +342,7 @@ export const sendOrderEmail = async (orderData: any) => {
     console.log("==========================================================================");
     console.log("🎨 Premium HTML Output Previews logged successfully.");
     console.log("==========================================================================\n");
-    return { success: true, mocked: true, message: "Credentials not configured. Logged content." };
+    return { success: true, mocked: true, message: "Credentials not configured. Logged content.", subject };
   }
 
   try {
@@ -347,9 +354,10 @@ export const sendOrderEmail = async (orderData: any) => {
     
     console.log(`📧 Emails sent successfully: Customer (${custInfo.messageId}), Owner (${adminInfo.messageId})`);
     return { 
-      success: true, 
-      customerMessageId: custInfo.messageId, 
-      adminMessageId: adminInfo.messageId 
+      success: true,
+      subject,
+      customerMessageId: custInfo.messageId,
+      adminMessageId: adminInfo.messageId,
     };
   } catch (error) {
     console.error("❌ Failed to send order confirmation emails via SMTP:", error);
@@ -357,4 +365,163 @@ export const sendOrderEmail = async (orderData: any) => {
     return { success: false, error: error };
   }
 };
+
+function portalEmailHtml(title: string, body: string) {
+  return `
+    <div style="background-color: #fcf9f6; padding: 20px 10px; font-family: 'Inter', system-ui, -apple-system, sans-serif; color: #2C2623; line-height: 1.5;">
+      <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #f3ece5;">
+        <div style="background: linear-gradient(135deg, #B38E75 0%, #8A6651 100%); height: 8px;"></div>
+        <div style="padding: 32px 24px;">
+          <div style="font-size: 12px; letter-spacing: 4px; text-transform: uppercase; color: #B38E75; font-weight: 700; margin-bottom: 8px;">Peternity</div>
+          <h1 style="margin: 0 0 16px; font-size: 24px; line-height: 1.2;">${title}</h1>
+          ${body}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+export async function sendPortalMail(to: string, subject: string, html: string) {
+  if (!to) return { success: false, error: "Missing recipient" };
+  if (!transporter) {
+    console.log("\n==========================================================================");
+    console.log("📧 [DEVELOPMENT MODE] Portal email not sent because credentials are not configured.");
+    console.log(`To:      ${to}`);
+    console.log(`Subject: ${subject}`);
+    console.log("==========================================================================\n");
+    return { success: true, mocked: true };
+  }
+  try {
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_USER || "noreply@peternity.com",
+      to,
+      subject,
+      html,
+    });
+    console.log(`📧 Portal email sent to ${to} (${info.messageId})`);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error("❌ Failed to send portal email:", error);
+    return { success: false, error };
+  }
+}
+
+export async function sendPreviewReadyEmail(input: {
+  to: string;
+  petName: string;
+  previewUrl?: string;
+  revised?: boolean;
+}) {
+  const message = await renderPortalEmail(input.revised ? "revised_preview_ready" : "preview_ready", {
+    petName: input.petName || "your pet",
+    previewUrl: input.previewUrl || "",
+  });
+  const result = await sendPortalMail(input.to, message.subject, portalEmailHtml(message.heading, message.bodyHtml));
+  return { ...result, subject: message.subject };
+}
+
+export async function sendRevisionReceivedEmail(input: { to: string; petName: string; note: string; round: number }) {
+  const message = await renderPortalEmail("revision_received", {
+    petName: input.petName || "your portrait",
+    note: input.note,
+    round: String(input.round),
+  });
+  const result = await sendPortalMail(input.to, message.subject, portalEmailHtml(message.heading, message.bodyHtml));
+  return { ...result, subject: message.subject };
+}
+
+export async function sendArtworkApprovedEmail(input: { to: string; petName: string }) {
+  const message = await renderPortalEmail("artwork_approved", {
+    petName: input.petName || "your portrait",
+  });
+  const result = await sendPortalMail(input.to, message.subject, portalEmailHtml(message.heading, message.bodyHtml));
+  return { ...result, subject: message.subject };
+}
+
+export async function sendDeliveredEmail(input: { to: string; petName: string; trackingUrl?: string }) {
+  const message = await renderPortalEmail("delivered", {
+    petName: input.petName || "your portrait",
+    trackingUrl: input.trackingUrl || "",
+  });
+  const result = await sendPortalMail(input.to, message.subject, portalEmailHtml(message.heading, message.bodyHtml));
+  return { ...result, subject: message.subject };
+}
+
+export async function sendShipmentQueuedEmail(input: {
+  to: string;
+  petName: string;
+  orderId: string;
+  portalUrl?: string;
+}) {
+  const message = await renderPortalEmail("shipment_queued", {
+    petName: input.petName || "a portrait",
+    orderShort: input.orderId.slice(0, 8).toUpperCase(),
+    portalUrl: input.portalUrl || "",
+  });
+  const result = await sendPortalMail(input.to, message.subject, portalEmailHtml(message.heading, message.bodyHtml));
+  return { ...result, subject: message.subject };
+}
+
+export async function sendShippedEmail(input: { to: string; petName: string; trackingUrl: string }) {
+  const message = await renderPortalEmail("shipped", {
+    petName: input.petName || "your portrait",
+    trackingUrl: input.trackingUrl,
+  });
+  const result = await sendPortalMail(input.to, message.subject, portalEmailHtml(message.heading, message.bodyHtml));
+  return { ...result, subject: message.subject };
+}
+
+export async function sendArtistAssignedEmail(input: {
+  to: string;
+  artistName: string;
+  petName: string;
+  orderId: string;
+  portalUrl?: string;
+}) {
+  const message = await renderPortalEmail("artist_assigned", {
+    artistName: input.artistName || "there",
+    petName: input.petName || "a new portrait",
+    orderShort: input.orderId.slice(0, 8).toUpperCase(),
+    portalUrl: input.portalUrl || "",
+  });
+  const result = await sendPortalMail(input.to, message.subject, portalEmailHtml(message.heading, message.bodyHtml));
+  return { ...result, subject: message.subject };
+}
+
+export async function sendRevisionRequestedEmail(input: {
+  to: string;
+  artistName: string;
+  petName: string;
+  note: string;
+  portalUrl?: string;
+}) {
+  const message = await renderPortalEmail("revision_for_artist", {
+    artistName: input.artistName || "there",
+    petName: input.petName || "the portrait",
+    note: input.note,
+    portalUrl: input.portalUrl || "",
+  });
+  const result = await sendPortalMail(input.to, message.subject, portalEmailHtml(message.heading, message.bodyHtml));
+  return { ...result, subject: message.subject };
+}
+
+export async function sendOverdueEmail(input: {
+  to: string;
+  audience: "artist" | "admin";
+  artistName: string;
+  petName: string;
+  orderId: string;
+  dueLabel: string;
+  portalUrl?: string;
+}) {
+  const message = await renderPortalEmail(input.audience === "artist" ? "overdue_artist" : "overdue_admin", {
+    artistName: input.artistName || "there",
+    petName: input.petName || "a portrait",
+    orderShort: input.orderId.slice(0, 8).toUpperCase(),
+    dueAt: input.dueLabel,
+    portalUrl: input.portalUrl || "",
+  });
+  const result = await sendPortalMail(input.to, message.subject, portalEmailHtml(message.heading, message.bodyHtml));
+  return { ...result, subject: message.subject };
+}
 

@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { sendOrderEmail } from "@/lib/mailer";
+import { notifyOrderConfirmed } from "@/lib/notifications";
+import { ensureWorkflow, isUuid } from "@/lib/portal-db";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { calculateQuote, type PricingInput } from "@/lib/pricing";
+import { quoteCheckout } from "@/lib/quote-order";
+import type { PricingInput } from "@/lib/pricing";
+import { petPhotoIsReachable, storedPetPhotoUrl } from "@/lib/pet-photo";
 import { paymentAlreadyRecorded, verifyRazorpaySignature } from "@/lib/razorpay";
 
 function isValidEmail(email: string) {
@@ -15,7 +19,7 @@ export async function POST(req: Request) {
 
     let quote;
     try {
-      quote = calculateQuote(pricingInput);
+      quote = await quoteCheckout(pricingInput, String(body.customerEmail || ""));
     } catch (err: any) {
       return NextResponse.json(
         { success: false, error: err.message || "Invalid pricing details." },
@@ -42,6 +46,19 @@ export async function POST(req: Request) {
     }
     if (quote.productType === "portrait" && !shippingAddress) {
       return NextResponse.json({ success: false, error: "Please enter your full address to continue." }, { status: 400 });
+    }
+
+    const supabaseHost = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "")
+      .replace(/^https?:\/\//, "")
+      .replace(/\/$/, "");
+    const rawPhotoUrl = String(body.photoUrl || "").trim();
+    const photoUrl = storedPetPhotoUrl(rawPhotoUrl, supabaseHost);
+    const photoRequired = quote.productType === "portrait" || quote.productType === "digital_download";
+    if ((rawPhotoUrl && !photoUrl) || (photoRequired && !photoUrl) || (photoUrl && !(await petPhotoIsReachable(photoUrl)))) {
+      return NextResponse.json(
+        { success: false, error: "The pet photo was not saved. Please upload it again before paying." },
+        { status: 400 }
+      );
     }
 
     const razorpayPaymentId = String(body.razorpayPaymentId || "");
@@ -96,7 +113,7 @@ export async function POST(req: Request) {
       memorial_text: body.memorialText || "",
       portrait_style: body.portraitStyle || quote.productType,
       total_price: quote.afterCouponAmount,
-      photo_url: body.photoUrl || "",
+      photo_url: photoUrl,
       coupon_code: quote.couponCode,
       discount_amount: totalDiscount,
       prepaid_discount: quote.prepaidDiscount,
@@ -114,11 +131,7 @@ export async function POST(req: Request) {
       created_at: new Date().toISOString(),
     };
 
-    const { data, error } = await supabaseAdmin
-      .from("orders")
-      .insert([orderRow])
-      .select()
-      .single();
+    const { data, error } = await supabaseAdmin.from("orders").insert([orderRow]).select().single();
 
     if (error) {
       console.warn("Supabase Database Insert Error. Falling back to mock order success:", error);
@@ -138,16 +151,27 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, orderId: mockId, quote });
     }
 
-    try {
-      await sendOrderEmail({
-        ...data,
-        razorpayPaymentId,
-        razorpayOrderId,
-        razorpaySignature,
-        quote,
-      });
-    } catch (mailError) {
-      console.error("Mail Error in Success Flow:", mailError);
+    if (data?.id && isUuid(String(data.id))) {
+      try {
+        await ensureWorkflow({
+          id: String(data.id),
+          photo_url: data.photo_url,
+          created_at: data.created_at,
+        });
+      } catch (workflowError) {
+        console.error("Workflow setup error:", workflowError);
+      }
+      try {
+        await notifyOrderConfirmed({
+          ...data,
+          razorpayPaymentId,
+          razorpayOrderId,
+          razorpaySignature,
+          quote,
+        });
+      } catch (mailError) {
+        console.error("Mail Error in Success Flow:", mailError);
+      }
     }
 
     return NextResponse.json({ success: true, orderId: data.id, quote });

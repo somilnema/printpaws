@@ -179,7 +179,6 @@ export function Reviews() {
                     fill
                     sizes="(max-width: 768px) 50vw, (max-width: 1024px) 50vw, 33vw"
                     className="object-cover group-hover:scale-105 transition-transform duration-500"
-                    unoptimized
                   />
                   {review.hasMultiplePhotos && (
                     <div className="absolute top-2.5 right-2.5 bg-black/60 backdrop-blur-sm text-white px-1.5 py-0.5 rounded text-[8px] md:text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm">
