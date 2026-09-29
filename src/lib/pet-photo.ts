@@ -23,7 +23,7 @@ export function isWatermarkedProof(value: unknown) {
 export async function petPhotoIsReachable(url: string) {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const res = await fetch(url, { method: "GET", redirect: "follow", cache: "no-store" });
+      const res = await fetch(url, { method: "GET", redirect: "follow", cache: "no-store", signal: AbortSignal.timeout(8000) });
       const type = (res.headers.get("content-type") || "").toLowerCase();
       const ok = res.ok && (type.startsWith("image/") || type.includes("octet-stream"));
       await res.body?.cancel();

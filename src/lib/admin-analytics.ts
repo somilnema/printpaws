@@ -80,7 +80,7 @@ export type AnalyticsReport = {
   peak: SeriesPoint | null;
 };
 
-const SKIPPED = new Set(["cancelled", "canceled", "failed", "refunded", "void"]);
+const SKIPPED = new Set(["cancelled", "canceled", "failed", "refunded", "void", "pending", "abandoned"]);
 
 const STAGE_ORDER = [
   "awaiting_images",

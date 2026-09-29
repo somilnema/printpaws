@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { storedPetPhotoUrl } from "@/lib/pet-photo";
 import { uploadPetPhotoFile } from "@/lib/uploadPetPhoto";
 import {
@@ -85,7 +84,6 @@ function FieldError({ message }: { message?: string }) {
 }
 
 export function ProductInfo() {
-  const router = useRouter();
   const [currentStep, setCurrentStepRaw] = useState(1);
   const currentStepSafe = Math.min(Math.max(currentStep, 1), 3);
   const setCurrentStep = (value: number | ((prev: number) => number)) => {
@@ -143,6 +141,8 @@ export function ProductInfo() {
   const [showSandboxModal, setShowSandboxModal] = useState(false);
   const [sandboxOrderData, setSandboxOrderData] = useState<any>(null);
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
+  const [paymentNotice, setPaymentNotice] = useState<{ title: string; message: string } | null>(null);
+  const paymentSettled = useRef(false);
   const [deliveryDates, setDeliveryDates] = useState("");
 
   useEffect(() => {
@@ -580,11 +580,7 @@ export function ProductInfo() {
     setOrderStatus('idle');
 
     try {
-      const publicUrl = await ensurePhotoUploaded();
-      const photoRequired = productType === "portrait" || productType === "digital_download";
-      if (photoRequired && !storedPetPhotoUrl(publicUrl)) {
-        throw new Error("The pet photo was not saved. Please upload it again before paying.");
-      }
+      const publicUrl = await ensurePhotoUploaded().catch(() => uploadedPhotoUrlRef.current);
 
       const response = await fetch('/api/checkout', {
         method: 'POST',
@@ -599,18 +595,24 @@ export function ProductInfo() {
 
       const result = await response.json();
 
-      if (result.success) {
+      if (result.success && result.orderId) {
         setOrderStatus('success');
         localStorage.removeItem('peternity_cart');
-        router.push(`/checkout/success?orderId=${result.orderId}`);
-      } else {
-        setOrderStatus('error');
-        setWarningMessage(result.error || "Server failed to record order specifications.");
+        window.location.assign(`/checkout/success?orderId=${encodeURIComponent(result.orderId)}`);
+        return;
       }
+      setOrderStatus('error');
+      setPaymentNotice({
+        title: "Payment received",
+        message: `${result.error || "We could not finish saving the order."} If money was deducted, contact Peternity with payment ${razorpayPaymentId}.`,
+      });
     } catch (err: any) {
       console.error("Checkout Submit Order Error:", err);
       setOrderStatus('error');
-      setWarningMessage(err.message || "Failed to submit finalized order data.");
+      setPaymentNotice({
+        title: "Payment received",
+        message: `${err.message || "We could not finish saving the order."} If money was deducted, contact Peternity with payment ${razorpayPaymentId}.`,
+      });
     } finally {
       setIsSubmitting(false);
       setShowSandboxModal(false);
@@ -677,12 +679,19 @@ export function ProductInfo() {
 
     setIsSubmitting(true);
     setOrderStatus('idle');
-    const payload = checkoutPayload();
+    setPaymentNotice(null);
+    paymentSettled.current = false;
 
     try {
-      if (selectedFile) {
-        await ensurePhotoUploaded();
+      const photoRequired = productType === "portrait" || productType === "digital_download";
+      let photoUrl = storedPetPhotoUrl(uploadedPhotoUrlRef.current);
+      if (photoRequired || selectedFile) {
+        photoUrl = await ensurePhotoUploaded();
       }
+      if (photoRequired && !storedPetPhotoUrl(photoUrl)) {
+        throw new Error("The pet photo was not saved. Please upload it again before paying.");
+      }
+      const payload = checkoutPayload(photoUrl);
 
       const res = await fetch("/api/razorpay/order", {
         method: "POST",
@@ -719,7 +728,10 @@ export function ProductInfo() {
           name: "Peternity",
           description: PRODUCT_LABELS[productType],
           order_id: orderData.orderId,
+          callback_url: `${window.location.origin}/api/razorpay/callback`,
+          redirect: true,
           handler: async function (response: any) {
+            paymentSettled.current = true;
             await submitFinalOrder(
               response.razorpay_payment_id,
               response.razorpay_order_id,
@@ -737,11 +749,25 @@ export function ProductInfo() {
           modal: {
             ondismiss: function () {
               setIsSubmitting(false);
+              if (paymentSettled.current) return;
+              setPaymentNotice({
+                title: "Payment not completed",
+                message: "The payment window was closed before the payment finished. You have not been charged. Your order details are still here, so you can try again.",
+              });
             },
           },
         };
 
         const razorpayInstance = new (window as any).Razorpay(options);
+        razorpayInstance.on("payment.failed", function (response: any) {
+          paymentSettled.current = true;
+          setIsSubmitting(false);
+          const reason = response?.error?.description || "The bank or UPI app declined this payment. You have not been charged.";
+          setPaymentNotice({
+            title: "Payment failed",
+            message: reason,
+          });
+        });
         razorpayInstance.open();
         setIsSubmitting(false);
       }
@@ -2213,6 +2239,10 @@ export function ProductInfo() {
                     onClick={() => {
                       setShowSandboxModal(false);
                       setIsSubmitting(false);
+                      setPaymentNotice({
+                        title: "Payment failed",
+                        message: "The payment was cancelled. You have not been charged. Your order details are still here, so you can try again.",
+                      });
                     }}
                     disabled={isSubmitting}
                     className="w-full py-4 bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold uppercase tracking-widest text-xs rounded-2xl transition-colors flex items-center justify-center"
@@ -2228,6 +2258,40 @@ export function ProductInfo() {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {paymentNotice && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl relative overflow-hidden"
+            >
+              <div className={`absolute top-0 left-0 w-full h-1.5 ${paymentNotice.title === "Payment received" ? "bg-[#A87B62]" : "bg-rose-500"}`} />
+              <div className="flex flex-col items-center text-center space-y-4">
+                <div className={`w-14 h-14 rounded-full flex items-center justify-center ${paymentNotice.title === "Payment received" ? "bg-[#fcf8f5] text-[#A87B62]" : "bg-rose-50 text-rose-500"}`}>
+                  {paymentNotice.title === "Payment received" ? <ShieldCheck size={26} /> : <span className="text-2xl font-black">!</span>}
+                </div>
+                <h3 className="text-lg font-black text-[#1a1a1b] uppercase tracking-tight">{paymentNotice.title}</h3>
+                <p className="text-sm font-medium text-gray-500 leading-relaxed">{paymentNotice.message}</p>
+                <button
+                  type="button"
+                  onClick={() => setPaymentNotice(null)}
+                  className="w-full py-3 bg-[#1a1a1b] text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-[#2F2F2F] transition-all shadow-md active:scale-95"
+                >
+                  {paymentNotice.title === "Payment received" ? "Close" : "Try again"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 

@@ -81,9 +81,24 @@ function SuccessContent() {
     );
   }
 
-  // Display default/mock fallback if orderId is missing or database check is bypassed
-  const displayOrderId = orderId || 'ORDER-' + Math.random().toString(36).substr(2, 9).toUpperCase();
-  const customerEmailAddress = orderData?.customer_email || 'your email';
+  const displayOrderId = orderId || "";
+  const customerEmailAddress = orderData?.customer_email || "your email";
+
+  if (!displayOrderId) {
+    return (
+      <div className="min-h-screen bg-white font-inter pt-24 pb-16 px-6">
+        <div className="max-w-xl mx-auto text-center space-y-4">
+          <h1 className="text-3xl font-black text-[#1a1a1b] uppercase tracking-tight">We could not confirm this payment</h1>
+          <p className="text-gray-500 text-sm leading-relaxed">
+            There is no order reference on this page. If money was deducted, contact Peternity and we will match the payment.
+          </p>
+          <a href="/" className="inline-flex px-8 py-4 bg-[#1a1a1b] text-white rounded-2xl font-bold uppercase tracking-widest text-xs">
+            Back to store
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white font-inter pt-24 pb-16 px-6 relative overflow-hidden">
@@ -124,7 +139,7 @@ function SuccessContent() {
         >
           <span className="text-primary font-bold uppercase tracking-[0.4em] text-xs">Payment Successful</span>
           <h1 className="text-4xl md:text-5xl font-black text-[#1a1a1b] uppercase tracking-tighter leading-none mb-4">
-            Payment Completed! 🐾
+            Thank you! 🐾
           </h1>
           <p className="text-gray-600 text-base md:text-lg max-w-xl mx-auto leading-relaxed">
             Yes, we received your payment! You will receive a confirmation email shortly at <span className="font-bold text-primary">{customerEmailAddress}</span> with your order details and custom choices.
@@ -147,7 +162,7 @@ function SuccessContent() {
                 <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1">Order Status</p>
                 <div className="flex items-center gap-1.5 px-3 py-1 bg-green-50 text-green-600 rounded-full text-xs font-bold w-fit">
                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                   RECEIVED & VERIFIED
+                   {orderExists ? "RECEIVED & VERIFIED" : "PAYMENT RECEIVED"}
                 </div>
              </div>
              <div className="text-left md:text-right">

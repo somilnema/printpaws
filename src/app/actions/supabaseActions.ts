@@ -1,7 +1,6 @@
 'use server';
 
 import { storedPetPhotoUrl } from '@/lib/pet-photo';
-import { supabase } from '@/lib/supabase';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function uploadPetPhoto(formData: FormData): Promise<string> {
@@ -28,7 +27,7 @@ export async function uploadPetPhoto(formData: FormData): Promise<string> {
 }
 
 export async function getOrderDetails(orderId: string) {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('orders')
     .select('*')
     .eq('id', orderId)

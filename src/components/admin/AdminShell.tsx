@@ -223,6 +223,8 @@ function OrdersPanel({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return dashboard.orders.filter((order) => {
+      const status = (order.status || "").toLowerCase();
+      if (status === "pending" || status === "abandoned" || status === "failed") return false;
       if (!orderInRange(order, range)) return false;
       if (stage === "decision" && !order.needs_decision) return false;
       if (stage === "overdue" && !order.overdue) return false;

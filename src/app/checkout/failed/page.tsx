@@ -54,9 +54,9 @@ function FailedContent() {
           transition={{ delay: 0.1 }}
           className="space-y-4"
         >
-          <span className="text-rose-500 font-bold uppercase tracking-[0.3em] text-xs">Transaction Incomplete</span>
+          <span className="text-rose-500 font-bold uppercase tracking-[0.3em] text-xs">Payment failed</span>
           <h1 className="text-4xl md:text-5xl font-black text-[#1a1a1b] uppercase tracking-tighter leading-none mb-4">
-            Payment Declined or Cancelled
+            Payment failed
           </h1>
           <p className="text-gray-500 text-sm md:text-base max-w-lg mx-auto leading-relaxed">
             Your transaction was not completed successfully. Don't worry - your cart details and configurations are saved, and you have not been charged.
