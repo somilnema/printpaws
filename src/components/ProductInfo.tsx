@@ -1947,6 +1947,65 @@ export function ProductInfo() {
 
               <div className="flex-1 overflow-y-auto p-5 space-y-6">
                 <div className="space-y-3">
+                  <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Payment Options</h3>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("prepaid")}
+                    className={`w-full text-left p-4 rounded-2xl border-[2px] transition-all ${paymentMethod === "prepaid" ? "border-[#1a1a1b] bg-white shadow-md" : "border-gray-200 bg-white"}`}
+                  >
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="flex items-start gap-3">
+                        <Wallet size={18} className="text-[#A87B62] mt-0.5" />
+                        <div>
+                          <p className="font-black text-sm text-[#1a1a1b]">Full Payment / Prepaid</p>
+                          <p className="text-[11px] text-green-700 font-bold mt-0.5">{catalog.prepaidPercent}% discount for paying the full amount now</p>
+                        </div>
+                      </div>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === "prepaid" ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
+                        {paymentMethod === "prepaid" && <Check size={12} className="text-white" strokeWidth={3} />}
+                      </div>
+                    </div>
+                    <div className="space-y-1 text-[12px] bg-[#faf8f5] rounded-xl p-3">
+                      <div className="flex justify-between"><span className="text-gray-500">Order Total</span><span className="font-bold">{formatRs(prepaidQuote.afterCouponAmount)}</span></div>
+                      <div className="flex justify-between text-green-700"><span>Prepaid Discount ({catalog.prepaidPercent}%)</span><span className="font-bold">- {formatRs(prepaidQuote.prepaidDiscount)}</span></div>
+                      <div className="flex justify-between pt-1 border-t border-dashed border-[#eadfc9] font-black"><span>Pay Now</span><span>{formatRs(prepaidQuote.payableNow)}</span></div>
+                    </div>
+                  </button>
+
+                  {displayQuote.allowsCod && (
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod("cod")}
+                      className={`w-full text-left p-4 rounded-2xl border-[2px] transition-all ${paymentMethod === "cod" ? "border-[#1a1a1b] bg-white shadow-md" : "border-gray-200 bg-white"}`}
+                    >
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="flex items-start gap-3">
+                          <IndianRupee size={18} className="text-[#A87B62] mt-0.5" />
+                          <div>
+                            <p className="font-black text-sm text-[#1a1a1b]">Cash on Delivery</p>
+                            <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">
+                              Pay {catalog.codAdvancePercent}% now to confirm your order. Remaining {100 - catalog.codAdvancePercent}% will be payable at the time of delivery.
+                            </p>
+                          </div>
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === "cod" ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
+                          {paymentMethod === "cod" && <Check size={12} className="text-white" strokeWidth={3} />}
+                        </div>
+                      </div>
+                      <div className="space-y-1 text-[12px] bg-[#faf8f5] rounded-xl p-3">
+                        <div className="flex justify-between"><span className="text-gray-500">Order Total</span><span className="font-bold">{formatRs(codQuote.afterCouponAmount)}</span></div>
+                        <div className="flex justify-between"><span>{catalog.codAdvancePercent}% Advance</span><span className="font-bold">{formatRs(codQuote.advanceAmount)}</span></div>
+                        <div className="flex justify-between pt-1 border-t border-dashed border-[#eadfc9]">
+                          <span>Remaining {100 - catalog.codAdvancePercent}%</span>
+                          <span className="font-bold">{formatRs(codQuote.remainingAmount)} — Payable on Delivery</span>
+                        </div>
+                      </div>
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-3">
                   <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Delivery Details</h3>
                   <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
                     <div>
@@ -2055,65 +2114,6 @@ export function ProductInfo() {
                       </>
                     )}
                   </div>
-                </div>
-
-                <div className="space-y-3">
-                  <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Payment Options</h3>
-
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("prepaid")}
-                    className={`w-full text-left p-4 rounded-2xl border-[2px] transition-all ${paymentMethod === "prepaid" ? "border-[#1a1a1b] bg-white shadow-md" : "border-gray-200 bg-white"}`}
-                  >
-                    <div className="flex items-start justify-between gap-3 mb-3">
-                      <div className="flex items-start gap-3">
-                        <Wallet size={18} className="text-[#A87B62] mt-0.5" />
-                        <div>
-                          <p className="font-black text-sm text-[#1a1a1b]">Full Payment / Prepaid</p>
-                          <p className="text-[11px] text-green-700 font-bold mt-0.5">{catalog.prepaidPercent}% discount for paying the full amount now</p>
-                        </div>
-                      </div>
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === "prepaid" ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
-                        {paymentMethod === "prepaid" && <Check size={12} className="text-white" strokeWidth={3} />}
-                      </div>
-                    </div>
-                    <div className="space-y-1 text-[12px] bg-[#faf8f5] rounded-xl p-3">
-                      <div className="flex justify-between"><span className="text-gray-500">Order Total</span><span className="font-bold">{formatRs(prepaidQuote.afterCouponAmount)}</span></div>
-                      <div className="flex justify-between text-green-700"><span>Prepaid Discount ({catalog.prepaidPercent}%)</span><span className="font-bold">- {formatRs(prepaidQuote.prepaidDiscount)}</span></div>
-                      <div className="flex justify-between pt-1 border-t border-dashed border-[#eadfc9] font-black"><span>Pay Now</span><span>{formatRs(prepaidQuote.payableNow)}</span></div>
-                    </div>
-                  </button>
-
-                  {displayQuote.allowsCod && (
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod("cod")}
-                      className={`w-full text-left p-4 rounded-2xl border-[2px] transition-all ${paymentMethod === "cod" ? "border-[#1a1a1b] bg-white shadow-md" : "border-gray-200 bg-white"}`}
-                    >
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <div className="flex items-start gap-3">
-                          <IndianRupee size={18} className="text-[#A87B62] mt-0.5" />
-                          <div>
-                            <p className="font-black text-sm text-[#1a1a1b]">Cash on Delivery</p>
-                            <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">
-                              Pay {catalog.codAdvancePercent}% now to confirm your order. Remaining {100 - catalog.codAdvancePercent}% will be payable at the time of delivery.
-                            </p>
-                          </div>
-                        </div>
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${paymentMethod === "cod" ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
-                          {paymentMethod === "cod" && <Check size={12} className="text-white" strokeWidth={3} />}
-                        </div>
-                      </div>
-                      <div className="space-y-1 text-[12px] bg-[#faf8f5] rounded-xl p-3">
-                        <div className="flex justify-between"><span className="text-gray-500">Order Total</span><span className="font-bold">{formatRs(codQuote.afterCouponAmount)}</span></div>
-                        <div className="flex justify-between"><span>{catalog.codAdvancePercent}% Advance</span><span className="font-bold">{formatRs(codQuote.advanceAmount)}</span></div>
-                        <div className="flex justify-between pt-1 border-t border-dashed border-[#eadfc9]">
-                          <span>Remaining {100 - catalog.codAdvancePercent}%</span>
-                          <span className="font-bold">{formatRs(codQuote.remainingAmount)} — Payable on Delivery</span>
-                        </div>
-                      </div>
-                    </button>
-                  )}
                 </div>
               </div>
 
