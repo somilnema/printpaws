@@ -25,6 +25,7 @@ import { OrderTimeline } from "@/components/OrderTimeline";
 import { PasswordInput } from "@/components/PasswordInput";
 import { AnalyticsOverview, DateRangeBar, defaultRange } from "@/components/admin/AnalyticsOverview";
 import { CouponsPanel } from "@/components/admin/CouponsPanel";
+import { ManualOrderForm } from "@/components/admin/ManualOrderForm";
 import { PricingPanel } from "@/components/admin/PricingPanel";
 import { sectionTabClass } from "@/components/admin/DeskSwitch";
 import { buttonClass, DeskLogo, errorClass, ghostButtonClass, inputClass, Panel, warnClass } from "@/components/admin/ui";
@@ -218,6 +219,7 @@ function OrdersPanel({
   const [stage, setStage] = useState("");
   const [visible, setVisible] = useState(20);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
 
   const bounds = useMemo(() => rangeBounds(range), [range]);
   const filtered = useMemo(() => {
@@ -242,6 +244,13 @@ function OrdersPanel({
 
   return (
     <div className="space-y-3">
+      {adding ? (
+        <ManualOrderForm onClose={() => setAdding(false)} onCreated={onChanged} />
+      ) : (
+        <button type="button" onClick={() => setAdding(true)} className={buttonClass}>
+          + Add offline order
+        </button>
+      )}
       {dashboard.workload.length > 0 ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {dashboard.workload.map((artist) => (

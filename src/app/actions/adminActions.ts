@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { headers } from "next/headers";
 import { getAdminSession } from "@/lib/admin-auth";
 import {
@@ -11,7 +12,7 @@ import {
   maximumDueAt,
   type OrderUpdate,
 } from "@/lib/fulfillment";
-import { notifyArtistAssigned, retryEmail } from "@/lib/notifications";
+import { notifyArtistAssigned, notifyOrderConfirmed, retryEmail } from "@/lib/notifications";
 import { sendOverdueReminders } from "@/lib/overdue";
 import { hashPassword } from "@/lib/passwords";
 import {
@@ -39,6 +40,7 @@ import {
   type VendorAttempt,
 } from "@/lib/portal-db";
 import { acceptLatestForShipment } from "@/app/actions/trackActions";
+import { storedPetPhotoUrl } from "@/lib/pet-photo";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export type AdminOrder = {
@@ -571,6 +573,126 @@ export async function retryLoggedEmail(eventKey: string) {
   const result = await retryEmail(eventKey);
   if (!result.ok) return result;
   return { ok: true as const };
+}
+
+export type ManualOrderInput = {
+  customerName: string;
+  customerPhone: string;
+  customerEmail: string;
+  petName: string;
+  portraitStyle: "framed" | "canvas";
+  size: string;
+  numPets: string;
+  background: string;
+  font: string;
+  memorialText: string;
+  addon: string;
+  giftWrap: boolean;
+  photoUrl: string;
+  shippingAddress: string;
+  shippingLandmark: string;
+  shippingCity: string;
+  shippingState: string;
+  shippingPincode: string;
+  totalPrice: number;
+  paymentMode: "prepaid" | "partial";
+  advancePaid: number;
+  orderDate: string;
+  sendEmail: boolean;
+};
+
+export async function createManualOrder(input: ManualOrderInput) {
+  const session = await getAdminSession();
+  if (!session) return { ok: false as const, error: "Sign in again to continue." };
+
+  const customerName = input.customerName.trim();
+  const customerPhone = input.customerPhone.trim();
+  const customerEmail = input.customerEmail.trim().toLowerCase();
+  const shippingAddress = input.shippingAddress.trim();
+  const total = Number(input.totalPrice);
+  const advance = Number(input.advancePaid) || 0;
+
+  if (!customerName) return { ok: false as const, error: "Enter the customer's name." };
+  if (customerPhone.replace(/\D/g, "").length < 10) return { ok: false as const, error: "Enter a valid 10-digit phone number." };
+  if (customerEmail && !isEmail(customerEmail)) return { ok: false as const, error: "Enter a valid email or leave it empty." };
+  if (!shippingAddress) return { ok: false as const, error: "Enter the shipping address." };
+  if (!Number.isFinite(total) || total <= 0) return { ok: false as const, error: "Enter the order amount." };
+  if (input.paymentMode === "partial" && (advance < 0 || advance > total)) {
+    return { ok: false as const, error: "Advance paid has to be between 0 and the order amount." };
+  }
+
+  const placedAt = new Date(input.orderDate);
+  if (Number.isNaN(placedAt.getTime())) return { ok: false as const, error: "Choose the order date." };
+  if (placedAt.getTime() > Date.now() + 5 * 60 * 1000) return { ok: false as const, error: "The order date cannot be in the future." };
+
+  const supabaseHost = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "")
+    .replace(/^https?:\/\//, "")
+    .replace(/\/$/, "");
+  const photoUrl = storedPetPhotoUrl(input.photoUrl, supabaseHost);
+  if (input.photoUrl.trim() && !photoUrl) return { ok: false as const, error: "The pet photo was not saved. Upload it again." };
+
+  const partial = input.paymentMode === "partial";
+  const row = {
+    customer_name: customerName,
+    customer_phone: customerPhone,
+    customer_email: customerEmail,
+    pet_name: input.petName.trim() || "Offline order",
+    portrait_style: input.portraitStyle,
+    frame_style: input.portraitStyle,
+    size: input.size.trim(),
+    num_pets: input.numPets || "one",
+    background: input.background.trim(),
+    font: input.font.trim(),
+    memorial_text: input.memorialText.trim(),
+    addon: input.addon.trim(),
+    gift_wrap: !!input.giftWrap,
+    photo_url: photoUrl,
+    shipping_address: shippingAddress,
+    shipping_landmark: input.shippingLandmark.trim(),
+    shipping_city: input.shippingCity.trim(),
+    shipping_state: input.shippingState.trim(),
+    shipping_pincode: input.shippingPincode.trim(),
+    total_price: total,
+    discount_amount: 0,
+    prepaid_discount: 0,
+    payment_mode: partial ? "partial" : "prepaid",
+    online_paid: partial ? advance : total,
+    cod_due: partial ? total - advance : 0,
+    status: partial ? "partial_paid" : "paid",
+    razorpay_order_id: `offline_${randomUUID()}`,
+    created_at: placedAt.toISOString(),
+  };
+
+  const { data, error } = await supabaseAdmin.from("orders").insert([row]).select("*").single();
+  if (error || !data?.id) {
+    console.error("Manual order insert error:", error);
+    return { ok: false as const, error: error?.message || "The order could not be saved." };
+  }
+  const orderId = String(data.id);
+
+  try {
+    // The artwork clock starts now, not on the back-dated order date, so old offline orders are not instantly overdue.
+    await ensureWorkflow({ id: orderId, photo_url: photoUrl, created_at: new Date().toISOString() });
+  } catch (err) {
+    console.error("Manual order workflow error:", err);
+  }
+
+  await recordEvent({
+    order_id: orderId,
+    actor: session.user,
+    action: "offline_order_added",
+    detail: `Order date ${placedAt.toISOString()}`,
+  });
+
+  if (input.sendEmail && customerEmail) {
+    try {
+      await notifyOrderConfirmed(data);
+    } catch (err) {
+      console.error("Manual order email error:", err);
+    }
+  }
+
+  return { ok: true as const, orderId };
 }
 
 export async function refreshAdminDashboard(): Promise<AdminDashboard | null> {
