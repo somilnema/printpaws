@@ -2,7 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
-import { getCloudinaryUrl } from "@/utils/cloudinary";
+import { useMedia } from "@/components/SiteMedia";
 
 const PORTRAITS = [
   {
@@ -48,6 +48,7 @@ const PORTRAITS = [
 ];
 
 export function IllustratedCarousel() {
+  const media = useMedia();
   return (
     <section className="pt-2 pb-8 md:py-16 bg-white overflow-hidden">
       <div className="container mx-auto px-4">
@@ -98,7 +99,7 @@ export function IllustratedCarousel() {
                   {/* Full-bleed Portrait Image */}
                   <div className="absolute inset-0 w-full h-full">
                     <Image
-                      src={getCloudinaryUrl(pet.image)}
+                      src={media(pet.image)}
                       alt={pet.name}
                       fill
                       className="object-cover transition-transform duration-700 group-hover/card:scale-105"

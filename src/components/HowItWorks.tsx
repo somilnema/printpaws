@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { Check } from "lucide-react";
-import { getCloudinaryUrl } from "@/utils/cloudinary";
+import { useMedia } from "@/components/SiteMedia";
 
 const STEPS = [
   {
@@ -20,6 +20,7 @@ const STEPS = [
 ];
 
 export function HowItWorks() {
+  const media = useMedia();
   return (
     <section id="how-it-works" className="pt-6 pb-12 md:pt-8 md:pb-20 bg-white">
       <div className="container mx-auto px-4">
@@ -27,7 +28,7 @@ export function HowItWorks() {
           <div className="w-full lg:w-1/2 flex items-center justify-center p-0 sm:p-6 md:p-10 lg:p-12 bg-[#f8f9fa]">
             <div className="w-full sm:shadow-lg rounded-t-[2rem] sm:rounded-[2.5rem] overflow-hidden bg-white">
               <Image
-                src={getCloudinaryUrl("how-it-works-new.png")}
+                src={media("how-it-works-new.png")}
                 alt="Custom pet portrait process"
                 width={700}
                 height={500}

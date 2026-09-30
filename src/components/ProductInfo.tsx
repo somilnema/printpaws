@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { getCloudinaryUrl } from "@/utils/cloudinary";
+import { useMedia } from "@/components/SiteMedia";
 import {
   calculateQuote,
   couponOffLabel,
@@ -84,6 +84,7 @@ function FieldError({ message }: { message?: string }) {
 }
 
 export function ProductInfo() {
+  const media = useMedia();
   const [currentStep, setCurrentStepRaw] = useState(1);
   const currentStepSafe = Math.min(Math.max(currentStep, 1), 3);
   const setCurrentStep = (value: number | ((prev: number) => number)) => {
@@ -311,7 +312,7 @@ export function ProductInfo() {
     {
       content: "Didn’t think I’d get emotional over a portrait honestly… but they captured him so perfectly. My family loved it instantly.",
       author: "Vaidehi",
-      avatar: getCloudinaryUrl("review bar image 1.jpg.jpeg")
+      avatar: "review bar image 1.jpg.jpeg"
     }
   ];
 
@@ -836,7 +837,7 @@ export function ProductInfo() {
         <div className="bg-[#1a1a1b] text-white p-4 rounded-3xl flex items-center gap-4 shadow-lg mx-1 transform -translate-y-1.5">
           <div className="relative w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 border border-white/10">
             <Image 
-              src={getCloudinaryUrl("Nandini review image.jpg.jpeg")} 
+              src={media("Nandini review image.jpg.jpeg")} 
               alt="Review attachment" 
               fill
               sizes="48px"
@@ -1514,7 +1515,7 @@ export function ProductInfo() {
             >
               <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-sm flex-shrink-0 bg-[#A87B62]">
                 <Image
-                  src={testimonials[testimonialIndex].avatar}
+                  src={media(testimonials[testimonialIndex].avatar)}
                   alt={testimonials[testimonialIndex].author}
                   fill
                   sizes="64px"

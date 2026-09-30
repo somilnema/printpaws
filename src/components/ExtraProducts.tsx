@@ -1,5 +1,6 @@
 "use client";
 
+import { useMedia } from "@/components/SiteMedia";
 import { extraCatalog, DEFAULT_CATALOG, type PriceCatalog } from "@/lib/pricing";
 
 type ExtraProductsProps = {
@@ -22,6 +23,7 @@ function ExtraCard({
   selected: boolean;
   onToggle: () => void;
 }) {
+  const media = useMedia();
   return (
     <button
       type="button"
@@ -33,7 +35,7 @@ function ExtraCard({
     >
       <div className="w-14 h-14 rounded-xl overflow-hidden bg-[#ece6e0] flex-shrink-0">
         <img
-          src={product.image}
+          src={media(product.image)}
           alt={product.label}
           className="w-full h-full object-cover"
         />

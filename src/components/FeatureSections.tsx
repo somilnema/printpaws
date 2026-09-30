@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
-import { getCloudinaryUrl } from "@/utils/cloudinary";
+import { useMedia } from "@/components/SiteMedia";
 import { ViewportVideo } from "@/components/ViewportVideo";
 
 const FEATURES = [
@@ -27,6 +27,7 @@ const FEATURES = [
 ];
 
 export function FeatureSections() {
+  const media = useMedia();
   return (
     <div className="pt-2 pb-20 md:pt-16 md:pb-32 space-y-16 md:space-y-40">
       {FEATURES.map((feature, i) => (
@@ -64,14 +65,14 @@ export function FeatureSections() {
               {feature.video ? (
                 <div className="relative w-full h-[400px] md:h-[580px] rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.1)]">
                   <ViewportVideo
-                    src={getCloudinaryUrl(feature.video)}
+                    src={media(feature.video)}
                     className="absolute inset-0 w-full h-full object-cover"
                   />
                 </div>
               ) : (
                 <div className="relative w-full h-[400px] md:h-[580px] rounded-[1.5rem] md:rounded-[2.5rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.1)]">
                   <Image
-                    src={getCloudinaryUrl(feature.image || "")}
+                    src={media(feature.image || "")}
                     alt={feature.title}
                     fill
                     sizes="(max-width: 1024px) 100vw, 50vw"

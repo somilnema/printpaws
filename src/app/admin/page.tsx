@@ -86,7 +86,7 @@ export default function AdminPage() {
         <div className="mx-auto max-w-md rounded-[2rem] border border-[#eeeeee] bg-white p-6 shadow-sm sm:p-8">
           <DeskLogo className="mx-auto" />
           <h1 className="mt-4 text-center text-3xl font-bold tracking-tight">Welcome back</h1>
-          <p className="mt-2 text-center text-sm text-[#9ca3af]">Sign in to manage orders, prices, and coupons.</p>
+          <p className="mt-2 text-center text-sm text-[#9ca3af]">Sign in to manage orders, prices, coupons, and photos.</p>
           <form onSubmit={handleLogin} className="mt-8 space-y-4">
             <label className="block space-y-1.5">
               <span className="text-xs font-medium text-[#6b7280]">Username</span>

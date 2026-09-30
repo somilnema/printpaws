@@ -17,6 +17,7 @@ import {
   type ArtistAccount,
 } from "@/app/actions/adminActions";
 import { addTeamNote, sendToVendor } from "@/app/actions/opsActions";
+import { getSiteMediaAdmin, type SiteMediaAdmin } from "@/app/actions/mediaActions";
 import { getStoreAdmin, type StoreAdmin } from "@/app/actions/storeActions";
 import { MessagesPanel } from "@/components/admin/MessagesPanel";
 import { TeamNotes } from "@/components/TeamNotes";
@@ -26,6 +27,7 @@ import { PasswordInput } from "@/components/PasswordInput";
 import { AnalyticsOverview, DateRangeBar, defaultRange } from "@/components/admin/AnalyticsOverview";
 import { CouponsPanel } from "@/components/admin/CouponsPanel";
 import { ManualOrderForm } from "@/components/admin/ManualOrderForm";
+import { MediaPanel } from "@/components/admin/MediaPanel";
 import { PricingPanel } from "@/components/admin/PricingPanel";
 import { sectionTabClass } from "@/components/admin/DeskSwitch";
 import { buttonClass, DeskLogo, errorClass, ghostButtonClass, inputClass, Panel, warnClass } from "@/components/admin/ui";
@@ -33,7 +35,7 @@ import { orderInRange, rangeBounds, type DateRange } from "@/lib/admin-analytics
 import { adminCanAssign, adminCanCancel, adminCanHold, artworkIsOpen, maximumDueAt, safeTrackingUrl, stageLabel } from "@/lib/fulfillment";
 import { isWatermarkedProof, storedPetPhotoUrl } from "@/lib/pet-photo";
 
-type Section = "overview" | "orders" | "artists" | "shipment" | "pricing" | "coupons" | "messages";
+type Section = "overview" | "orders" | "artists" | "shipment" | "pricing" | "coupons" | "media" | "messages";
 
 const NAV: { id: Section; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -42,6 +44,7 @@ const NAV: { id: Section; label: string }[] = [
   { id: "shipment", label: "Shipment" },
   { id: "pricing", label: "Pricing" },
   { id: "coupons", label: "Coupons" },
+  { id: "media", label: "Media" },
   { id: "messages", label: "Messages" },
 ];
 
@@ -79,6 +82,8 @@ export function AdminShell({
   const [range, setRange] = useState<DateRange>(() => defaultRange());
   const [store, setStore] = useState<StoreAdmin | null>(null);
   const [storeState, setStoreState] = useState<"idle" | "loading" | "ready" | "signed-out">("idle");
+  const [mediaLibrary, setMediaLibrary] = useState<SiteMediaAdmin | null>(null);
+  const [mediaState, setMediaState] = useState<"idle" | "loading" | "ready" | "signed-out">("idle");
 
   async function loadStore() {
     setStoreState("loading");
@@ -91,11 +96,28 @@ export function AdminShell({
     setStoreState("ready");
   }
 
+  async function loadMedia(quiet = false) {
+    if (!quiet) setMediaState("loading");
+    const data = await getSiteMediaAdmin();
+    if (!data) {
+      setMediaState("signed-out");
+      return;
+    }
+    setMediaLibrary(data);
+    setMediaState("ready");
+  }
+
   useEffect(() => {
     if ((section === "pricing" || section === "coupons") && storeState === "idle") {
       loadStore();
     }
   }, [section, storeState]);
+
+  useEffect(() => {
+    if (section === "media" && mediaState === "idle") {
+      loadMedia();
+    }
+  }, [section, mediaState]);
 
   const title = NAV.find((item) => item.id === section)?.label;
 
@@ -156,6 +178,15 @@ export function AdminShell({
           {section === "artists" ? <ArtistsPanel artists={dashboard.artists} onCreated={onRefresh} /> : null}
           {section === "shipment" ? <ShippersPanel shippers={dashboard.shippers} onCreated={onRefresh} /> : null}
           {section === "messages" ? <MessagesPanel /> : null}
+          {section === "media" ? (
+            mediaState === "signed-out" ? (
+              <p className="text-sm text-[#6b7280]">Sign in again to change photos and videos.</p>
+            ) : mediaState !== "ready" || !mediaLibrary ? (
+              <p className="text-sm text-[#6b7280]">Loading…</p>
+            ) : (
+              <MediaPanel initial={mediaLibrary} onChanged={() => loadMedia(true)} />
+            )
+          ) : null}
           {section === "pricing" || section === "coupons" ? (
             storeState === "signed-out" ? (
               <p className="text-sm text-[#6b7280]">Sign in again to edit prices and coupons.</p>

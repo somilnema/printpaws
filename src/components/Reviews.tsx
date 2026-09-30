@@ -2,6 +2,7 @@
 
 import { Star, Check } from "lucide-react";
 import Image from "next/image";
+import { useMedia } from "@/components/SiteMedia";
 
 interface ReviewItem {
   name: string;
@@ -140,6 +141,7 @@ const REVIEWS: ReviewItem[] = [
 ];
 
 export function Reviews() {
+  const media = useMedia();
   return (
     <section id="reviews" className="py-16 bg-white font-inter">
       <div className="container mx-auto px-4 max-w-5xl">
@@ -174,7 +176,7 @@ export function Reviews() {
               {review.image && (
                 <div className="relative w-full aspect-[3/4] overflow-hidden bg-gray-50 group">
                   <Image
-                    src={review.image}
+                    src={media(review.image)}
                     alt={`${review.name}'s custom pet portrait`}
                     fill
                     sizes="(max-width: 768px) 50vw, (max-width: 1024px) 50vw, 33vw"

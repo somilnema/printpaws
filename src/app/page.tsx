@@ -1,5 +1,3 @@
-"use client";
-
 import { AnnouncementBar } from "@/components/AnnouncementBar";
 import { Navbar } from "@/components/Navbar";
 import { ProductGallery } from "@/components/ProductGallery";
@@ -17,10 +15,15 @@ import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { ScrollingTicker } from "@/components/ScrollingTicker";
 import { Footer } from "@/components/Footer";
 import { RotatingHeadline } from "@/components/RotatingHeadline";
+import { SiteMediaProvider } from "@/components/SiteMedia";
 import { Star } from "lucide-react";
+import { loadSiteMedia } from "@/lib/site-media";
 
-export default function Page() {
+export default async function Page() {
+  const media = await loadSiteMedia();
+
   return (
+    <SiteMediaProvider overrides={media}>
     <div className="min-h-screen flex flex-col bg-white">
       <AnnouncementBar />
       <Navbar />
@@ -87,5 +90,6 @@ export default function Page() {
       <WhatsAppButton />
       <Footer />
     </div>
+    </SiteMediaProvider>
   );
 }

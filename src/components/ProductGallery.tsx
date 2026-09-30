@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
-import { getCloudinaryUrl } from "@/utils/cloudinary";
+import { useMedia } from "@/components/SiteMedia";
 
 const GALLERY_IMAGES: Record<string, string[]> = {
   // Pets (Section 1)
@@ -28,6 +28,7 @@ const GALLERY_IMAGES: Record<string, string[]> = {
 };
 
 export function ProductGallery() {
+  const media = useMedia();
   const [activeImage, setActiveImage] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState("one");
   const [selectedFrame, setSelectedFrame] = useState("black");
@@ -158,7 +159,7 @@ export function ProductGallery() {
                 <div 
                   className="w-full h-full p-4 md:p-8 flex items-center justify-center shadow-inner relative"
                   style={{
-                    backgroundImage: `url(${getCloudinaryUrl(selectedBgImage)})`,
+                    backgroundImage: `url(${media(selectedBgImage)})`,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
                   }}
@@ -169,7 +170,7 @@ export function ProductGallery() {
                   {/* Pet Portrait overlay */}
                   <div className="relative w-full h-full flex items-center justify-center">
                     <Image
-                      src={getCloudinaryUrl("/dog_portrait_closeup_1773940826280.png")}
+                      src={media("/dog_portrait_closeup_1773940826280.png")}
                       alt="Pet Portrait Overlay"
                       width={320}
                       height={400}
@@ -193,7 +194,7 @@ export function ProductGallery() {
               onDragEnd={handleDragEnd}
             >
               <Image
-                src={getCloudinaryUrl(currentImages[activeImage])}
+                src={media(currentImages[activeImage])}
                 alt={`Pet Portrait ${activeImage + 1}`}
                 fill
                 sizes="(max-width: 768px) 100vw, (max-width: 1024px) 640px, 640px"
@@ -244,7 +245,7 @@ export function ProductGallery() {
               }`}
             >
               <Image
-                src={getCloudinaryUrl(bgItem.path)}
+                src={media(bgItem.path)}
                 alt={bgItem.id}
                 fill
                 sizes="96px"
@@ -264,7 +265,7 @@ export function ProductGallery() {
               }`}
             >
               <Image
-                src={getCloudinaryUrl(img)}
+                src={media(img)}
                 alt={`Thumbnail ${idx + 1}`}
                 fill
                 sizes="96px"

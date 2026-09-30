@@ -3,7 +3,7 @@
 import React, { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
-import { getCloudinaryUrl } from "@/utils/cloudinary";
+import { useMedia } from "@/components/SiteMedia";
 import { ViewportVideo } from "@/components/ViewportVideo";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -59,6 +59,7 @@ const CARDS = [
 ];
 
 export function UnboxingCarousel() {
+  const media = useMedia();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -147,7 +148,7 @@ export function UnboxingCarousel() {
             >
               {card.video ? (
                 <ViewportVideo
-                  src={getCloudinaryUrl(card.video)}
+                  src={media(card.video)}
                   className="absolute inset-0 w-full h-full object-cover"
                 />
               ) : (
