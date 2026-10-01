@@ -40,3 +40,32 @@ export function PreviewImage({
     </div>
   );
 }
+
+export function PhotoUploadBar({ percent }: { percent: number }) {
+  const shown = Math.min(100, Math.max(0, Math.round(percent)));
+  const width = Math.min(100, Math.max(shown, 8));
+
+  return (
+    <div className="w-full">
+      <div className="mb-1.5 flex items-center justify-between text-[11px] font-bold text-[#1a1a1b]">
+        <span>Uploading photo</span>
+        <span>{shown}%</span>
+      </div>
+      <div
+        className="h-2.5 w-full overflow-hidden rounded-full bg-[#e7e5e4]"
+        role="progressbar"
+        aria-valuenow={shown}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label="Photo upload progress"
+      >
+        <div
+          className="relative h-full overflow-hidden rounded-full bg-[#A87B62] transition-[width] duration-200 ease-out"
+          style={{ width: `${width}%` }}
+        >
+          <div className="absolute inset-y-0 w-1/2 animate-photo-shimmer bg-gradient-to-r from-transparent via-white/55 to-transparent" />
+        </div>
+      </div>
+    </div>
+  );
+}

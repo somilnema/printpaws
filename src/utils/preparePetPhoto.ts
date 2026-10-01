@@ -33,9 +33,15 @@ export async function prepareImageFile(
 
   if (file.type === "image/jpeg" && file.size <= maxBytes) return file;
 
+  const decodeOptions: ImageBitmapOptions = { imageOrientation: "from-image" };
+  if (file.size > maxBytes) {
+    decodeOptions.resizeWidth = maxEdge;
+    decodeOptions.resizeQuality = "medium";
+  }
+
   let bitmap: ImageBitmap;
   try {
-    bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+    bitmap = await createImageBitmap(file, decodeOptions);
   } catch {
     try {
       bitmap = await createImageBitmap(file);

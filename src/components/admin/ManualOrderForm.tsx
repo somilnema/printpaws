@@ -3,7 +3,7 @@
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { createManualOrder, type ManualOrderInput } from "@/app/actions/adminActions";
 import { buttonClass, errorClass, Field, ghostButtonClass, inputClass, okClass, Panel } from "@/components/admin/ui";
-import { PreviewImage } from "@/components/PreviewImage";
+import { PhotoUploadBar, PreviewImage } from "@/components/PreviewImage";
 import { CANVAS_SIZES, FRAMED_SIZES } from "@/lib/pricing";
 import { uploadPetPhotoFile } from "@/lib/uploadPetPhoto";
 
@@ -48,6 +48,7 @@ export function ManualOrderForm({ onClose, onCreated }: { onClose: () => void; o
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [localPreview, setLocalPreview] = useState("");
+  const [uploadProgress, setUploadProgress] = useState(0);
   const previewUrl = useRef("");
 
   useEffect(() => {
@@ -69,9 +70,10 @@ export function ManualOrderForm({ onClose, onCreated }: { onClose: () => void; o
     previewUrl.current = url;
     setLocalPreview(url);
     setUploading(true);
+    setUploadProgress(6);
     setError("");
     try {
-      const url = await uploadPetPhotoFile(file);
+      const url = await uploadPetPhotoFile(file, (progress) => setUploadProgress(progress.percent));
       set("photoUrl", url);
     } catch (err) {
       setError(err instanceof Error ? err.message : "The photo could not be uploaded.");
@@ -135,6 +137,7 @@ export function ManualOrderForm({ onClose, onCreated }: { onClose: () => void; o
               )}
               <input type="file" accept="image/*" onChange={handlePhoto} disabled={uploading} className="hidden" />
             </label>
+            {uploading ? <PhotoUploadBar percent={uploadProgress} /> : null}
             {form.photoUrl ? (
               <button
                 type="button"

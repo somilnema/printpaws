@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { storedPetPhotoUrl } from "@/lib/pet-photo";
 import { uploadPetPhotoFile } from "@/lib/uploadPetPhoto";
-import { PreviewImage } from "@/components/PreviewImage";
+import { PhotoUploadBar, PreviewImage } from "@/components/PreviewImage";
 import {
   Upload,
   Star,
@@ -136,6 +136,7 @@ export function ProductInfo() {
   const [addDigitalDownload, setAddDigitalDownload] = useState(false);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string>("/feature-detail.png");
   const [photoStatus, setPhotoStatus] = useState<"idle" | "uploading" | "saved" | "error">("idle");
+  const [photoProgress, setPhotoProgress] = useState(0);
   const [photoError, setPhotoError] = useState("");
   const uploadedPhotoUrlRef = useRef("");
   const uploadPromiseRef = useRef<Promise<string> | null>(null);
@@ -537,11 +538,16 @@ export function ProductInfo() {
     const generation = ++photoUploadGeneration.current;
     uploadedPhotoUrlRef.current = "";
     setPhotoStatus("uploading");
+    setPhotoProgress(6);
     setPhotoError("");
-    const promise = uploadPetPhotoFile(file)
+    const promise = uploadPetPhotoFile(file, (progress) => {
+      if (photoUploadGeneration.current !== generation) return;
+      setPhotoProgress(progress.percent);
+    })
       .then((url) => {
         if (photoUploadGeneration.current !== generation) return "";
         uploadedPhotoUrlRef.current = url;
+        setPhotoProgress(100);
         setPhotoStatus("saved");
         setPhotoError("");
         return url;
@@ -1330,34 +1336,34 @@ export function ProductInfo() {
                       </label>
                     </div>
                     {selectedFile && (
-                      <div className="flex items-center gap-3 pt-1">
-                        <PreviewImage
-                          src={photoPreviewUrl}
-                          alt="Uploaded pet"
-                          busy={photoStatus === "uploading"}
-                          className="h-14 w-14 rounded-lg border border-gray-100"
-                        />
-                        <div className="min-w-0">
-                          <p className="text-[11px] text-gray-500 font-medium truncate">{selectedFile.name}</p>
-                          {photoStatus === "uploading" && (
-                            <p className="text-[11px] font-medium text-gray-500">Saving photo…</p>
-                          )}
-                          {photoStatus === "saved" && (
-                            <p className="text-[11px] font-medium text-green-700">Photo saved</p>
-                          )}
-                          {photoStatus === "error" && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (!selectedFile) return;
-                                void startPhotoUpload(selectedFile).catch(() => undefined);
-                              }}
-                              className="text-left text-[11px] font-bold text-red-600"
-                            >
-                              {photoError || "We couldn't save the pet photo."} Tap to retry.
-                            </button>
-                          )}
+                      <div className="space-y-2 pt-1">
+                        <div className="flex items-center gap-3">
+                          <PreviewImage
+                            src={photoPreviewUrl}
+                            alt="Uploaded pet"
+                            busy={photoStatus === "uploading"}
+                            className="h-14 w-14 rounded-lg border border-gray-100"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[11px] text-gray-500 font-medium truncate">{selectedFile.name}</p>
+                            {photoStatus === "saved" && (
+                              <p className="text-[11px] font-medium text-green-700">Photo saved</p>
+                            )}
+                            {photoStatus === "error" && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!selectedFile) return;
+                                  void startPhotoUpload(selectedFile).catch(() => undefined);
+                                }}
+                                className="text-left text-[11px] font-bold text-red-600"
+                              >
+                                {photoError || "We couldn't save the pet photo."} Tap to retry.
+                              </button>
+                            )}
+                          </div>
                         </div>
+                        {photoStatus === "uploading" && <PhotoUploadBar percent={photoProgress} />}
                       </div>
                     )}
                     <FieldError message={fieldErrors.photo} />
