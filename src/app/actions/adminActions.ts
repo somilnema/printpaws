@@ -16,17 +16,21 @@ import { notifyArtistAssigned, notifyOrderConfirmed, retryEmail } from "@/lib/no
 import { sendOverdueReminders } from "@/lib/overdue";
 import { hashPassword } from "@/lib/passwords";
 import {
+  deleteArtist,
+  deleteShipper,
   derivedWorkflow,
   emailLogFor,
   ensureWorkflow,
   eventsFor,
   findArtistById,
+  findShipperById,
   insertArtist,
   insertShipper,
   latestVendorAttempts,
   listArtists,
   listShippers,
   notesFor,
+  ordersForArtist,
   recordEvent,
   saveWorkflow,
   SETUP_MESSAGE,
@@ -40,6 +44,7 @@ import {
   type VendorAttempt,
 } from "@/lib/portal-db";
 import { acceptLatestForShipment } from "@/app/actions/trackActions";
+import { removeArtworkFiles } from "@/lib/artwork-files";
 import { storedPetPhotoUrl } from "@/lib/pet-photo";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
@@ -388,6 +393,66 @@ export async function createShipper(input: { name: string; email: string; passwo
   const password_hash = await hashPassword(password);
   const created = await insertShipper({ name, email, password_hash });
   if (!created.ok) return created;
+  return { ok: true as const };
+}
+
+export async function removeArtist(artistId: string) {
+  const session = await getAdminSession();
+  if (!session) return { ok: false as const, error: "Sign in again to continue." };
+  if (!artistId) return { ok: false as const, error: "Choose an artist to delete." };
+
+  const artist = await findArtistById(artistId);
+  if (!artist) return { ok: false as const, error: "This artist was already deleted. Refresh the page." };
+
+  const assigned = await ordersForArtist(artistId);
+  const open = assigned.rows.filter((row) => adminCanAssign(row.status) || row.status === "on_hold");
+  if (open.length) {
+    return {
+      ok: false as const,
+      error: `${artist.name} still has ${open.length} ${open.length === 1 ? "order" : "orders"} in progress. Reassign ${open.length === 1 ? "it" : "them"} to another artist from Orders, then delete.`,
+    };
+  }
+
+  const removed = await deleteArtist(artistId);
+  if (!removed.ok) return removed;
+  return { ok: true as const };
+}
+
+export async function removeShipper(shipperId: string) {
+  const session = await getAdminSession();
+  if (!session) return { ok: false as const, error: "Sign in again to continue." };
+  if (!shipperId) return { ok: false as const, error: "Choose an account to delete." };
+
+  const shipper = await findShipperById(shipperId);
+  if (!shipper) return { ok: false as const, error: "This account was already deleted. Refresh the page." };
+
+  const removed = await deleteShipper(shipperId);
+  if (!removed.ok) return removed;
+  return { ok: true as const };
+}
+
+export async function deleteOrder(orderId: string) {
+  const session = await getAdminSession();
+  if (!session) return { ok: false as const, error: "Sign in again to continue." };
+  if (!orderId) return { ok: false as const, error: "Missing order." };
+
+  const workflow = await workflowFor(orderId);
+  if (workflow?.status !== "cancelled") {
+    return { ok: false as const, error: "Cancel the order first. Only cancelled orders can be deleted." };
+  }
+
+  const versions = await updatesFor([orderId]);
+  const { error } = await supabaseAdmin.from("orders").delete().eq("id", orderId);
+  if (error) {
+    console.error("Order delete error:", error);
+    return { ok: false as const, error: error.message || "The order could not be deleted." };
+  }
+
+  await Promise.all(
+    versions.map((version) =>
+      removeArtworkFiles(orderId, version.id).catch((err) => console.error("Artwork cleanup error:", err))
+    )
+  );
   return { ok: true as const };
 }
 

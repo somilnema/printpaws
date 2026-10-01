@@ -43,6 +43,9 @@ export const buttonClass =
 export const ghostButtonClass =
   "rounded-xl border border-[#e5e7eb] bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-[#1a1a1b] transition-colors hover:border-primary hover:text-primary disabled:opacity-50";
 
+export const dangerButtonClass =
+  "rounded-xl border border-[#f3d1d1] bg-white px-4 py-2.5 text-xs font-bold uppercase tracking-widest text-[#b42318] transition-colors hover:border-[#b42318] hover:bg-[#fff1f1] disabled:opacity-50";
+
 export const warnClass = "rounded-xl bg-[#fff7e8] px-3.5 py-2.5 text-sm text-[#8a5a00]";
 export const errorClass = "rounded-xl bg-[#fff1f1] px-3.5 py-2.5 text-sm text-[#b42318]";
 export const okClass = "rounded-xl bg-[#eefbf3] px-3.5 py-2.5 text-sm text-[#067647]";

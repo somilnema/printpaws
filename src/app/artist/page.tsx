@@ -5,6 +5,7 @@ import { PhotoUploadBar, PreviewImage } from "@/components/PreviewImage";
 import Link from "next/link";
 import {
   createArtworkUpload,
+  discardArtworkUpload,
   finishArtworkUpload,
   getArtistPortal,
   startRevision,
@@ -12,14 +13,14 @@ import {
   type ArtistPortal,
 } from "@/app/actions/artistActions";
 import { formatSecondsLeft, uploadToSignedUrl } from "@/lib/uploadArtwork";
-import { addTeamNote } from "@/app/actions/opsActions";
+import { addTeamNote, removeTeamNote } from "@/app/actions/opsActions";
 import { NoteBody } from "@/components/NoteBody";
 import { OrderHistory } from "@/components/OrderHistory";
 import { TeamNotes } from "@/components/TeamNotes";
 import { OrderTimeline } from "@/components/OrderTimeline";
 import { PasswordInput } from "@/components/PasswordInput";
 import { sectionTabClass } from "@/components/admin/DeskSwitch";
-import { buttonClass, DeskLogo, errorClass, ghostButtonClass, inputClass, warnClass } from "@/components/admin/ui";
+import { buttonClass, dangerButtonClass, DeskLogo, errorClass, ghostButtonClass, inputClass, warnClass } from "@/components/admin/ui";
 import { artistCanStartRevision, artistCanUpload, isOverdue, stageLabel } from "@/lib/fulfillment";
 import { storedPetPhotoUrl } from "@/lib/pet-photo";
 
@@ -347,6 +348,7 @@ function ArtistShell({
               onStage={(value) => setStage(value)}
               onToggle={(id) => setOpenId((current) => (current === id ? null : id))}
               onUploaded={onRefresh}
+              artistEmail={portal.artist.email}
             />
           )}
 
@@ -393,6 +395,7 @@ function OrdersList({
   onStage,
   onToggle,
   onUploaded,
+  artistEmail,
 }: {
   orders: ArtistOrder[];
   total: number;
@@ -403,6 +406,7 @@ function OrdersList({
   onStage: (value: string) => void;
   onToggle: (id: string) => void;
   onUploaded: () => Promise<void>;
+  artistEmail: string;
 }) {
   const filters = [
     { id: "", label: "All" },
@@ -456,6 +460,7 @@ function OrdersList({
               open={openId === order.id}
               onToggle={() => onToggle(order.id)}
               onUploaded={onUploaded}
+              artistEmail={artistEmail}
             />
           ))}
         </div>
@@ -494,11 +499,13 @@ function ArtistOrderCard({
   open,
   onToggle,
   onUploaded,
+  artistEmail,
 }: {
   order: ArtistOrder;
   open: boolean;
   onToggle: () => void;
   onUploaded: () => Promise<void>;
+  artistEmail: string;
 }) {
   const photo = storedPetPhotoUrl(order.photo_url);
   const [broken, setBroken] = useState(false);
@@ -530,8 +537,27 @@ function ArtistOrderCard({
 
   useEffect(() => () => uploadRef.current?.controller.abort(), []);
 
+  function discardEntry(entry: PendingUpload | null) {
+    if (!entry) return;
+    entry.controller.abort();
+    entry.promise
+      .then(({ versionId }) => discardArtworkUpload({ orderId: order.id, versionId }))
+      .catch(() => undefined);
+  }
+
+  function removeArtwork() {
+    const entry = uploadRef.current;
+    uploadRef.current = null;
+    discardEntry(entry);
+    setFile(null);
+    setFileKey((current) => current + 1);
+    setUploading(false);
+    setProgress(null);
+    setError("");
+  }
+
   function beginUpload(next: File) {
-    uploadRef.current?.controller.abort();
+    discardEntry(uploadRef.current);
     const entry = { file: next, controller: new AbortController() } as PendingUpload;
     uploadRef.current = entry;
     setUploading(true);
@@ -714,16 +740,24 @@ function ArtistOrderCard({
               <p className="text-xs leading-relaxed text-[#9ca3af]">
                 The customer gets a smaller preview with a Peternity watermark. Shipment downloads the original after approval.
               </p>
-              <label className={`${ghostButtonClass} flex w-full cursor-pointer items-center justify-center text-center sm:w-auto`}>
-                {file ? "Change image" : "Choose image"}
-                <input
-                  key={fileKey}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={(e) => chooseFile(e.target.files?.[0])}
-                  className="sr-only"
-                />
-              </label>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <label className={`${ghostButtonClass} flex w-full cursor-pointer items-center justify-center text-center sm:w-auto ${busy ? "pointer-events-none opacity-50" : ""}`}>
+                  {file ? "Change image" : "Choose image"}
+                  <input
+                    key={fileKey}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    disabled={busy}
+                    onChange={(e) => chooseFile(e.target.files?.[0])}
+                    className="sr-only"
+                  />
+                </label>
+                {file ? (
+                  <button type="button" disabled={busy} onClick={removeArtwork} className={`${dangerButtonClass} w-full sm:w-auto`}>
+                    {uploading ? "Cancel upload" : "Remove image"}
+                  </button>
+                ) : null}
+              </div>
               {artworkPreview ? (
                 <PreviewImage
                   src={artworkPreview}
@@ -757,7 +791,12 @@ function ArtistOrderCard({
           {error && !canUpload ? <p className={errorClass}>{error}</p> : null}
 
           <OrderHistory updates={order.updates} />
-          <TeamNotes notes={order.teamNotes || []} onAdd={(body) => addTeamNote(order.id, body)} />
+          <TeamNotes
+            notes={order.teamNotes || []}
+            onAdd={(body) => addTeamNote(order.id, body)}
+            onDelete={removeTeamNote}
+            canDelete={(note) => note.author === artistEmail}
+          />
         </div>
       ) : null}
     </article>

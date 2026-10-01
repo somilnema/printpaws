@@ -8,15 +8,18 @@ import {
   cancelOrder,
   createArtist,
   createShipper,
+  deleteOrder,
   extendArtworkDeadline,
   holdOrder,
+  removeArtist,
+  removeShipper,
   resumeOrder,
   retryLoggedEmail,
   type AdminDashboard,
   type AdminOrder,
   type ArtistAccount,
 } from "@/app/actions/adminActions";
-import { addTeamNote, sendToVendor } from "@/app/actions/opsActions";
+import { addTeamNote, removeTeamNote, sendToVendor } from "@/app/actions/opsActions";
 import { getSiteMediaAdmin, type SiteMediaAdmin } from "@/app/actions/mediaActions";
 import { getStoreAdmin, type StoreAdmin } from "@/app/actions/storeActions";
 import { MessagesPanel } from "@/components/admin/MessagesPanel";
@@ -30,7 +33,7 @@ import { ManualOrderForm } from "@/components/admin/ManualOrderForm";
 import { MediaPanel } from "@/components/admin/MediaPanel";
 import { PricingPanel } from "@/components/admin/PricingPanel";
 import { sectionTabClass } from "@/components/admin/DeskSwitch";
-import { buttonClass, DeskLogo, errorClass, ghostButtonClass, inputClass, Panel, warnClass } from "@/components/admin/ui";
+import { buttonClass, dangerButtonClass, DeskLogo, errorClass, ghostButtonClass, inputClass, okClass, Panel, warnClass } from "@/components/admin/ui";
 import { orderInRange, rangeBounds, type DateRange } from "@/lib/admin-analytics";
 import { adminCanAssign, adminCanCancel, adminCanHold, artworkIsOpen, maximumDueAt, safeTrackingUrl, stageLabel } from "@/lib/fulfillment";
 import { isWatermarkedProof, storedPetPhotoUrl } from "@/lib/pet-photo";
@@ -661,10 +664,28 @@ function OrderDetail({
             </button>
           </form>
         ) : null}
+        {order.fulfillment_stage === "cancelled" ? (
+          <button
+            type="button"
+            disabled={busy}
+            className={dangerButtonClass}
+            onClick={() => {
+              if (!window.confirm(`Delete the order for ${order.pet_name || "this pet"} permanently? Its photos, previews, notes, and history are removed and cannot be brought back.`)) return;
+              run(() => deleteOrder(order.id || ""), "Order deleted.");
+            }}
+          >
+            Delete order permanently
+          </button>
+        ) : null}
         {problem ? <p className={errorClass}>{problem}</p> : null}
         {notice ? <p className="text-sm">{notice}</p> : null}
         <OrderHistory updates={order.updates} approvedUpdateId={order.approved_update_id} />
-        <TeamNotes notes={order.teamNotes || []} onAdd={(body) => addTeamNote(order.id || "", body)} />
+        <TeamNotes
+          notes={order.teamNotes || []}
+          onAdd={(body) => addTeamNote(order.id || "", body)}
+          onDelete={removeTeamNote}
+          canDelete={() => true}
+        />
         {order.emails?.length ? (
           <div className="space-y-2">
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Emails</p>
@@ -757,19 +778,77 @@ function ShippersPanel({ shippers, onCreated }: { shippers: ArtistAccount[]; onC
         </form>
       </Panel>
       <Panel title="Shipment accounts">
-        {shippers.length === 0 ? (
-          <p className="text-sm text-[#9ca3af]">No shipment accounts yet.</p>
-        ) : (
-          <ul className="divide-y divide-[#f3f4f6] overflow-hidden rounded-2xl bg-[#f8f9fa]">
-            {shippers.map((shipper) => (
-              <li key={shipper.id} className="px-3 py-3">
-                <p className="font-semibold">{shipper.name}</p>
-                <p className="text-xs text-[#9ca3af]">{shipper.email}</p>
-              </li>
-            ))}
-          </ul>
-        )}
+        <AccountList
+          accounts={shippers}
+          empty="No shipment accounts yet."
+          confirmText={(account) => `Delete ${account.name}'s shipment account? They are signed out and can no longer use the shipment desk.`}
+          onDelete={removeShipper}
+          onDeleted={onCreated}
+        />
       </Panel>
+    </div>
+  );
+}
+
+function AccountList({
+  accounts,
+  empty,
+  confirmText,
+  onDelete,
+  onDeleted,
+}: {
+  accounts: ArtistAccount[];
+  empty: string;
+  confirmText: (account: ArtistAccount) => string;
+  onDelete: (id: string) => Promise<{ ok: boolean; error?: string }>;
+  onDeleted: () => Promise<void>;
+}) {
+  const [deletingId, setDeletingId] = useState("");
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  async function handleDelete(account: ArtistAccount) {
+    if (!window.confirm(confirmText(account))) return;
+    setDeletingId(account.id);
+    setError("");
+    setNotice("");
+    const result = await onDelete(account.id);
+    if (!result.ok) {
+      setDeletingId("");
+      setError(result.error || "The account could not be deleted.");
+      return;
+    }
+    setNotice(`${account.name} deleted.`);
+    await onDeleted();
+    setDeletingId("");
+  }
+
+  return (
+    <div className="space-y-3">
+      {error ? <p className={errorClass}>{error}</p> : null}
+      {notice ? <p className={okClass}>{notice}</p> : null}
+      {accounts.length === 0 ? (
+        <p className="text-sm text-[#9ca3af]">{empty}</p>
+      ) : (
+        <ul className="divide-y divide-[#f3f4f6] overflow-hidden rounded-2xl bg-[#f8f9fa]">
+          {accounts.map((account) => (
+            <li key={account.id} className="flex items-center gap-3 px-3 py-3">
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold">{account.name}</p>
+                <p className="truncate text-xs text-[#9ca3af]">{account.email}</p>
+              </div>
+              <button
+                type="button"
+                disabled={Boolean(deletingId)}
+                onClick={() => handleDelete(account)}
+                className={`${dangerButtonClass} shrink-0 px-3 py-2`}
+              >
+                {deletingId === account.id ? "Deleting…" : "Delete"}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -822,18 +901,15 @@ function ArtistsPanel({ artists, onCreated }: { artists: ArtistAccount[]; onCrea
         </form>
       </Panel>
       <Panel title="Artist accounts">
-        {artists.length === 0 ? (
-          <p className="text-sm text-[#9ca3af]">No artists yet.</p>
-        ) : (
-          <ul className="divide-y divide-[#f3f4f6] overflow-hidden rounded-2xl bg-[#f8f9fa]">
-            {artists.map((artist) => (
-              <li key={artist.id} className="px-3 py-3">
-                <p className="font-semibold">{artist.name}</p>
-                <p className="text-xs text-[#9ca3af]">{artist.email}</p>
-              </li>
-            ))}
-          </ul>
-        )}
+        <AccountList
+          accounts={artists}
+          empty="No artists yet."
+          confirmText={(account) =>
+            `Delete ${account.name}? They are signed out right away. Finished orders keep their history but no longer show an artist.`
+          }
+          onDelete={removeArtist}
+          onDeleted={onCreated}
+        />
       </Panel>
     </div>
   );

@@ -19,6 +19,7 @@ import {
   saveWorkflow,
   SETUP_MESSAGE,
   updatesFor,
+  workflowFor,
   type OrderWorkflow,
   type TeamNote,
 } from "@/lib/portal-db";
@@ -197,6 +198,26 @@ export async function createArtworkUpload(input: { orderId: string; type: string
     console.error("Artwork upload URL error:", error);
     return { ok: false as const, error: error instanceof Error ? error.message : "The upload could not be started." };
   }
+}
+
+export async function discardArtworkUpload(input: { orderId: string; versionId: string }) {
+  const artist = await getArtistSession();
+  if (!artist) return { ok: false as const, error: "Sign in again to continue." };
+
+  const orderId = String(input.orderId || "");
+  const versionId = String(input.versionId || "");
+  if (!orderId || !UUID_PATTERN.test(versionId)) return { ok: false as const, error: "Missing upload." };
+
+  const workflow = await workflowFor(orderId);
+  if (workflow?.artist_id !== artist.id) return { ok: false as const, error: "This order is not assigned to you." };
+
+  const versions = await updatesFor([orderId]);
+  if (versions.some((version) => version.id === versionId)) {
+    return { ok: false as const, error: "This picture was already sent to the customer." };
+  }
+
+  await removeArtworkFiles(orderId, versionId);
+  return { ok: true as const };
 }
 
 export async function finishArtworkUpload(input: {

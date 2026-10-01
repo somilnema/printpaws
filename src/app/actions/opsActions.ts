@@ -2,7 +2,7 @@
 
 import { getAdminSession } from "@/lib/admin-auth";
 import { getArtistSession } from "@/lib/artist-auth";
-import { insertTeamNote, workflowFor } from "@/lib/portal-db";
+import { deleteTeamNote, findTeamNote, insertTeamNote, workflowFor } from "@/lib/portal-db";
 import { getShipmentSession } from "@/lib/shipment-auth";
 import { sendOrderToVendor } from "@/lib/vendor";
 import { supabaseAdmin } from "@/lib/supabase-admin";
@@ -30,6 +30,23 @@ export async function addTeamNote(orderId: string, body: string) {
   const saved = await insertTeamNote({ order_id: orderId, author, body: text });
   if (!saved.ok) return saved;
   return { ok: true as const };
+}
+
+export async function removeTeamNote(noteId: string) {
+  if (!noteId) return { ok: false as const, error: "Missing note." };
+
+  const admin = await getAdminSession();
+  const artist = admin ? null : await getArtistSession();
+  const shipment = admin || artist ? null : await getShipmentSession();
+  if (!admin && !artist && !shipment) return { ok: false as const, error: "Sign in again to continue." };
+
+  const note = await findTeamNote(noteId);
+  if (!note) return { ok: true as const };
+
+  const author = artist?.email || shipment?.user || "";
+  if (!admin && note.author !== author) return { ok: false as const, error: "You can only delete notes you wrote." };
+
+  return deleteTeamNote(noteId);
 }
 
 export async function sendToVendor(orderId: string) {

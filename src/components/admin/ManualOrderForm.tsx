@@ -138,16 +138,17 @@ export function ManualOrderForm({ onClose, onCreated }: { onClose: () => void; o
               <input type="file" accept="image/*" onChange={handlePhoto} disabled={uploading} className="hidden" />
             </label>
             {uploading ? <PhotoUploadBar percent={uploadProgress} /> : null}
-            {form.photoUrl ? (
+            {form.photoUrl || localPreview ? (
               <button
                 type="button"
+                disabled={uploading}
                 onClick={() => {
                   set("photoUrl", "");
                   if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
                   previewUrl.current = "";
                   setLocalPreview("");
                 }}
-                className="text-xs font-medium text-primary"
+                className="text-xs font-medium text-[#b42318] disabled:opacity-50"
               >
                 Remove photo
               </button>

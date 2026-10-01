@@ -254,6 +254,24 @@ export async function insertArtist(input: { name: string; email: string; passwor
   return { ok: true as const, id: String(data.id) };
 }
 
+export async function deleteArtist(id: string) {
+  const { error } = await supabaseAdmin.from("artists").delete().eq("id", id);
+  if (error) {
+    if (tableMissing(error)) return { ok: false as const, error: SETUP_MESSAGE };
+    return { ok: false as const, error: error.message };
+  }
+  return { ok: true as const };
+}
+
+export async function deleteShipper(id: string) {
+  const { error } = await supabaseAdmin.from("shippers").delete().eq("id", id);
+  if (error) {
+    if (tableMissing(error)) return { ok: false as const, error: "Shipment accounts are not in Supabase yet." };
+    return { ok: false as const, error: error.message };
+  }
+  return { ok: true as const };
+}
+
 export async function workflowFor(orderId: string): Promise<OrderWorkflow | null> {
   const { data, error } = await supabaseAdmin
     .from("order_workflow")
@@ -476,6 +494,28 @@ export async function insertTeamNote(input: { order_id: string; author: string; 
     author: input.author,
     body: input.body,
   });
+  if (error) {
+    if (tableMissing(error)) return { ok: false as const, error: OPERATIONS_MESSAGE };
+    return { ok: false as const, error: error.message };
+  }
+  return { ok: true as const };
+}
+
+export async function findTeamNote(id: string): Promise<TeamNote | null> {
+  const { data, error } = await supabaseAdmin
+    .from("team_notes")
+    .select("id, order_id, author, body, created_at")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) {
+    if (tableMissing(error)) return null;
+    throw error;
+  }
+  return (data as TeamNote | null) ?? null;
+}
+
+export async function deleteTeamNote(id: string) {
+  const { error } = await supabaseAdmin.from("team_notes").delete().eq("id", id);
   if (error) {
     if (tableMissing(error)) return { ok: false as const, error: OPERATIONS_MESSAGE };
     return { ok: false as const, error: error.message };

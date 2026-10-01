@@ -23,13 +23,33 @@ function formatDate(value?: string) {
 export function TeamNotes({
   notes,
   onAdd,
+  onDelete,
+  canDelete,
 }: {
   notes: TeamNoteItem[];
   onAdd: (body: string) => Promise<{ ok: boolean; error?: string }>;
+  onDelete?: (id: string) => Promise<{ ok: boolean; error?: string }>;
+  canDelete?: (note: TeamNoteItem) => boolean;
 }) {
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [deletingId, setDeletingId] = useState("");
+  const [deleted, setDeleted] = useState<string[]>([]);
+  const shown = notes.filter((note) => !deleted.includes(note.id));
+
+  async function handleDelete(note: TeamNoteItem) {
+    if (!onDelete || !window.confirm("Delete this note? It is removed for everyone on the team.")) return;
+    setDeletingId(note.id);
+    setError("");
+    const result = await onDelete(note.id);
+    setDeletingId("");
+    if (!result.ok) {
+      setError(result.error || "The note could not be deleted.");
+      return;
+    }
+    setDeleted((current) => [...current, note.id]);
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -48,15 +68,27 @@ export function TeamNotes({
     <div className="space-y-2 border-t border-[#f3f4f6] pt-4">
       <p className="text-[10px] font-bold uppercase tracking-widest text-[#9ca3af]">Private team notes</p>
       <p className="text-xs text-[#9ca3af]">Only the artist, shipment desk, and admin can see these. The customer cannot.</p>
-      {notes.length ? (
+      {shown.length ? (
         <div className="space-y-2">
-          {notes.map((note) => (
+          {shown.map((note) => (
             <div key={note.id} className="rounded-2xl bg-[#f8f9fa] p-3">
               <p className="whitespace-pre-wrap text-sm">{note.body}</p>
-              <p className="mt-1 text-xs text-[#9ca3af]">
-                {note.author}
-                {note.created_at ? ` · ${formatDate(note.created_at)}` : ""}
-              </p>
+              <div className="mt-1 flex items-center justify-between gap-3">
+                <p className="min-w-0 text-xs text-[#9ca3af]">
+                  {note.author}
+                  {note.created_at ? ` · ${formatDate(note.created_at)}` : ""}
+                </p>
+                {onDelete && canDelete?.(note) ? (
+                  <button
+                    type="button"
+                    disabled={Boolean(deletingId)}
+                    onClick={() => handleDelete(note)}
+                    className="shrink-0 text-xs font-medium text-[#b42318] disabled:opacity-50"
+                  >
+                    {deletingId === note.id ? "Deleting…" : "Delete"}
+                  </button>
+                ) : null}
+              </div>
             </div>
           ))}
         </div>

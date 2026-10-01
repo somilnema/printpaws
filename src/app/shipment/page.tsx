@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { addTeamNote, sendToVendor } from "@/app/actions/opsActions";
+import { addTeamNote, removeTeamNote, sendToVendor } from "@/app/actions/opsActions";
 import {
   getShipmentDashboard,
   markShipmentDelivered,
@@ -302,6 +302,7 @@ function ShipmentShell({
                   <ShipmentCard
                     key={order.id}
                     order={order}
+                    user={dashboard.user}
                     open={openId === order.id}
                     onToggle={() => setOpenId((current) => (current === order.id ? null : order.id))}
                     onChanged={onRefresh}
@@ -332,11 +333,13 @@ function Stat({ label, value, hint, onClick }: { label: string; value: number; h
 
 function ShipmentCard({
   order,
+  user,
   open,
   onToggle,
   onChanged,
 }: {
   order: ShipmentOrder;
+  user: string;
   open: boolean;
   onToggle: () => void;
   onChanged: () => Promise<void>;
@@ -517,7 +520,12 @@ function ShipmentCard({
               {order.delivered_by ? ` · ${order.delivered_by}` : ""}
             </p>
           ) : null}
-          <TeamNotes notes={order.teamNotes || []} onAdd={(body) => addTeamNote(order.id, body)} />
+          <TeamNotes
+            notes={order.teamNotes || []}
+            onAdd={(body) => addTeamNote(order.id, body)}
+            onDelete={removeTeamNote}
+            canDelete={(note) => note.author === user}
+          />
           {problem ? <p className={errorClass}>{problem}</p> : null}
           {notice ? <p className={okClass}>{notice}</p> : null}
         </div>
