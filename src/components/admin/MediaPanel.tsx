@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { replaceSiteMedia, resetSiteMedia, type SiteMediaAdmin, type SiteMediaSlotView } from "@/app/actions/mediaActions";
 import { IMAGE_UPLOAD_LIMIT, VIDEO_UPLOAD_LIMIT, mediaGroups } from "@/lib/site-media-catalog";
 import { buttonClass, errorClass, ghostButtonClass, okClass, warnClass } from "@/components/admin/ui";
+import { PreviewImage } from "@/components/PreviewImage";
+import { prepareImageFile } from "@/utils/preparePetPhoto";
 
 function previewSrc(url: string) {
   if (/^https?:\/\//i.test(url)) return url;
@@ -33,6 +35,29 @@ export function MediaPanel({
   const [pendingId, setPendingId] = useState("");
   const [notice, setNotice] = useState("");
   const [cardError, setCardError] = useState<Record<string, string>>({});
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const draftUrls = useRef<Record<string, string>>({});
+
+  useEffect(() => {
+    const urls = draftUrls.current;
+    return () => {
+      Object.values(urls).forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, []);
+
+  function rememberDraft(id: string, url: string) {
+    const previous = draftUrls.current[id];
+    if (previous) URL.revokeObjectURL(previous);
+    draftUrls.current[id] = url;
+    setDrafts({ ...draftUrls.current });
+  }
+
+  function clearDraft(id: string) {
+    const previous = draftUrls.current[id];
+    delete draftUrls.current[id];
+    setDrafts({ ...draftUrls.current });
+    if (previous) window.setTimeout(() => URL.revokeObjectURL(previous), 500);
+  }
 
   useEffect(() => {
     setSlots(initial.slots);
@@ -54,14 +79,31 @@ export function MediaPanel({
       setCardError((current) => ({ ...current, [slot.id]: `That file is too large. Keep it under ${mb} MB.` }));
       return;
     }
+    const local = slot.kind === "image" ? URL.createObjectURL(file) : "";
+    if (local) rememberDraft(slot.id, local);
     setPendingId(slot.id);
     setNotice("");
     setCardError((current) => ({ ...current, [slot.id]: "" }));
+    let payload = file;
+    if (slot.kind === "image") {
+      try {
+        payload = await prepareImageFile(file, { maxEdge: 2000, maxBytes: 1_400_000 });
+      } catch (err) {
+        clearDraft(slot.id);
+        setPendingId("");
+        setCardError((current) => ({
+          ...current,
+          [slot.id]: err instanceof Error ? err.message : "That photo could not be prepared. Try a JPG or PNG.",
+        }));
+        return;
+      }
+    }
     const body = new FormData();
     body.set("slot", slot.id);
-    body.set("file", file);
+    body.set("file", payload);
     const result = await replaceSiteMedia(body);
     setPendingId("");
+    clearDraft(slot.id);
     if (!result.ok) {
       setCardError((current) => ({ ...current, [slot.id]: result.error }));
       return;
@@ -138,7 +180,9 @@ export function MediaPanel({
             return (
               <article key={slot.id} className="overflow-hidden rounded-3xl border border-[#eeeeee] bg-white shadow-sm">
                 <div className="relative aspect-[4/3] bg-[#f3f4f6]">
-                  {slot.kind === "video" ? (
+                  {drafts[slot.id] ? (
+                    <PreviewImage src={drafts[slot.id]} alt={slot.label} busy={busy} className="h-full w-full" />
+                  ) : slot.kind === "video" ? (
                     <video
                       key={slot.url}
                       src={previewSrc(slot.url)}

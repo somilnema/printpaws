@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useMemo, useState, useEffect } from "react";
+import { PreviewImage } from "@/components/PreviewImage";
 import Link from "next/link";
 import { getArtistPortal, startRevision, uploadOrderPreview, type ArtistOrder, type ArtistPortal } from "@/app/actions/artistActions";
 import { addTeamNote } from "@/app/actions/opsActions";
@@ -486,12 +487,23 @@ function ArtistOrderCard({
   const [teamNote, setTeamNote] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [fileKey, setFileKey] = useState(0);
+  const [artworkPreview, setArtworkPreview] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const canUpload = artistCanUpload(order.fulfillment_stage);
   const canStart = artistCanStartRevision(order.fulfillment_stage);
   const revisionNotes = order.updates.filter((update) => update.kind === "revision" && update.note);
   const specs = [order.size, order.frame_style, order.background, order.font].filter(Boolean).join(" · ");
+
+  useEffect(() => {
+    if (!file) {
+      setArtworkPreview("");
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setArtworkPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
 
   async function handleUpload(e: FormEvent) {
     e.preventDefault();
@@ -601,6 +613,14 @@ function ArtistOrderCard({
                   className="sr-only"
                 />
               </label>
+              {artworkPreview ? (
+                <PreviewImage
+                  src={artworkPreview}
+                  alt="Artwork to send"
+                  busy={busy}
+                  className="h-40 w-full rounded-2xl sm:w-44"
+                />
+              ) : null}
               {file ? <p className="break-all text-xs text-[#9ca3af]">{file.name}</p> : null}
               <textarea
                 value={note}

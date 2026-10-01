@@ -260,7 +260,7 @@ async function optimizeImage(bytes: Buffer, maxEdge: number) {
     const output = await sharp(bytes, { failOn: "none", limitInputPixels: 40_000_000, animated: false })
       .rotate()
       .resize({ width: maxEdge, height: maxEdge, fit: "inside", withoutEnlargement: true })
-      .webp({ quality: 80, effort: 4, smartSubsample: true })
+      .webp({ quality: 80, effort: 2, smartSubsample: true })
       .toBuffer();
     if (!output.length) return { ok: false as const, error: "That photo could not be prepared. Try another file." };
     return { ok: true as const, body: output, contentType: "image/webp", ext: "webp" };

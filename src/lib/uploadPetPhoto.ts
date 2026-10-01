@@ -33,20 +33,19 @@ async function uploadThroughServer(file: File) {
 
 export async function uploadPetPhotoFile(file: File) {
   const prepared = await preparePetPhoto(file);
-  let lastError = "We couldn't save the pet photo. Please try again.";
-
-  for (let attempt = 0; attempt < 2; attempt++) {
+  try {
+    return await uploadOnce(prepared);
+  } catch (firstError) {
     try {
       return await uploadOnce(prepared);
-    } catch (err) {
-      lastError = err instanceof Error ? err.message : lastError;
-      await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+    } catch {
+      try {
+        return await uploadThroughServer(prepared);
+      } catch (err) {
+        const fallback = err instanceof Error ? err.message : "";
+        const first = firstError instanceof Error ? firstError.message : "";
+        throw new Error(fallback || first || "We couldn't save the pet photo. Please try again.");
+      }
     }
-  }
-
-  try {
-    return await uploadThroughServer(prepared);
-  } catch (err) {
-    throw new Error(err instanceof Error ? err.message : lastError);
   }
 }

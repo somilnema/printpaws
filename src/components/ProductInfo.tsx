@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { storedPetPhotoUrl } from "@/lib/pet-photo";
 import { uploadPetPhotoFile } from "@/lib/uploadPetPhoto";
+import { PreviewImage } from "@/components/PreviewImage";
 import {
   Upload,
   Star,
@@ -139,6 +140,7 @@ export function ProductInfo() {
   const uploadedPhotoUrlRef = useRef("");
   const uploadPromiseRef = useRef<Promise<string> | null>(null);
   const photoUploadGeneration = useRef(0);
+  const previewObjectUrl = useRef<string | null>(null);
   const [showSandboxModal, setShowSandboxModal] = useState(false);
   const [sandboxOrderData, setSandboxOrderData] = useState<any>(null);
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
@@ -158,12 +160,10 @@ export function ProductInfo() {
   }, []);
 
   useEffect(() => {
-    if (selectedFile) {
-      const url = URL.createObjectURL(selectedFile);
-      setPhotoPreviewUrl(url);
-      return () => URL.revokeObjectURL(url);
-    }
-  }, [selectedFile]);
+    return () => {
+      if (previewObjectUrl.current) URL.revokeObjectURL(previewObjectUrl.current);
+    };
+  }, []);
 
   // 1. Listen for global cart toggles (e.g. from the Navbar)
   useEffect(() => {
@@ -1312,6 +1312,10 @@ export function ProductInfo() {
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
+                          if (previewObjectUrl.current) URL.revokeObjectURL(previewObjectUrl.current);
+                          const url = URL.createObjectURL(file);
+                          previewObjectUrl.current = url;
+                          setPhotoPreviewUrl(url);
                           setSelectedFile(file);
                           clearFieldError("photo");
                           void startPhotoUpload(file).catch(() => undefined);
@@ -1327,9 +1331,12 @@ export function ProductInfo() {
                     </div>
                     {selectedFile && (
                       <div className="flex items-center gap-3 pt-1">
-                        <div className="w-14 h-14 rounded-lg overflow-hidden border border-gray-100">
-                          <img src={photoPreviewUrl} alt="Uploaded pet" className="w-full h-full object-cover" />
-                        </div>
+                        <PreviewImage
+                          src={photoPreviewUrl}
+                          alt="Uploaded pet"
+                          busy={photoStatus === "uploading"}
+                          className="h-14 w-14 rounded-lg border border-gray-100"
+                        />
                         <div className="min-w-0">
                           <p className="text-[11px] text-gray-500 font-medium truncate">{selectedFile.name}</p>
                           {photoStatus === "uploading" && (
@@ -1736,13 +1743,12 @@ export function ProductInfo() {
                   <>
                     <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-4">
                       <div className="flex gap-4">
-                        <div className="w-24 h-24 relative rounded-xl overflow-hidden bg-gray-50 border border-gray-100 flex-shrink-0">
-                          <img
-                            src={photoPreviewUrl}
-                            alt="Custom Pet Portrait"
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
+                        <PreviewImage
+                          src={photoPreviewUrl}
+                          alt="Custom Pet Portrait"
+                          busy={photoStatus === "uploading"}
+                          className="h-24 w-24 flex-shrink-0 rounded-xl border border-gray-100"
+                        />
                         <div className="flex-1 min-w-0">
                           <h3 className="font-extrabold text-sm text-[#1a1a1b] font-inter leading-tight">
                             {productType === "portrait"

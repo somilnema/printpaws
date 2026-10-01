@@ -1,8 +1,9 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { createManualOrder, type ManualOrderInput } from "@/app/actions/adminActions";
 import { buttonClass, errorClass, Field, ghostButtonClass, inputClass, okClass, Panel } from "@/components/admin/ui";
+import { PreviewImage } from "@/components/PreviewImage";
 import { CANVAS_SIZES, FRAMED_SIZES } from "@/lib/pricing";
 import { uploadPetPhotoFile } from "@/lib/uploadPetPhoto";
 
@@ -46,6 +47,14 @@ export function ManualOrderForm({ onClose, onCreated }: { onClose: () => void; o
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [localPreview, setLocalPreview] = useState("");
+  const previewUrl = useRef("");
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
+    };
+  }, []);
 
   function set<K extends keyof ManualOrderInput>(key: K, value: ManualOrderInput[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -55,6 +64,10 @@ export function ManualOrderForm({ onClose, onCreated }: { onClose: () => void; o
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
+    const url = URL.createObjectURL(file);
+    previewUrl.current = url;
+    setLocalPreview(url);
     setUploading(true);
     setError("");
     try {
@@ -82,6 +95,9 @@ export function ManualOrderForm({ onClose, onCreated }: { onClose: () => void; o
       return;
     }
     setForm(emptyForm());
+    if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
+    previewUrl.current = "";
+    setLocalPreview("");
     setNotice(`Order #${result.orderId.slice(0, 8).toUpperCase()} added.`);
     await onCreated();
   }
@@ -107,17 +123,29 @@ export function ManualOrderForm({ onClose, onCreated }: { onClose: () => void; o
           <div className="space-y-2">
             <span className="block text-xs font-medium text-[#6b7280]">Pet photo</span>
             <label className="flex h-40 cursor-pointer items-center justify-center overflow-hidden rounded-2xl border border-dashed border-[#e5e7eb] bg-[#f8f9fa] text-center text-xs text-[#9ca3af]">
-              {form.photoUrl ? (
-                <img src={form.photoUrl} alt="Pet photo" className="h-full w-full object-cover" />
-              ) : uploading ? (
-                "Uploading…"
+              {localPreview || form.photoUrl ? (
+                <PreviewImage
+                  src={localPreview || form.photoUrl}
+                  alt="Pet photo"
+                  busy={uploading}
+                  className="h-full w-full"
+                />
               ) : (
                 "Tap to upload"
               )}
               <input type="file" accept="image/*" onChange={handlePhoto} disabled={uploading} className="hidden" />
             </label>
             {form.photoUrl ? (
-              <button type="button" onClick={() => set("photoUrl", "")} className="text-xs font-medium text-primary">
+              <button
+                type="button"
+                onClick={() => {
+                  set("photoUrl", "");
+                  if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
+                  previewUrl.current = "";
+                  setLocalPreview("");
+                }}
+                className="text-xs font-medium text-primary"
+              >
                 Remove photo
               </button>
             ) : (
