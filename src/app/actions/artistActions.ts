@@ -1,7 +1,7 @@
 "use server";
 
 import { randomUUID } from "crypto";
-import { removeArtworkFiles, saveCustomerProof, saveOriginalArtwork } from "@/lib/artwork-files";
+import { createOriginalUploadUrl, readOriginalArtwork, removeArtworkFiles, saveCustomerProof } from "@/lib/artwork-files";
 import { buildWatermarkedPreview } from "@/lib/artwork-preview";
 import { getArtistSession } from "@/lib/artist-auth";
 import { artistCanStartRevision, artistCanUpload, type OrderUpdate } from "@/lib/fulfillment";
@@ -146,29 +146,17 @@ export async function startRevision(orderId: string) {
   return { ok: true as const };
 }
 
-export async function uploadOrderPreview(formData: FormData) {
-  const artist = await getArtistSession();
-  if (!artist) return { ok: false as const, error: "Sign in again to continue." };
+const MAX_ARTWORK_BYTES = 20 * 1024 * 1024;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const ARTWORK_TYPES: Record<string, { ext: string; contentType: string }> = {
+  "image/jpeg": { ext: "jpg", contentType: "image/jpeg" },
+  "image/jpg": { ext: "jpg", contentType: "image/jpeg" },
+  "image/png": { ext: "png", contentType: "image/png" },
+  "image/webp": { ext: "webp", contentType: "image/webp" },
+};
+const EXT_TYPES: Record<string, string> = { jpg: "image/jpeg", png: "image/png", webp: "image/webp" };
 
-  const orderId = String(formData.get("orderId") || "");
-  const note = String(formData.get("note") || "").trim();
-  const teamNote = String(formData.get("teamNote") || "").trim();
-  const file = formData.get("preview");
-  if (!orderId) return { ok: false as const, error: "Missing order." };
-  if (!(file instanceof File) || file.size === 0) {
-    return { ok: false as const, error: "Choose the artwork image." };
-  }
-  if (file.size > 20 * 1024 * 1024) {
-    return { ok: false as const, error: "Use an artwork file under 20 MB." };
-  }
-  if (note.length > 2000 || teamNote.length > 2000) {
-    return { ok: false as const, error: "Keep each note under 2000 characters." };
-  }
-
-  const type = file.type || "image/jpeg";
-  const ext = type === "image/png" ? "png" : type === "image/webp" ? "webp" : type === "image/jpeg" || type === "image/jpg" ? "jpg" : "";
-  if (!ext) return { ok: false as const, error: "Use a JPG, PNG, or WebP image." };
-
+async function loadUploadableOrder(artistId: string, orderId: string) {
   const { data: order, error: orderError } = await supabaseAdmin
     .from("orders")
     .select("id, pet_name, customer_email, photo_url, created_at")
@@ -177,20 +165,81 @@ export async function uploadOrderPreview(formData: FormData) {
   if (orderError || !order) return { ok: false as const, error: orderError?.message || "Order not found." };
 
   const workflow = await ensureWorkflow(order);
-  if (workflow.artist_id !== artist.id) return { ok: false as const, error: "This order is not assigned to you." };
+  if (workflow.artist_id !== artistId) return { ok: false as const, error: "This order is not assigned to you." };
   if (workflow.approved_update_id) {
     return { ok: false as const, error: "The approved picture is locked and cannot be replaced." };
   }
   if (!artistCanUpload(workflow.status)) {
     return { ok: false as const, error: "This order is no longer waiting on a preview." };
   }
+  return { ok: true as const, order, workflow };
+}
+
+export async function createArtworkUpload(input: { orderId: string; type: string; size: number }) {
+  const artist = await getArtistSession();
+  if (!artist) return { ok: false as const, error: "Sign in again to continue." };
+
+  const orderId = String(input.orderId || "");
+  if (!orderId) return { ok: false as const, error: "Missing order." };
+  if (!input.size) return { ok: false as const, error: "Choose the artwork image." };
+  if (input.size > MAX_ARTWORK_BYTES) return { ok: false as const, error: "Use an artwork file under 20 MB." };
+  const kind = ARTWORK_TYPES[input.type || "image/jpeg"];
+  if (!kind) return { ok: false as const, error: "Use a JPG, PNG, or WebP image." };
+
+  const loaded = await loadUploadableOrder(artist.id, orderId);
+  if (!loaded.ok) return loaded;
 
   const versionId = randomUUID();
-  const bytes = Buffer.from(await file.arrayBuffer());
-  const contentType = type === "image/jpg" ? "image/jpeg" : type;
+  try {
+    const signed = await createOriginalUploadUrl(orderId, versionId, kind.ext);
+    return { ok: true as const, versionId, ext: kind.ext, contentType: kind.contentType, ...signed };
+  } catch (error) {
+    console.error("Artwork upload URL error:", error);
+    return { ok: false as const, error: error instanceof Error ? error.message : "The upload could not be started." };
+  }
+}
+
+export async function finishArtworkUpload(input: {
+  orderId: string;
+  versionId: string;
+  ext: string;
+  note?: string;
+  teamNote?: string;
+}) {
+  const artist = await getArtistSession();
+  if (!artist) return { ok: false as const, error: "Sign in again to continue." };
+
+  const orderId = String(input.orderId || "");
+  const versionId = String(input.versionId || "");
+  const ext = String(input.ext || "");
+  const note = String(input.note || "").trim();
+  const teamNote = String(input.teamNote || "").trim();
+  if (!orderId) return { ok: false as const, error: "Missing order." };
+  if (!UUID_PATTERN.test(versionId) || !EXT_TYPES[ext]) {
+    return { ok: false as const, error: "The uploaded artwork could not be found. Please upload it again." };
+  }
+  if (note.length > 2000 || teamNote.length > 2000) {
+    return { ok: false as const, error: "Keep each note under 2000 characters." };
+  }
+
+  const loaded = await loadUploadableOrder(artist.id, orderId);
+  if (!loaded.ok) {
+    await removeArtworkFiles(orderId, versionId);
+    return loaded;
+  }
+  const { order, workflow } = loaded;
+
+  const bytes = await readOriginalArtwork(orderId, versionId, ext);
+  if (!bytes || bytes.length === 0) {
+    return { ok: false as const, error: "The uploaded artwork could not be found. Please upload it again." };
+  }
+  if (bytes.length > MAX_ARTWORK_BYTES) {
+    await removeArtworkFiles(orderId, versionId);
+    return { ok: false as const, error: "Use an artwork file under 20 MB." };
+  }
+
   let proofUrl = "";
   try {
-    await saveOriginalArtwork(orderId, versionId, ext, bytes, contentType);
     const preview = await buildWatermarkedPreview(bytes, orderId);
     proofUrl = await saveCustomerProof(orderId, versionId, preview);
   } catch (error) {

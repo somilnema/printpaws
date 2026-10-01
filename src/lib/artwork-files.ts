@@ -32,17 +32,21 @@ async function ensureOriginalsBucket() {
   }
 }
 
-export async function saveOriginalArtwork(orderId: string, versionId: string, ext: string, bytes: Buffer, contentType: string) {
+export async function createOriginalUploadUrl(orderId: string, versionId: string, ext: string) {
   await ensureOriginalsBucket();
   const path = originalObjectPath(orderId, versionId, ext);
-  const uploaded = await supabaseAdmin.storage.from(ORIGINALS_BUCKET).upload(path, bytes, {
-    contentType,
-    upsert: false,
-  });
-  if (uploaded.error) {
-    throw new Error(uploaded.error.message || "The artwork could not be saved.");
+  const { data, error } = await supabaseAdmin.storage.from(ORIGINALS_BUCKET).createSignedUploadUrl(path);
+  if (error || !data) {
+    throw new Error(error?.message || "The upload could not be started.");
   }
-  return path;
+  return { signedUrl: data.signedUrl, path };
+}
+
+export async function readOriginalArtwork(orderId: string, versionId: string, ext: string) {
+  const path = originalObjectPath(orderId, versionId, ext);
+  const downloaded = await supabaseAdmin.storage.from(ORIGINALS_BUCKET).download(path);
+  if (downloaded.error || !downloaded.data) return null;
+  return Buffer.from(await downloaded.data.arrayBuffer());
 }
 
 export async function saveCustomerProof(orderId: string, versionId: string, bytes: Buffer) {

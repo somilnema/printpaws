@@ -1,9 +1,17 @@
 "use client";
 
 import { FormEvent, useMemo, useState, useEffect } from "react";
-import { PreviewImage } from "@/components/PreviewImage";
+import { PhotoUploadBar, PreviewImage } from "@/components/PreviewImage";
 import Link from "next/link";
-import { getArtistPortal, startRevision, uploadOrderPreview, type ArtistOrder, type ArtistPortal } from "@/app/actions/artistActions";
+import {
+  createArtworkUpload,
+  finishArtworkUpload,
+  getArtistPortal,
+  startRevision,
+  type ArtistOrder,
+  type ArtistPortal,
+} from "@/app/actions/artistActions";
+import { formatSecondsLeft, uploadToSignedUrl } from "@/lib/uploadArtwork";
 import { addTeamNote } from "@/app/actions/opsActions";
 import { NoteBody } from "@/components/NoteBody";
 import { OrderHistory } from "@/components/OrderHistory";
@@ -41,6 +49,11 @@ function formatDate(value?: string | null) {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function needsArtist(order: ArtistOrder) {
@@ -489,6 +502,7 @@ function ArtistOrderCard({
   const [fileKey, setFileKey] = useState(0);
   const [artworkPreview, setArtworkPreview] = useState("");
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<{ percent: number; label: string; detail?: string } | null>(null);
   const [error, setError] = useState("");
   const canUpload = artistCanUpload(order.fulfillment_stage);
   const canStart = artistCanStartRevision(order.fulfillment_stage);
@@ -511,19 +525,53 @@ function ArtistOrderCard({
       setError("Choose the artwork image.");
       return;
     }
+    if (file.size > 20 * 1024 * 1024) {
+      setError("Use an artwork file under 20 MB.");
+      return;
+    }
     setBusy(true);
     setError("");
-    const body = new FormData();
-    body.set("orderId", order.id);
-    body.set("note", note);
-    body.set("teamNote", teamNote);
-    body.set("preview", file);
-    const result = await uploadOrderPreview(body);
+    setProgress({ percent: 2, label: "Starting upload", detail: formatFileSize(file.size) });
+
+    let creep: number | undefined;
+    let result: Awaited<ReturnType<typeof finishArtworkUpload>>;
+    try {
+      const started = await createArtworkUpload({ orderId: order.id, type: file.type, size: file.size });
+      if (!started.ok) throw new Error(started.error);
+
+      await uploadToSignedUrl(started.signedUrl, file, ({ ratio, secondsLeft }) => {
+        setProgress({
+          percent: 5 + ratio * 80,
+          label: "Uploading artwork",
+          detail: `${formatFileSize(file.size * ratio)} of ${formatFileSize(file.size)} · ${formatSecondsLeft(secondsLeft)}`,
+        });
+      });
+
+      setProgress({ percent: 88, label: "Creating watermarked preview", detail: "Usually takes a few seconds" });
+      creep = window.setInterval(() => {
+        setProgress((current) => (current ? { ...current, percent: Math.min(97, current.percent + 1) } : current));
+      }, 700);
+      result = await finishArtworkUpload({
+        orderId: order.id,
+        versionId: started.versionId,
+        ext: started.ext,
+        note,
+        teamNote,
+      });
+    } catch (err) {
+      result = { ok: false, error: err instanceof Error && err.message ? err.message : "The artwork could not be uploaded. Please try again." };
+    } finally {
+      window.clearInterval(creep);
+    }
+
     setBusy(false);
     if (!result.ok) {
+      setProgress(null);
       setError(result.error);
       return;
     }
+    setProgress({ percent: 100, label: "Sent for review" });
+    window.setTimeout(() => setProgress(null), 1200);
     if ("warning" in result && result.warning) setError(result.warning);
     setNote("");
     setTeamNote("");
@@ -636,8 +684,9 @@ function ArtistOrderCard({
                 rows={3}
                 className={`${inputClass} text-base sm:text-sm`}
               />
+              {progress ? <PhotoUploadBar percent={progress.percent} label={progress.label} detail={progress.detail} /> : null}
               <button type="submit" disabled={busy} className={`${buttonClass} w-full sm:w-auto`}>
-                {busy ? "Preparing preview…" : "Send for review"}
+                {busy ? "Uploading…" : "Send for review"}
               </button>
             </form>
           ) : null}

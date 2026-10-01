@@ -41,14 +41,22 @@ export function PreviewImage({
   );
 }
 
-export function PhotoUploadBar({ percent }: { percent: number }) {
+export function PhotoUploadBar({
+  percent,
+  label = "Uploading photo",
+  detail,
+}: {
+  percent: number;
+  label?: string;
+  detail?: string;
+}) {
   const shown = Math.min(100, Math.max(0, Math.round(percent)));
   const width = Math.min(100, Math.max(shown, 8));
 
   return (
     <div className="w-full">
       <div className="mb-1.5 flex items-center justify-between text-[11px] font-bold text-[#1a1a1b]">
-        <span>Uploading photo</span>
+        <span>{label}</span>
         <span>{shown}%</span>
       </div>
       <div
@@ -57,7 +65,7 @@ export function PhotoUploadBar({ percent }: { percent: number }) {
         aria-valuenow={shown}
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-label="Photo upload progress"
+        aria-label={label}
       >
         <div
           className="relative h-full overflow-hidden rounded-full bg-[#A87B62] transition-[width] duration-200 ease-out"
@@ -66,6 +74,7 @@ export function PhotoUploadBar({ percent }: { percent: number }) {
           <div className="absolute inset-y-0 w-1/2 animate-photo-shimmer bg-gradient-to-r from-transparent via-white/55 to-transparent" />
         </div>
       </div>
+      {detail ? <p className="mt-1.5 text-[11px] text-[#6b7280]">{detail}</p> : null}
     </div>
   );
 }
