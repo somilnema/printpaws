@@ -11,8 +11,17 @@ export type ArtworkUploadProgress = {
   secondsLeft: number | null;
 };
 
-export function uploadToSignedUrl(signedUrl: string, file: File, onProgress?: (progress: ArtworkUploadProgress) => void) {
+export function uploadToSignedUrl(
+  signedUrl: string,
+  file: File,
+  onProgress?: (progress: ArtworkUploadProgress) => void,
+  signal?: AbortSignal
+) {
   return new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new Error("Upload cancelled."));
+      return;
+    }
     const body = new FormData();
     body.append("cacheControl", "3600");
     body.append("", file);
@@ -20,8 +29,11 @@ export function uploadToSignedUrl(signedUrl: string, file: File, onProgress?: (p
     const xhr = new XMLHttpRequest();
     const startedAt = performance.now();
     const timer = window.setTimeout(() => xhr.abort(), UPLOAD_TIMEOUT_MS);
+    const onCancel = () => xhr.abort();
+    signal?.addEventListener("abort", onCancel);
     const fail = (message: string) => {
       window.clearTimeout(timer);
+      signal?.removeEventListener("abort", onCancel);
       reject(new Error(message));
     };
 
@@ -39,6 +51,7 @@ export function uploadToSignedUrl(signedUrl: string, file: File, onProgress?: (p
     };
     xhr.onload = () => {
       window.clearTimeout(timer);
+      signal?.removeEventListener("abort", onCancel);
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve();
         return;
@@ -53,7 +66,7 @@ export function uploadToSignedUrl(signedUrl: string, file: File, onProgress?: (p
       reject(new Error(message || "The artwork upload failed. Please try again."));
     };
     xhr.onerror = () => fail("The artwork upload failed. Check your connection and try again.");
-    xhr.onabort = () => fail("The artwork upload timed out. Please try again.");
+    xhr.onabort = () => fail(signal?.aborted ? "Upload cancelled." : "The artwork upload timed out. Please try again.");
     xhr.send(body);
   });
 }
