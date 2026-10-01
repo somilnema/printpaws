@@ -19,9 +19,15 @@ export function proofObjectPath(orderId: string, versionId: string) {
   return `${PROOF_PREFIX}/${orderId}/${versionId}.jpg`;
 }
 
+let originalsBucketReady = false;
+
 async function ensureOriginalsBucket() {
+  if (originalsBucketReady) return;
   const existing = await supabaseAdmin.storage.getBucket(ORIGINALS_BUCKET);
-  if (existing.data) return;
+  if (existing.data) {
+    originalsBucketReady = true;
+    return;
+  }
   const created = await supabaseAdmin.storage.createBucket(ORIGINALS_BUCKET, {
     public: false,
     fileSizeLimit: 20 * 1024 * 1024,
@@ -30,6 +36,7 @@ async function ensureOriginalsBucket() {
   if (created.error && !/already exists|duplicate/i.test(created.error.message)) {
     throw new Error(created.error.message);
   }
+  originalsBucketReady = true;
 }
 
 export async function createOriginalUploadUrl(orderId: string, versionId: string, ext: string) {

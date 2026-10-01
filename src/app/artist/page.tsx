@@ -510,6 +510,7 @@ function ArtistOrderCard({
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ percent: number; label: string; detail?: string } | null>(null);
   const [error, setError] = useState("");
+  const [uploading, setUploading] = useState(false);
   const canUpload = artistCanUpload(order.fulfillment_stage);
   const canStart = artistCanStartRevision(order.fulfillment_stage);
   const revisionNotes = order.updates.filter((update) => update.kind === "revision" && update.note);
@@ -533,6 +534,7 @@ function ArtistOrderCard({
     uploadRef.current?.controller.abort();
     const entry = { file: next, controller: new AbortController() } as PendingUpload;
     uploadRef.current = entry;
+    setUploading(true);
     const report = (value: NonNullable<typeof progress>) => {
       if (uploadRef.current === entry) setProgress(value);
     };
@@ -546,7 +548,7 @@ function ArtistOrderCard({
         next,
         ({ ratio, secondsLeft }) => {
           report({
-            percent: 5 + ratio * 80,
+            percent: 5 + ratio * 94,
             label: "Uploading artwork",
             detail: `${formatFileSize(next.size * ratio)} of ${formatFileSize(next.size)} · ${formatSecondsLeft(secondsLeft)}`,
           });
@@ -557,10 +559,15 @@ function ArtistOrderCard({
     })();
 
     entry.promise.then(
-      () => report({ percent: 85, label: "Image uploaded", detail: "Press Send for review to share it with the customer" }),
+      () => {
+        if (uploadRef.current !== entry) return;
+        setUploading(false);
+        report({ percent: 100, label: "Image uploaded", detail: "Press Send for review to share it with the customer" });
+      },
       (err) => {
         if (uploadRef.current !== entry || entry.controller.signal.aborted) return;
         uploadRef.current = null;
+        setUploading(false);
         setProgress(null);
         setError(err instanceof Error && err.message ? err.message : "The artwork could not be uploaded. Please try again.");
       }
@@ -597,7 +604,7 @@ function ArtistOrderCard({
     let result: Awaited<ReturnType<typeof finishArtworkUpload>>;
     try {
       const started = await entry.promise;
-      setProgress({ percent: 88, label: "Creating watermarked preview", detail: "Usually takes a few seconds" });
+      setProgress({ percent: 10, label: "Creating watermarked preview", detail: "Usually takes a few seconds" });
       creep = window.setInterval(() => {
         setProgress((current) => (current ? { ...current, percent: Math.min(97, current.percent + 1) } : current));
       }, 700);
@@ -716,7 +723,7 @@ function ArtistOrderCard({
                 <PreviewImage
                   src={artworkPreview}
                   alt="Artwork to send"
-                  busy={busy || Boolean(progress && progress.percent < 85)}
+                  busy={busy || uploading}
                   className="h-40 w-full rounded-2xl sm:w-44"
                 />
               ) : null}
@@ -738,7 +745,7 @@ function ArtistOrderCard({
                 className={`${inputClass} text-base sm:text-sm`}
               />
               <button type="submit" disabled={busy} className={`${buttonClass} w-full sm:w-auto`}>
-                {busy ? (progress && progress.percent < 85 ? "Uploading…" : "Sending…") : "Send for review"}
+                {busy ? (uploading ? "Uploading…" : "Sending…") : "Send for review"}
               </button>
             </form>
           ) : null}
