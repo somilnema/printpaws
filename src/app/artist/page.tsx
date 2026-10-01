@@ -508,7 +508,7 @@ function ArtistOrderCard({
   const [fileKey, setFileKey] = useState(0);
   const [artworkPreview, setArtworkPreview] = useState("");
   const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState<{ percent: number; label: string; detail?: string } | null>(null);
+  const [progress, setProgress] = useState<{ percent: number; label: string; detail?: string; done?: boolean } | null>(null);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
   const canUpload = artistCanUpload(order.fulfillment_stage);
@@ -562,7 +562,12 @@ function ArtistOrderCard({
       () => {
         if (uploadRef.current !== entry) return;
         setUploading(false);
-        report({ percent: 100, label: "Image uploaded", detail: "Press Send for review to share it with the customer" });
+        report({
+          percent: 100,
+          label: "Upload complete",
+          detail: `${formatFileSize(next.size)} · Press Send for review to share it with the customer`,
+          done: true,
+        });
       },
       (err) => {
         if (uploadRef.current !== entry || entry.controller.signal.aborted) return;
@@ -628,8 +633,8 @@ function ArtistOrderCard({
       setError(result.error);
       return;
     }
-    setProgress({ percent: 100, label: "Sent for review" });
-    window.setTimeout(() => setProgress(null), 1200);
+    setProgress({ percent: 100, label: "Sent for review", detail: "The customer can now see the watermarked preview", done: true });
+    window.setTimeout(() => setProgress(null), 3000);
     if ("warning" in result && result.warning) setError(result.warning);
     setNote("");
     setTeamNote("");
@@ -728,7 +733,7 @@ function ArtistOrderCard({
                 />
               ) : null}
               {file ? <p className="break-all text-xs text-[#9ca3af]">{file.name}</p> : null}
-              {progress ? <PhotoUploadBar percent={progress.percent} label={progress.label} detail={progress.detail} /> : null}
+              {progress ? <PhotoUploadBar percent={progress.percent} label={progress.label} detail={progress.detail} done={progress.done} /> : null}
               {error ? <p className={errorClass}>{error}</p> : null}
               <textarea
                 value={note}

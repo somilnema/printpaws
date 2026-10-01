@@ -45,13 +45,34 @@ export function PhotoUploadBar({
   percent,
   label = "Uploading photo",
   detail,
+  done = false,
 }: {
   percent: number;
   label?: string;
   detail?: string;
+  done?: boolean;
 }) {
   const shown = Math.min(100, Math.max(0, Math.round(percent)));
   const width = Math.min(100, Math.max(shown, 8));
+
+  if (done) {
+    return (
+      <div
+        role="status"
+        className="flex w-full items-center gap-3 rounded-2xl border border-[#d7ebdc] bg-[#f2f9f4] px-3.5 py-3 animate-upload-done"
+      >
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2f8f5b] text-white">
+          <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4" aria-hidden>
+            <path d="M5 10.5l3.2 3.2L15 7" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-[#1a1a1b]">{label}</span>
+          {detail ? <span className="mt-0.5 block text-xs text-[#4b5563]">{detail}</span> : null}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full">
