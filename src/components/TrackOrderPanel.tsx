@@ -8,6 +8,8 @@ import { OrderHistory } from "@/components/OrderHistory";
 import { OrderTimeline } from "@/components/OrderTimeline";
 import { X } from "lucide-react";
 
+const STARTING_CHANGE_FIELDS = 3;
+
 function formatDate(value?: string) {
   if (!value) return "";
   return new Date(value).toLocaleString("en-IN", {
@@ -106,7 +108,7 @@ function TrackedOrder({
   phone: string;
   onUpdated: (orders: TrackOrder[]) => void;
 }) {
-  const [points, setPoints] = useState<string[]>(() => Array.from({ length: MIN_CHANGE_POINTS }, () => ""));
+  const [points, setPoints] = useState<string[]>(() => Array.from({ length: STARTING_CHANGE_FIELDS }, () => ""));
   const [revising, setRevising] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -121,7 +123,7 @@ function TrackedOrder({
       setError(result.error);
       return;
     }
-    setPoints(Array.from({ length: MIN_CHANGE_POINTS }, () => ""));
+    setPoints(Array.from({ length: STARTING_CHANGE_FIELDS }, () => ""));
     setRevising(false);
     onUpdated(result.orders);
   }
@@ -192,7 +194,7 @@ function TrackedOrder({
           </button>
           {canRevise && revising ? (
             <form onSubmit={handleRevision} className="space-y-2">
-              <p className="text-xs font-inter text-gray-500">Write 3 to 5 separate changes. Each one is its own point.</p>
+              <p className="text-xs font-inter text-gray-500">Write 1 to 5 separate changes. Each one is its own point. Leave any you don&apos;t need blank.</p>
               {points.map((point, index) => (
                 <div key={index} className="flex gap-2">
                   <input
@@ -201,11 +203,10 @@ function TrackedOrder({
                       setPoints((current) => current.map((item, itemIndex) => (itemIndex === index ? e.target.value : item)))
                     }
                     placeholder={`Change ${index + 1}`}
-                    required={index < MIN_CHANGE_POINTS}
                     maxLength={240}
                     className="w-full bg-gray-50 rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 ring-primary/20 font-inter"
                   />
-                  {index >= MIN_CHANGE_POINTS ? (
+                  {points.length > MIN_CHANGE_POINTS ? (
                     <button
                       type="button"
                       onClick={() => setPoints((current) => current.filter((_, itemIndex) => itemIndex !== index))}

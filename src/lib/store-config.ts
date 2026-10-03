@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { saveOfferRule } from "@/lib/save-offer";
 import {
   cloneCatalog,
   COUPON_SCOPES,
@@ -334,6 +335,8 @@ export async function resolveCoupon(
   const { data, error } = await supabaseAdmin.from("coupons").select("*").eq("code", normalized).maybeSingle();
 
   if (error && isMissingTable(error)) {
+    const offer = saveOfferRule(normalized);
+    if (offer) return checkMin(offer, ctx.orderAmount);
     const legacy = getCoupon(normalized);
     if (!legacy.ok) return legacy;
     if (!legacy.coupon || !legacy.code) return { ok: true, rule: null };
@@ -350,7 +353,11 @@ export async function resolveCoupon(
   }
 
   if (error) return { ok: false, error: "Could not check this coupon. Please try again." };
-  if (!data) return { ok: false, error: "This coupon code is invalid." };
+  if (!data) {
+    const offer = saveOfferRule(normalized);
+    if (offer) return checkMin(offer, ctx.orderAmount);
+    return { ok: false, error: "This coupon code is invalid." };
+  }
   if (!data.active) return { ok: false, error: "This coupon has expired or is no longer active." };
 
   const now = Date.now();

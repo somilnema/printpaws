@@ -1,16 +1,16 @@
-export const MIN_CHANGE_POINTS = 3;
+export const MIN_CHANGE_POINTS = 1;
 export const MAX_CHANGE_POINTS = 5;
 const POINT_MAX = 240;
 
 export function validateChangePoints(input: unknown): { ok: true; points: string[] } | { ok: false; error: string } {
-  if (!Array.isArray(input)) return { ok: false, error: "Add 3 to 5 separate changes." };
+  if (!Array.isArray(input)) return { ok: false, error: "Add 1 to 5 separate changes." };
   const raw = input.map((item) => String(item ?? "").replace(/\s+/g, " ").trim());
   if (raw.some((item) => item.length > POINT_MAX)) {
     return { ok: false, error: `Keep each change under ${POINT_MAX} characters.` };
   }
   const points = raw.filter(Boolean);
   if (points.length < MIN_CHANGE_POINTS || points.length > MAX_CHANGE_POINTS) {
-    return { ok: false, error: "Add 3 to 5 separate changes." };
+    return { ok: false, error: "Add 1 to 5 separate changes." };
   }
   return { ok: true, points };
 }

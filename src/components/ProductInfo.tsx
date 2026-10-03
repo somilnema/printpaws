@@ -12,6 +12,7 @@ import {
   Undo2,
   Truck,
   ShieldCheck,
+  Gift,
   PawPrint,
   Heart as HeartIcon,
   ArrowRight,
@@ -46,6 +47,9 @@ import {
 } from "@/lib/pricing";
 import { trackPixel } from "@/lib/pixel";
 import { ExtraProducts } from "@/components/ExtraProducts";
+import { SaveOfferModal } from "@/components/SaveOfferModal";
+import { SAVE_OFFER_STORAGE_KEY, SAVE_WHEEL, pickSaveOfferIndex, saveOfferRule } from "@/lib/save-offer";
+import { DeliveryEstimate } from "@/components/DeliveryEstimate";
 
 
 const PET_OPTIONS = [
@@ -146,6 +150,9 @@ export function ProductInfo() {
   const [sandboxOrderData, setSandboxOrderData] = useState<any>(null);
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
   const [paymentNotice, setPaymentNotice] = useState<{ title: string; message: string } | null>(null);
+  const [saveOffer, setSaveOffer] = useState<{ index: number; revealed: boolean } | null>(null);
+  const [saveOfferError, setSaveOfferError] = useState<string | null>(null);
+  const [isClaimingOffer, setIsClaimingOffer] = useState(false);
   const paymentSettled = useRef(false);
   const [deliveryDates, setDeliveryDates] = useState("");
 
@@ -304,9 +311,9 @@ export function ProductInfo() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const SOCIAL_PROOF_AVATARS = [
-    { bg: "#E7C4A8", skin: "#F6D7C3", hairColor: "#3D2B1F", hair: "M18 30c0-12 5-20 14-20s14 8 14 20c-3-6-7-9-14-9s-11 3-14 9z" },
-    { bg: "#C9B7A2", skin: "#E8C4B0", hairColor: "#1F1A17", hair: "M16 28c1-14 8-20 16-20s15 6 16 20c-2-4-6-7-16-7s-14 3-16 7z" },
-    { bg: "#D4A574", skin: "#F3CDB4", hairColor: "#5C3A2E", hair: "M20 26c0-14 4-18 12-18s12 4 12 18c-2-8-6-12-12-12s-10 4-12 12z" },
+    { src: "review bar image 1.jpg.jpeg", face: "57% 32%", zoom: 2.4 },
+    { src: "Review bar image 2.jpg.jpeg", face: "64% 55%", zoom: 1.8 },
+    { src: "Review bat image 3.jpg.jpeg", face: "53% 18%", zoom: 3 },
   ];
 
   const testimonials = [
@@ -379,6 +386,17 @@ export function ProductInfo() {
   const portraitBaseAmount = Math.max(0, quote.originalAmount - extrasAmount);
   const breakdown = getPortraitBreakdown(pricingInput, catalog);
   const cartTotal = quote.afterCouponAmount;
+  const offerSlice = saveOffer ? SAVE_WHEEL[saveOffer.index] : null;
+  const offerRule = offerSlice ? saveOfferRule(offerSlice.code) : null;
+  let offerQuote = quote;
+  if (offerRule) {
+    try {
+      offerQuote = calculateQuote({ ...pricingInput, couponCode: offerRule.code, couponRule: offerRule }, catalog);
+    } catch {
+      offerQuote = quote;
+    }
+  }
+  const keepCurrentOffer = Boolean(appliedCoupon && offerQuote.couponDiscount < quote.couponDiscount);
 
   const extraProductsPicker = (title?: string) =>
     productType === "portrait" ? (
@@ -667,6 +685,84 @@ export function ProductInfo() {
     setCouponMessage(null);
   };
 
+  const openSaveOffer = () => {
+    setPaymentNotice(null);
+    setSaveOfferError(null);
+    try {
+      const saved = sessionStorage.getItem(SAVE_OFFER_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved) as { index?: number; revealed?: boolean };
+        if (typeof parsed.index === "number" && parsed.index >= 0 && parsed.index < SAVE_WHEEL.length) {
+          setSaveOffer({ index: parsed.index, revealed: Boolean(parsed.revealed) });
+          return;
+        }
+      }
+    } catch {
+      // A bad session value just starts a fresh spin.
+    }
+    const next = { index: pickSaveOfferIndex(), revealed: false };
+    try {
+      sessionStorage.setItem(SAVE_OFFER_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // The offer still works for this visit if storage is blocked.
+    }
+    setSaveOffer(next);
+  };
+
+  const revealSaveOffer = () => {
+    setSaveOffer((prev) => {
+      if (!prev || prev.revealed) return prev;
+      const next = { ...prev, revealed: true };
+      try {
+        sessionStorage.setItem(SAVE_OFFER_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // The revealed prize still stays in memory for this visit.
+      }
+      return next;
+    });
+  };
+
+  const leaveAfterSaveOffer = () => {
+    setSaveOffer(null);
+    setPaymentNotice(null);
+    setShowCheckout(false);
+    setShowCart(false);
+  };
+
+  const claimSaveOffer = async () => {
+    if (!saveOffer || !offerSlice || !offerRule) return;
+    if (keepCurrentOffer) {
+      setSaveOffer(null);
+      setShowCheckout(true);
+      return;
+    }
+    setIsClaimingOffer(true);
+    setSaveOfferError(null);
+    try {
+      const res = await fetch("/api/checkout/quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...pricingInput, couponCode: offerRule.code, customerEmail }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setSaveOfferError(data.error || "This offer could not be applied.");
+        return;
+      }
+      setAppliedCoupon(data.quote.couponCode);
+      setCouponRule(data.quote.couponRule || offerRule);
+      setCouponInput(data.quote.couponCode || offerRule.code);
+      setCouponError(null);
+      setCouponMessage(`${data.quote.couponCode} applied — ${couponOffLabel(data.quote)} off`);
+      setSaveOffer(null);
+      setShowCheckout(true);
+    } catch {
+      setSaveOfferError("Could not apply this offer. Please try again.");
+    } finally {
+      setIsClaimingOffer(false);
+    }
+  };
+
   const handleCheckout = async () => {
     if (!addedToCart) {
       setWarningMessage("Please add your portrait to the cart before placing the order.");
@@ -863,11 +959,11 @@ export function ProductInfo() {
           </div>
         </div>
 
-        {/* Font Info Text */}
+        {/* Preview Info Text */}
         <div className="flex items-start gap-3 px-2">
           <Package size={18} className="text-[#A87B62] opacity-70 mt-0.5" />
           <p className="text-[12px] text-gray-500 font-medium leading-tight">
-            See your artwork first, then choose your favorite font from <span className="text-[#A87B62] font-bold">20+ styles on WhatsApp.</span>
+            You’ll receive your design preview first. Once approved, we print, pack & ship! ✅
           </p>
         </div>
       </div>
@@ -1076,12 +1172,7 @@ export function ProductInfo() {
               >
                 Continue <ArrowRight size={18} />
               </button>
-              <div className="flex items-center justify-center gap-1.5 mt-3 text-gray-500 bg-gray-50/80 py-2.5 rounded-lg border border-gray-100">
-                <Truck size={14} className="text-[#A87B62]" />
-                <span className="text-[11px] font-medium tracking-wide uppercase">
-                  Order today, receive it by: <strong className="text-[#1a1a1b] font-black">{deliveryDates}</strong>
-                </span>
-              </div>
+              <DeliveryEstimate />
               </div>
             </motion.div>
           )}
@@ -1232,7 +1323,7 @@ export function ProductInfo() {
                     </label>
                     <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <ShieldCheck size={20} className="text-primary" />
+                        <Gift size={20} className="text-primary" />
                         <div>
                           <p className="text-xs font-bold text-[#1a1a1b] uppercase">Premium Gift Wrap (+Rs. {catalog.giftWrap})</p>
                           <p className="text-[10px] text-gray-500">Ready to give portrait</p>
@@ -1346,9 +1437,6 @@ export function ProductInfo() {
                           />
                           <div className="min-w-0 flex-1">
                             <p className="text-[11px] text-gray-500 font-medium truncate">{selectedFile.name}</p>
-                            {photoStatus === "saved" && (
-                              <p className="text-[11px] font-medium text-green-700">Photo saved</p>
-                            )}
                             {photoStatus === "error" && (
                               <button
                                 type="button"
@@ -1364,6 +1452,9 @@ export function ProductInfo() {
                           </div>
                         </div>
                         {photoStatus === "uploading" && <PhotoUploadBar percent={photoProgress} />}
+                        {photoStatus === "saved" && (
+                          <PhotoUploadBar percent={100} done label="Photo uploaded" detail="Looks great! We'll use this for your portrait." />
+                        )}
                       </div>
                     )}
                     <FieldError message={fieldErrors.photo} />
@@ -1405,7 +1496,7 @@ export function ProductInfo() {
               </div>
 
               <p className="text-[12px] text-gray-500 leading-relaxed">
-                Entered once and carried forward to checkout. You will not be asked again.
+                These details are carried to checkout. You can still change them there if the order is for someone else.
               </p>
 
               <div>
@@ -1552,13 +1643,15 @@ export function ProductInfo() {
       <div className="border border-dashed border-gray-300 rounded-xl p-4 flex items-center justify-center gap-3 bg-gray-50/30 mt-5 mb-5">
         <div className="flex -space-x-2">
           {SOCIAL_PROOF_AVATARS.map((avatar) => (
-            <div key={avatar.bg} className="w-8 h-8 rounded-full border-2 border-white overflow-hidden shadow-sm">
-              <svg viewBox="0 0 64 64" aria-hidden="true" className="w-full h-full">
-                <rect width="64" height="64" fill={avatar.bg} />
-                <circle cx="32" cy="58" r="22" fill={avatar.skin} />
-                <circle cx="32" cy="28" r="14" fill={avatar.skin} />
-                <path d={avatar.hair} fill={avatar.hairColor} />
-              </svg>
+            <div key={avatar.src} className="relative w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-gray-100 shadow-sm">
+              <Image
+                src={media(avatar.src)}
+                alt="Happy pet parent"
+                fill
+                sizes="96px"
+                className="object-cover"
+                style={{ objectPosition: avatar.face, transformOrigin: avatar.face, transform: `scale(${avatar.zoom})` }}
+              />
             </div>
           ))}
         </div>
@@ -1979,7 +2072,13 @@ export function ProductInfo() {
                         {paymentMethod === "prepaid" && <Check size={12} className="text-white" strokeWidth={3} />}
                       </div>
                     </div>
-                    <div className="space-y-1 text-[12px] bg-[#faf8f5] rounded-xl p-3">
+                      <div className="space-y-1 text-[12px] bg-[#faf8f5] rounded-xl p-3">
+                      {prepaidQuote.couponDiscount > 0 && (
+                        <div className="flex justify-between text-green-700">
+                          <span>Coupon {prepaidQuote.couponCode}</span>
+                          <span className="font-bold">- {formatRs(prepaidQuote.couponDiscount)}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between"><span className="text-gray-500">Order Total</span><span className="font-bold">{formatRs(prepaidQuote.afterCouponAmount)}</span></div>
                       <div className="flex justify-between text-green-700"><span>Prepaid Discount ({catalog.prepaidPercent}%)</span><span className="font-bold">- {formatRs(prepaidQuote.prepaidDiscount)}</span></div>
                       <div className="flex justify-between pt-1 border-t border-dashed border-[#eadfc9] font-black"><span>Pay Now</span><span>{formatRs(prepaidQuote.payableNow)}</span></div>
@@ -2007,6 +2106,12 @@ export function ProductInfo() {
                         </div>
                       </div>
                       <div className="space-y-1 text-[12px] bg-[#faf8f5] rounded-xl p-3">
+                        {codQuote.couponDiscount > 0 && (
+                          <div className="flex justify-between text-green-700">
+                            <span>Coupon {codQuote.couponCode}</span>
+                            <span className="font-bold">- {formatRs(codQuote.couponDiscount)}</span>
+                          </div>
+                        )}
                         <div className="flex justify-between"><span className="text-gray-500">Order Total</span><span className="font-bold">{formatRs(codQuote.afterCouponAmount)}</span></div>
                         <div className="flex justify-between"><span>{catalog.codAdvancePercent}% Advance</span><span className="font-bold">{formatRs(codQuote.advanceAmount)}</span></div>
                         <div className="flex justify-between pt-1 border-t border-dashed border-[#eadfc9]">
@@ -2022,26 +2127,52 @@ export function ProductInfo() {
                   <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Delivery Details</h3>
                   <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
                     <div>
-                      <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Full Name</label>
-                      <p className="text-sm font-bold text-[#1a1a1b]">{customerName}</p>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                        Full Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={customerName}
+                        onChange={(e) => {
+                          setCustomerName(e.target.value);
+                          clearFieldError("customerName");
+                        }}
+                        placeholder="Your full name"
+                        className={`w-full px-3 py-2.5 border-[1.5px] rounded-lg outline-none text-sm ${fieldErrors.customerName ? "border-red-400 bg-red-50/40" : "border-gray-200 focus:border-[#1a1a1b]"}`}
+                      />
+                      <FieldError message={fieldErrors.customerName} />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Email Address</label>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                        Email Address <span className="text-red-500">*</span>
+                      </label>
                       <input
                         type="email"
                         value={customerEmail}
-                        readOnly
-                        className="w-full px-3 py-2.5 border-[1.5px] border-gray-100 rounded-lg bg-gray-50 text-sm font-medium text-[#1a1a1b]"
+                        onChange={(e) => {
+                          setCustomerEmail(e.target.value);
+                          clearFieldError("customerEmail");
+                        }}
+                        placeholder="you@example.com"
+                        className={`w-full px-3 py-2.5 border-[1.5px] rounded-lg outline-none text-sm ${fieldErrors.customerEmail ? "border-red-400 bg-red-50/40" : "border-gray-200 focus:border-[#1a1a1b]"}`}
                       />
+                      <FieldError message={fieldErrors.customerEmail} />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Mobile Number</label>
+                      <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+                        Mobile Number <span className="text-red-500">*</span>
+                      </label>
                       <input
                         type="tel"
                         value={customerPhone}
-                        readOnly
-                        className="w-full px-3 py-2.5 border-[1.5px] border-gray-100 rounded-lg bg-gray-50 text-sm font-medium text-[#1a1a1b]"
+                        onChange={(e) => {
+                          setCustomerPhone(e.target.value);
+                          clearFieldError("customerPhone");
+                        }}
+                        placeholder="+91 98765 43210"
+                        className={`w-full px-3 py-2.5 border-[1.5px] rounded-lg outline-none text-sm ${fieldErrors.customerPhone ? "border-red-400 bg-red-50/40" : "border-gray-200 focus:border-[#1a1a1b]"}`}
                       />
+                      <FieldError message={fieldErrors.customerPhone} />
                     </div>
                     {productType === "portrait" && (
                       <>
@@ -2298,13 +2429,44 @@ export function ProductInfo() {
                 <button
                   type="button"
                   onClick={() => setPaymentNotice(null)}
-                  className="w-full py-3 bg-[#1a1a1b] text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-[#2F2F2F] transition-all shadow-md active:scale-95"
+                  className="w-full py-3 bg-[#1a1a1b] text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-[#2F2F2F] transition-colors shadow-md active:scale-[0.98]"
                 >
                   {paymentNotice.title === "Payment received" ? "Close" : "Try again"}
                 </button>
+                {paymentNotice.title !== "Payment received" && (
+                  <button
+                    type="button"
+                    onClick={openSaveOffer}
+                    className="w-full py-3 rounded-xl border border-[#e7e1da] bg-white text-[#1a1a1b] font-bold uppercase tracking-wider text-[11px] hover:bg-[#faf8f5] transition-colors active:scale-[0.98]"
+                  >
+                    Go back (changed my mind)
+                  </button>
+                )}
               </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {saveOffer && offerSlice && (
+          <SaveOfferModal
+            petName={petName}
+            slice={offerSlice}
+            sliceIndex={saveOffer.index}
+            alreadyRevealed={saveOffer.revealed}
+            savingsLabel={formatRs(offerQuote.couponDiscount)}
+            payNowLabel={formatRs(offerQuote.payableNow)}
+            previousPayLabel={formatRs(quote.payableNow)}
+            keepCurrent={keepCurrentOffer}
+            currentCode={appliedCoupon}
+            currentSavingsLabel={formatRs(quote.couponDiscount)}
+            claiming={isClaimingOffer}
+            error={saveOfferError}
+            onRevealed={revealSaveOffer}
+            onClaim={claimSaveOffer}
+            onLeave={leaveAfterSaveOffer}
+          />
         )}
       </AnimatePresence>
 

@@ -57,14 +57,6 @@ export function TrustFeatures() {
             </div>
           ))}
         </div>
-
-        {/* Pagination Dots */}
-        <div className="flex justify-center items-center gap-3 mt-8">
-            <div className="w-1.5 h-1.5 rounded-full bg-white/40 border border-white/60" />
-            <div className="w-1.5 h-1.5 rounded-full bg-white/40 border border-white/60" />
-            <div className="w-6 h-1.5 rounded-full bg-white" />
-            <div className="w-1.5 h-1.5 rounded-full bg-white/40 border border-white/60" />
-        </div>
       </div>
     </section>
   );

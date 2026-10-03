@@ -1,3 +1,5 @@
+import { saveOfferRule } from "@/lib/save-offer";
+
 export type ProductType =
   | "portrait"
   | "custom_payment"
@@ -385,6 +387,12 @@ function ruleFromLegacy(code: string): CouponRule | null {
   };
 }
 
+function ruleFromCode(code: string): CouponRule | null {
+  const offer = saveOfferRule(code);
+  if (offer) return offer;
+  return ruleFromLegacy(code);
+}
+
 export function productAllowsCod(productType: ProductType) {
   return productType === "portrait";
 }
@@ -400,7 +408,7 @@ export function calculateQuote(input: PricingInput, catalog: PriceCatalog = DEFA
     input.paymentMethod === "cod" && productAllowsCod(productType) ? "cod" : "prepaid";
 
   const originalAmount = calculateOriginalAmount(input, catalog);
-  const rule = input.couponRule ? input.couponRule : input.couponCode ? ruleFromLegacy(input.couponCode) : null;
+  const rule = input.couponRule ? input.couponRule : input.couponCode ? ruleFromCode(input.couponCode) : null;
 
   let couponDiscount = 0;
   if (rule) {
