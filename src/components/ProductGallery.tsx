@@ -3,7 +3,10 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
-import { useMedia } from "@/components/SiteMedia";
+import { Play, Volume2, VolumeX } from "lucide-react";
+import { useMedia, useUploadedMedia } from "@/components/SiteMedia";
+
+type Slide = { kind: "image" | "video"; src: string };
 
 const GALLERY_IMAGES: Record<string, string[]> = {
   // Pets (Section 1)
@@ -29,12 +32,17 @@ const GALLERY_IMAGES: Record<string, string[]> = {
 
 export function ProductGallery() {
   const media = useMedia();
+  const processVideo = useUploadedMedia("gallery-video");
   const [activeImage, setActiveImage] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState("one");
   const [selectedFrame, setSelectedFrame] = useState("black");
   const [selectedBgImage, setSelectedBgImage] = useState("/bg7.png");
+  const [muted, setMuted] = useState(true);
 
   useEffect(() => {
+    // Selections refer to photo positions; the process video sits after photo 1.
+    const showPhoto = (index: number) => setActiveImage(processVideo && index >= 1 ? index + 1 : index);
+
     const handleCategoryChange = (e: any) => {
       setSelectedCategory("one");
       setActiveImage(0);
@@ -54,7 +62,7 @@ export function ProductGallery() {
           "Tea Rosé": 4, // 5th Image
           "Black": 0,
         };
-        setActiveImage(colorMap[e.detail] !== undefined ? colorMap[e.detail] : 0);
+        showPhoto(colorMap[e.detail] !== undefined ? colorMap[e.detail] : 0);
       }
     };
 
@@ -62,7 +70,7 @@ export function ProductGallery() {
       setSelectedFrame(e.detail);
       if (e.detail === "canva") {
         setSelectedCategory("one");
-        setActiveImage(5); // 6th Image
+        showPhoto(5); // 6th Image
       } else {
         setSelectedCategory("one");
         setActiveImage(0); // Main Image
@@ -72,10 +80,10 @@ export function ProductGallery() {
     const handleSizeChange = (e: any) => {
       if (e.detail === "framed_size") {
         setSelectedCategory("one");
-        setActiveImage(3); // 4th Image
+        showPhoto(3); // 4th Image
       } else if (e.detail === "canvas_size") {
         setSelectedCategory("one");
-        setActiveImage(4); // 5th Image
+        showPhoto(4); // 5th Image
       }
     };
 
@@ -90,9 +98,12 @@ export function ProductGallery() {
       window.removeEventListener('backgroundSelectionChanged', handleBackgroundChange);
       window.removeEventListener('sizeSelectionChanged', handleSizeChange);
     };
-  }, []);
+  }, [processVideo]);
 
   const currentImages = GALLERY_IMAGES[selectedCategory] || GALLERY_IMAGES.one;
+  const slides: Slide[] = currentImages.map((img) => ({ kind: "image", src: media(img) }));
+  if (processVideo) slides.splice(1, 0, { kind: "video", src: processVideo });
+  const activeSlide = slides[activeImage] || slides[0];
   const isMultiPet = selectedCategory === "two" || selectedCategory === "three" || selectedCategory === "four";
 
   const handleDragEnd = (_: any, info: any) => {
@@ -100,7 +111,7 @@ export function ProductGallery() {
     const swipeThreshold = 50;
     if (info.offset.x > swipeThreshold && activeImage > 0) {
       setActiveImage(activeImage - 1);
-    } else if (info.offset.x < -swipeThreshold && activeImage < currentImages.length - 1) {
+    } else if (info.offset.x < -swipeThreshold && activeImage < slides.length - 1) {
       setActiveImage(activeImage + 1);
     }
   };
@@ -193,14 +204,37 @@ export function ProductGallery() {
               dragConstraints={{ left: 0, right: 0 }}
               onDragEnd={handleDragEnd}
             >
-              <Image
-                src={media(currentImages[activeImage])}
-                alt={`Pet Portrait ${activeImage + 1}`}
-                fill
-                sizes="(max-width: 768px) 100vw, (max-width: 1024px) 640px, 640px"
-                className="select-none transition-transform duration-300 object-cover"
-                priority
-              />
+              {activeSlide.kind === "video" ? (
+                <>
+                  <video
+                    src={activeSlide.src}
+                    autoPlay
+                    loop
+                    muted={muted}
+                    playsInline
+                    preload="metadata"
+                    className="pointer-events-none h-full w-full select-none object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setMuted((value) => !value)}
+                    onPointerDownCapture={(e) => e.stopPropagation()}
+                    className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm"
+                    aria-label={muted ? "Unmute video" : "Mute video"}
+                  >
+                    {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                  </button>
+                </>
+              ) : (
+                <Image
+                  src={activeSlide.src}
+                  alt={`Pet Portrait ${activeImage + 1}`}
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 640px, 640px"
+                  className="select-none transition-transform duration-300 object-cover"
+                  priority
+                />
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -208,7 +242,7 @@ export function ProductGallery() {
         {/* Mobile Pagination Dots */}
         {selectedCategory !== "custom_bg" && (
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2.5 md:hidden z-20">
-            {currentImages.map((_, idx) => (
+            {slides.map((_, idx) => (
               <button
                 key={idx}
                 onClick={() => setActiveImage(idx)}
@@ -254,7 +288,7 @@ export function ProductGallery() {
             </button>
           ))
         ) : (
-          currentImages.map((img, idx) => (
+          slides.map((slide, idx) => (
             <button
               key={idx}
               onClick={() => setActiveImage(idx)}
@@ -263,14 +297,32 @@ export function ProductGallery() {
                   ? "border-primary shadow-lg scale-[1.02]" 
                   : "border-transparent opacity-50 hover:opacity-100"
               }`}
+              aria-label={slide.kind === "video" ? "Play how the art is made" : undefined}
             >
-              <Image
-                src={media(img)}
-                alt={`Thumbnail ${idx + 1}`}
-                fill
-                sizes="96px"
-                className="object-cover"
-              />
+              {slide.kind === "video" ? (
+                <>
+                  <video
+                    src={`${slide.src}#t=0.1`}
+                    muted
+                    playsInline
+                    preload="metadata"
+                    className="pointer-events-none h-full w-full object-cover"
+                  />
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/25">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow">
+                      <Play size={14} className="ml-0.5 fill-[#1a1a1b] text-[#1a1a1b]" />
+                    </span>
+                  </span>
+                </>
+              ) : (
+                <Image
+                  src={slide.src}
+                  alt={`Thumbnail ${idx + 1}`}
+                  fill
+                  sizes="96px"
+                  className="object-cover"
+                />
+              )}
             </button>
           ))
         )}

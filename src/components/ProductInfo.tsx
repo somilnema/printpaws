@@ -21,11 +21,13 @@ import {
   ShoppingBag,
   Wallet,
   IndianRupee,
-  Tag
+  Tag,
+  User,
+  Eye
 } from "lucide-react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { useMedia } from "@/components/SiteMedia";
+import { useMedia, useUploadedMedia } from "@/components/SiteMedia";
 import {
   calculateQuote,
   couponOffLabel,
@@ -42,6 +44,7 @@ import {
   type CouponRule,
   type PaymentMethod,
   type PriceCatalog,
+  type PortraitStyle,
   type PricingInput,
   type ProductType,
 } from "@/lib/pricing";
@@ -50,13 +53,15 @@ import { ExtraProducts } from "@/components/ExtraProducts";
 import { SaveOfferModal } from "@/components/SaveOfferModal";
 import { SAVE_OFFER_STORAGE_KEY, SAVE_WHEEL, pickSaveOfferIndex, saveOfferRule } from "@/lib/save-offer";
 import { DeliveryEstimate } from "@/components/DeliveryEstimate";
+import { PortraitStyleInfographic } from "@/components/PortraitStylePreview";
 
 
 const PET_OPTIONS = [
-  { id: "one", label: "One", image: "/no-of-pets/one-pet.png" },
-  { id: "two", label: "Two", image: "/no-of-pets/two-pet.png" },
-  { id: "three", label: "Three", image: "/no-of-pets/three-pet.png" },
-  { id: "four", label: "Four", image: "/no-of-pets/four-pet.png" },
+  { id: "one", label: "One Pet", image: "/no-of-pets/one-pet.png", names: 1 },
+  { id: "two", label: "Two Pets", image: "/no-of-pets/two-pet.png", names: 2 },
+  { id: "three", label: "Three Pets", image: "/no-of-pets/three-pet.png", names: 3 },
+  { id: "four", label: "Four Pets", image: "/no-of-pets/four-pet.png", names: 4 },
+  { id: "human", label: "Human + Pet", image: "", names: 1 },
 ];
 
 
@@ -110,10 +115,13 @@ export function ProductInfo() {
   const [couponError, setCouponError] = useState<string | null>(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [portraitStyle, setPortraitStyle] = useState<"framed" | "canvas">("framed");
+  const [portraitStyle, setPortraitStyle] = useState<PortraitStyle>("framed");
+  const [showStylePreview, setShowStylePreview] = useState(false);
   const [selectedSize, setSelectedSize] = useState('8"x10"');
   const [selectedFrame, setSelectedFrame] = useState("black");
   const [selectedPets, setSelectedPets] = useState("one");
+  const petNameCount = PET_OPTIONS.find((pet) => pet.id === selectedPets)?.names ?? 1;
+  const humanPetImage = useUploadedMedia("pets-human");
   const [selectedBg, setSelectedBg] = useState("Pearl");
   const [selectedAddOn, setSelectedAddOn] = useState("none");
   const [giftWrap, setGiftWrap] = useState(false);
@@ -896,6 +904,14 @@ export function ProductInfo() {
 
   const hasCustomizedItem = addedToCart;
 
+  const choosePortraitStyle = (style: PortraitStyle) => {
+    const frame = style === "framed" ? "black" : "canva";
+    setPortraitStyle(style);
+    setSelectedFrame(frame);
+    setSelectedSize(style === "framed" ? '8"x10"' : '16"x20"');
+    window.dispatchEvent(new CustomEvent('frameSelectionChanged', { detail: frame }));
+  };
+
   return (
     <div ref={containerRef} id="product-customizer" className="flex flex-col gap-0 scroll-mt-24">
       {/* Header Info */}
@@ -1002,25 +1018,29 @@ export function ProductInfo() {
               <div className="space-y-6">
                 {/* 1. Portrait Style */}
                 <div className="space-y-3">
-                  <label className="block text-base font-bold text-[#1a1a1b] font-inter">
-                    1. Choose Your Portrait Style
-                  </label>
+                  <div className="flex items-center justify-between gap-3">
+                    <label className="block text-base font-bold text-[#1a1a1b] font-inter">
+                      1. Choose Your Portrait Style
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowStylePreview(true)}
+                      className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-[#1a1a1b] px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[#1a1a1b] transition-colors hover:bg-[#1a1a1b] hover:text-white"
+                    >
+                      <Eye size={13} strokeWidth={2.5} />
+                      Preview
+                    </button>
+                  </div>
                   <div className="grid grid-cols-2 md:grid-cols-2 gap-3">
                     <button
-                      onClick={() => {
-                        setPortraitStyle("framed");
-                        setSelectedFrame("black");
-                        setSelectedSize('8"x10"');
-                        window.dispatchEvent(new CustomEvent('frameSelectionChanged', { detail: "black" }));
-                      }}
+                      onClick={() => choosePortraitStyle("framed")}
                       className={`group relative flex flex-col md:flex-row items-center md:items-center gap-2 md:gap-4 p-2 md:p-3.5 rounded-2xl border-[2px] transition-all text-center md:text-left ${portraitStyle === "framed"
                         ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
                         : "border-gray-200 hover:border-gray-300 bg-white"
                         }`}
                     >
                       <div className="relative w-16 h-16 flex-shrink-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
-                        <Image src="/framestyle/black-frame.png" alt="Framed" fill sizes="64px" className="object-cover" />
-                      </div>
+                        <Image src="/framestyle/black-frame.png" alt="Framed" fill sizes="64px" className="object-cover" />                      </div>
                       <div className="flex-1 flex flex-col items-center md:items-start w-full">
                         <span className="block font-black text-[#1a1a1b] text-[11px] md:text-sm">Framed Portrait</span>
                         <span className="hidden md:block text-[10px] text-gray-500 font-medium">Ready to Hang • Classic Look</span>
@@ -1031,20 +1051,14 @@ export function ProductInfo() {
                     </button>
 
                     <button
-                      onClick={() => {
-                        setPortraitStyle("canvas");
-                        setSelectedFrame("canva");
-                        setSelectedSize('16"x20"');
-                        window.dispatchEvent(new CustomEvent('frameSelectionChanged', { detail: "canva" }));
-                      }}
+                      onClick={() => choosePortraitStyle("canvas")}
                       className={`group relative flex flex-col md:flex-row items-center md:items-center gap-2 md:gap-4 p-2 md:p-3.5 rounded-2xl border-[2px] transition-all text-center md:text-left ${portraitStyle === "canvas"
                         ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
                         : "border-gray-200 hover:border-gray-300 bg-white"
                         }`}
                     >
                       <div className="relative w-16 h-16 flex-shrink-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
-                        <Image src="/framestyle/canvas-frame.png" alt="Canvas" fill sizes="64px" className="object-cover" />
-                      </div>
+                        <Image src="/framestyle/canvas-frame.png" alt="Canvas" fill sizes="64px" className="object-cover" />                      </div>
                       <div className="flex-1 flex flex-col items-center md:items-start w-full">
                         <span className="block font-black text-[#1a1a1b] text-[11px] md:text-sm">Canvas Portrait</span>
                         <span className="hidden md:block text-[10px] text-gray-500 font-medium">Gallery Wrapped • Premium</span>
@@ -1141,18 +1155,29 @@ export function ProductInfo() {
                           setSelectedPets(pet.id);
                           window.dispatchEvent(new CustomEvent('petSelectionChanged', { detail: pet.id }));
                         }}
-                        className={`group relative flex flex-col md:flex-row items-center md:items-center justify-between gap-2 md:gap-4 p-2 md:p-3.5 rounded-2xl border-[2px] transition-all overflow-hidden ${selectedPets === pet.id
+                        className={`group relative flex flex-col md:flex-row items-center md:items-center justify-between gap-2 md:gap-4 p-2 md:p-3.5 rounded-2xl border-[2px] transition-all overflow-hidden ${pet.id === "human" ? "col-span-2" : ""} ${selectedPets === pet.id
                           ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
                           : "border-gray-200 hover:border-gray-300 bg-white"
                           }`}
                       >
                         <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4 w-full">
                            <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl overflow-hidden bg-gray-50 border border-gray-100 flex-shrink-0 relative shadow-sm">
-                             <Image src={pet.image} alt={pet.label} fill sizes="64px" className="object-cover" />
+                             {pet.id === "human" ? (
+                               humanPetImage ? (
+                                 <img src={humanPetImage} alt={pet.label} className="h-full w-full object-cover" />
+                               ) : (
+                                 <div className="flex h-full w-full items-center justify-center gap-0.5 text-[#A87B62]">
+                                   <User size={18} strokeWidth={2.5} />
+                                   <PawPrint size={16} strokeWidth={2.5} />
+                                 </div>
+                               )
+                             ) : (
+                               <Image src={pet.image} alt={pet.label} fill sizes="64px" className="object-cover" />
+                             )}
                            </div>
                            <div className="text-center md:text-left flex-1">
-                             <span className="block font-black text-[11px] md:text-sm text-[#1a1a1b]">{pet.label} Pet{pet.id !== "one" ? "s" : ""}</span>
-                             <span className="hidden md:block text-[10px] font-bold text-gray-500 uppercase mt-0.5">
+                             <span className="block font-black text-[11px] md:text-sm text-[#1a1a1b]">{pet.label}</span>
+                             <span className="block text-[9px] md:text-[10px] font-bold text-gray-500 uppercase mt-0.5">
                                {pet.id === "one" || !(catalog.pets[pet.id] > 0) ? "Included" : `+${formatRupee(catalog.pets[pet.id])}`}
                              </span>
                            </div>
@@ -1346,10 +1371,10 @@ export function ProductInfo() {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                        5. Pet Name{selectedPets !== "one" ? "s" : ""} <span className="text-red-500">*</span>
+                        5. Pet Name{petNameCount > 1 ? "s" : ""} <span className="text-red-500">*</span>
                       </label>
-                      <div className={`grid gap-3 ${selectedPets === "one" ? 'grid-cols-1' : 'grid-cols-2'}`}>
-                        {Array.from({ length: selectedPets === "four" ? 4 : selectedPets === "three" ? 3 : selectedPets === "two" ? 2 : 1 }).map((_, i) => {
+                      <div className={`grid gap-3 ${petNameCount === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                        {Array.from({ length: petNameCount }).map((_, i) => {
                           const names = petName.split(", ");
                           const currentName = names[i] || "";
                           return (
@@ -1358,14 +1383,13 @@ export function ProductInfo() {
                               type="text"
                               value={currentName}
                               onChange={(e) => {
-                                const numPets = selectedPets === "four" ? 4 : selectedPets === "three" ? 3 : selectedPets === "two" ? 2 : 1;
                                 const newNames = [...names];
-                                while (newNames.length < numPets) newNames.push("");
+                                while (newNames.length < petNameCount) newNames.push("");
                                 newNames[i] = e.target.value;
-                                setPetName(newNames.slice(0, numPets).join(", ").replace(/^, |, $/g, ''));
+                                setPetName(newNames.slice(0, petNameCount).join(", ").replace(/^, |, $/g, ''));
                                 clearFieldError("petName");
                               }}
-                              placeholder={selectedPets !== "one" ? `Pet ${i + 1} Name` : "E.g. Lola"}
+                              placeholder={petNameCount > 1 ? `Pet ${i + 1} Name` : "E.g. Lola"}
                               className={`w-full px-4 py-3 border-[1.5px] rounded-lg focus:border-[#1a1a1b] outline-none transition-all font-inter text-sm ${fieldErrors.petName ? "border-red-400 bg-red-50/40" : "border-gray-200"}`}
                             />
                           );
@@ -2505,6 +2529,8 @@ export function ProductInfo() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <PortraitStyleInfographic open={showStylePreview} onClose={() => setShowStylePreview(false)} />
     </div>
   );
 }

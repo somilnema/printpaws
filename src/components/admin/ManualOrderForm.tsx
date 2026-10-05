@@ -189,6 +189,7 @@ export function ManualOrderForm({ onClose, onCreated }: { onClose: () => void; o
                 <option value="two">Two</option>
                 <option value="three">Three</option>
                 <option value="four">Four</option>
+                <option value="human">Human + Pet</option>
               </select>
             </Field>
             <Field label="Background">

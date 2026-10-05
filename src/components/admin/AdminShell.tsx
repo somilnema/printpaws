@@ -495,7 +495,7 @@ function OrderDetail({
           {Number(order.cod_due) > 0 ? ` · due ${rupee(Number(order.cod_due))}` : ""}
         </p>
         <p className="text-[#6b7280]">
-          {[order.customer_phone, order.size, order.frame_style, order.num_pets && `${order.num_pets} pet(s)`, order.background, order.font]
+          {[order.customer_phone, order.size, order.frame_style, order.num_pets && (order.num_pets === "human" ? "Human + Pet" : `${order.num_pets} pet(s)`), order.background, order.font]
             .filter(Boolean)
             .join(" · ")}
         </p>

@@ -66,6 +66,8 @@ export function catalogFromRows(rows: PriceRow[]): PriceCatalog {
   if (petsTwo) catalog.pets.two = petsTwo.amount;
   if (petsThree) catalog.pets.three = petsThree.amount;
   if (petsFour) catalog.pets.four = petsFour.amount;
+  const petsHuman = byKey.get("pets_human");
+  if (petsHuman) catalog.pets.human = petsHuman.amount;
 
   const halo = byKey.get("addon_halo");
   const wrap = byKey.get("addon_gift_wrap");
@@ -109,6 +111,7 @@ export function rowsFromCatalog(catalog: PriceCatalog): PriceRow[] {
     { key: "pets_two", amount: catalog.pets.two, compare_at: null },
     { key: "pets_three", amount: catalog.pets.three, compare_at: null },
     { key: "pets_four", amount: catalog.pets.four, compare_at: null },
+    { key: "pets_human", amount: catalog.pets.human, compare_at: null },
     { key: "addon_halo", amount: catalog.halo, compare_at: null },
     { key: "addon_gift_wrap", amount: catalog.giftWrap, compare_at: null },
     { key: "addon_premium_bg", amount: catalog.premiumBackground, compare_at: null },

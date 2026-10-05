@@ -98,10 +98,11 @@ export function PricingPanel({
       </Panel>
 
       <Panel title="Extra pets" note="One pet stays included at ₹0.">
-        <div className="grid sm:grid-cols-3 gap-3">
+        <div className="grid sm:grid-cols-4 gap-3">
           <Money label="2 pets" value={catalog.pets.two} onChange={(value) => patch({ pets: { ...catalog.pets, two: value } })} />
           <Money label="3 pets" value={catalog.pets.three} onChange={(value) => patch({ pets: { ...catalog.pets, three: value } })} />
           <Money label="4 pets" value={catalog.pets.four} onChange={(value) => patch({ pets: { ...catalog.pets, four: value } })} />
+          <Money label="Human + pet" value={catalog.pets.human} onChange={(value) => patch({ pets: { ...catalog.pets, human: value } })} />
         </div>
       </Panel>
 

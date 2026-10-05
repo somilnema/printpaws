@@ -41,9 +41,9 @@ function validateCatalog(input: PriceCatalog): { ok: true; catalog: PriceCatalog
     catalog.canvas[size] = Math.round(Number(catalog.canvas[size]));
     checks.push(whole(catalog.canvas[size], `Canvas ${size}`));
   }
-  for (const key of ["two", "three", "four"] as const) {
+  for (const key of ["two", "three", "four", "human"] as const) {
     catalog.pets[key] = Math.round(Number(catalog.pets[key]));
-    checks.push(whole(catalog.pets[key], `${key} pets`));
+    checks.push(whole(catalog.pets[key], key === "human" ? "Human + pet" : `${key} pets`));
   }
   catalog.pets.one = 0;
   catalog.halo = Math.round(Number(catalog.halo));

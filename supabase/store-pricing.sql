@@ -46,6 +46,7 @@ insert into public.price_items (key, amount, compare_at) values
   ('pets_two', 300, null),
   ('pets_three', 600, null),
   ('pets_four', 1500, null),
+  ('pets_human', 500, null),
   ('addon_halo', 200, null),
   ('addon_gift_wrap', 99, null),
   ('addon_premium_bg', 199, null),

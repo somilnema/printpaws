@@ -135,7 +135,9 @@ export function MediaPanel({
         item.id === slot.id ? { ...item, url: item.fallbackUrl, custom: false, updatedAt: null } : item
       )
     );
-    setNotice(`${slot.label} is back to the original file.`);
+    setNotice(
+      slot.fallbackUrl ? `${slot.label} is back to the original file.` : `${slot.label} is removed and hidden on the shop.`
+    );
     await onChanged();
   }
 
@@ -182,6 +184,13 @@ export function MediaPanel({
                 <div className="relative aspect-[4/3] bg-[#f3f4f6]">
                   {drafts[slot.id] ? (
                     <PreviewImage src={drafts[slot.id]} alt={slot.label} busy={busy} className="h-full w-full" />
+                  ) : !slot.url ? (
+                    <div className="flex h-full w-full flex-col items-center justify-center gap-1 px-6 text-center">
+                      <p className="text-sm font-semibold text-[#6b7280]">
+                        {busy ? "Uploading…" : `No ${slot.kind} yet`}
+                      </p>
+                      <p className="text-xs text-[#9ca3af]">This spot stays hidden on the shop until you upload one.</p>
+                    </div>
                   ) : slot.kind === "video" ? (
                     <video
                       key={slot.url}
@@ -207,7 +216,7 @@ export function MediaPanel({
                       slot.custom ? "bg-primary text-white" : "bg-white/95 text-[#6b7280]"
                     }`}
                   >
-                    {slot.custom ? "Replaced" : "Original"}
+                    {slot.custom ? (slot.fallbackUrl ? "Replaced" : "Live") : slot.fallbackUrl ? "Original" : "Hidden"}
                   </span>
                 </div>
                 <div className="space-y-3 p-4">
@@ -219,7 +228,7 @@ export function MediaPanel({
                   {cardError[slot.id] ? <p className={errorClass}>{cardError[slot.id]}</p> : null}
                   <div className="flex flex-wrap gap-2">
                     <label className={`${buttonClass} cursor-pointer ${busy ? "pointer-events-none opacity-50" : ""}`}>
-                      {busy ? "Saving…" : "Replace"}
+                      {busy ? "Saving…" : slot.url ? "Replace" : "Upload"}
                       <input
                         type="file"
                         accept={slot.kind === "video" ? "video/mp4,video/webm" : "image/jpeg,image/png,image/webp"}
@@ -239,7 +248,7 @@ export function MediaPanel({
                         onClick={() => void onReset(slot)}
                         className={ghostButtonClass}
                       >
-                        Restore original
+                        {slot.fallbackUrl ? "Restore original" : "Remove"}
                       </button>
                     ) : null}
                   </div>

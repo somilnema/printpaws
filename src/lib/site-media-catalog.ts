@@ -12,6 +12,8 @@ export type MediaSlot = {
   fallbackKey: string;
   /** Longest edge after upload. Videos are not resized. */
   maxEdge: number;
+  /** No original file: the shop hides this spot until the admin uploads one. */
+  optional?: boolean;
 };
 
 export const IMAGE_UPLOAD_LIMIT = 15 * 1024 * 1024;
@@ -19,6 +21,7 @@ export const VIDEO_UPLOAD_LIMIT = 20 * 1024 * 1024;
 
 export const MEDIA_SLOTS: MediaSlot[] = [
   { id: "gallery-1", group: "Product gallery", label: "Photo 1", hint: "Opening photo. Also shown for black, white, and wood frames, and the Pearl background.", kind: "image", fallbackKey: "Main Image.png", maxEdge: 2000 },
+  { id: "gallery-video", group: "Product gallery", label: "How the art is made", hint: "Short video shown right after Photo 1. Hidden on the shop until you upload one.", kind: "video", fallbackKey: "", maxEdge: 0, optional: true },
   { id: "gallery-2", group: "Product gallery", label: "Photo 2", hint: "Second gallery photo, the Almond background, and Radha’s review.", kind: "image", fallbackKey: "2nd Image.png", maxEdge: 2000 },
   { id: "gallery-3", group: "Product gallery", label: "Photo 3", hint: "Third gallery photo and the Serenity background.", kind: "image", fallbackKey: "3rd Image.png", maxEdge: 2000 },
   { id: "gallery-4", group: "Product gallery", label: "Photo 4", hint: "Shown for framed sizes and the Celadon background.", kind: "image", fallbackKey: "4th Image (2).png", maxEdge: 2000 },
@@ -32,6 +35,9 @@ export const MEDIA_SLOTS: MediaSlot[] = [
   { id: "gallery-bg-2", group: "Product gallery", label: "Custom background 2", hint: "Second custom background.", kind: "image", fallbackKey: "/bg8.png", maxEdge: 2000 },
   { id: "gallery-bg-3", group: "Product gallery", label: "Custom background 3", hint: "Third custom background.", kind: "image", fallbackKey: "/bg9.png", maxEdge: 2000 },
   { id: "gallery-cutout", group: "Product gallery", label: "Pet on custom background", hint: "The pet placed on top of a custom background.", kind: "image", fallbackKey: "/dog_portrait_closeup_1773940826280.png", maxEdge: 1600 },
+
+  { id: "style-infographic", group: "Order form", label: "Framed vs canvas infographic", hint: "Opens from the Preview button next to “Choose Your Portrait Style”. Until you upload one, the pop-up shows the two style photos side by side.", kind: "image", fallbackKey: "", maxEdge: 2400, optional: true },
+  { id: "pets-human", group: "Order form", label: "Human + Pet", hint: "Small photo on the Human + Pet option. Until you upload one, it shows a person and paw icon.", kind: "image", fallbackKey: "", maxEdge: 600, optional: true },
 
   { id: "unboxing-1", group: "Unboxing videos", label: "Real reaction", hint: "First clip in the unboxing row.", kind: "video", fallbackKey: "IMG_3784 (1).MOV", maxEdge: 0 },
   { id: "unboxing-2", group: "Unboxing videos", label: "Unboxing and reveal", hint: "Second clip in the unboxing row.", kind: "video", fallbackKey: "IMG_6005.MOV", maxEdge: 0 },
@@ -87,6 +93,7 @@ function buildIndex() {
     if (!SLOT_ID.test(slot.id)) throw new Error(`Invalid media slot id ${slot.id}`);
     if (byId.has(slot.id)) throw new Error(`Duplicate media slot ${slot.id}`);
     byId.set(slot.id, slot);
+    if (slot.optional) continue;
 
     const resolved = getCloudinaryUrl(slot.fallbackKey);
     for (const key of [slot.fallbackKey, resolved]) {
@@ -112,7 +119,7 @@ export function mediaSlotForKey(key: string) {
 }
 
 export function fallbackUrl(slot: MediaSlot) {
-  return getCloudinaryUrl(slot.fallbackKey);
+  return slot.optional ? "" : getCloudinaryUrl(slot.fallbackKey);
 }
 
 /** Shop URL for a media key. Overrides win; everything else stays on the original file. */

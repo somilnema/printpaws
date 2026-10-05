@@ -20,3 +20,8 @@ export function useMedia() {
   const overrides = useContext(SiteMediaContext);
   return (key: string) => resolveMediaUrl(key, overrides);
 }
+
+/** Admin upload for a slot, or "" when nothing has been uploaded. */
+export function useUploadedMedia(slotId: string) {
+  return useContext(SiteMediaContext)[slotId] || "";
+}

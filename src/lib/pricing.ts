@@ -97,6 +97,7 @@ export const DEFAULT_CATALOG: PriceCatalog = {
     two: 300,
     three: 600,
     four: 1500,
+    human: 500,
   },
   halo: 200,
   giftWrap: 99,
@@ -185,6 +186,7 @@ export const PET_COUNT_LABELS: Record<string, string> = {
   two: "2 Pets",
   three: "3 Pets",
   four: "4 Pets",
+  human: "Human + Pet",
 };
 
 export type PriceLine = { id: string; label: string; price: number };
