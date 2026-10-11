@@ -7,7 +7,6 @@ import { X } from "lucide-react";
 import { useUploadedMedia } from "@/components/SiteMedia";
 
 const STYLES = [
-  { title: "Framed Portrait", image: "/framestyle/black-frame.png", tagline: "Ready to Hang • Classic Look" },
   { title: "Canvas Portrait", image: "/framestyle/canvas-frame.png", tagline: "Gallery Wrapped • Premium" },
 ];
 
@@ -38,12 +37,12 @@ export function PortraitStyleInfographic({ open, onClose }: { open: boolean; onC
           <motion.div
             role="dialog"
             aria-modal="true"
-            aria-label="Framed vs canvas portrait"
+            aria-label="Canvas portrait"
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
             onClick={(event) => event.stopPropagation()}
-            className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white shadow-2xl"
+            className="relative max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-3xl bg-white shadow-2xl"
           >
             <button
               type="button"
@@ -54,11 +53,11 @@ export function PortraitStyleInfographic({ open, onClose }: { open: boolean; onC
               <X size={16} strokeWidth={2.5} />
             </button>
             {infographic ? (
-              <img src={infographic} alt="Framed portrait vs canvas portrait" className="block h-auto w-full" />
+              <img src={infographic} alt="Canvas portrait" className="block h-auto w-full" />
             ) : (
-              <div className="space-y-4 p-5 pt-12">
-                <h3 className="text-center text-lg font-black text-[#1a1a1b]">Framed vs Canvas</h3>
-                <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-4 p-6 pt-12">
+                <h3 className="text-center text-lg font-black text-[#1a1a1b]">Canvas Portrait</h3>
+                <div className="max-w-[240px] mx-auto">
                   {STYLES.map((style) => (
                     <div key={style.title} className="space-y-2 text-center">
                       <div className="overflow-hidden rounded-2xl border border-gray-100 bg-[#f6f3ef]">
