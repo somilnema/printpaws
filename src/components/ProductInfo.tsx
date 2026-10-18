@@ -115,10 +115,10 @@ export function ProductInfo() {
   const [couponError, setCouponError] = useState<string | null>(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [portraitStyle, setPortraitStyle] = useState<PortraitStyle>("canvas");
+  const [portraitStyle, setPortraitStyle] = useState<PortraitStyle>("framed");
   const [showStylePreview, setShowStylePreview] = useState(false);
-  const [selectedSize, setSelectedSize] = useState('16"x20"');
-  const [selectedFrame, setSelectedFrame] = useState("canva");
+  const [selectedSize, setSelectedSize] = useState('8"x10"');
+  const [selectedFrame, setSelectedFrame] = useState("black");
   const [selectedPets, setSelectedPets] = useState("one");
   const petNameCount = PET_OPTIONS.find((pet) => pet.id === selectedPets)?.names ?? 1;
   const humanPetImage = useUploadedMedia("pets-human");
@@ -214,13 +214,10 @@ export function ProductInfo() {
         if (parsed.digitalDownloadAmount) setDigitalDownloadAmount(parsed.digitalDownloadAmount);
         if (parsed.paymentMethod) setPaymentMethod(parsed.paymentMethod);
         if (parsed.appliedCoupon) setAppliedCoupon(parsed.appliedCoupon);
-        setPortraitStyle("canvas");
-        if (parsed.selectedSize && ['8"x12"', '16"x20"', '20"x30"'].includes(parsed.selectedSize)) {
-          setSelectedSize(parsed.selectedSize);
-        } else {
-          setSelectedSize('16"x20"');
-        }
-        setSelectedFrame("canva");
+        if (parsed.couponInput) setCouponInput(parsed.couponInput);
+        if (parsed.portraitStyle === "framed" || parsed.portraitStyle === "canvas") setPortraitStyle(parsed.portraitStyle);
+        if (parsed.selectedSize) setSelectedSize(parsed.selectedSize);
+        if (parsed.selectedFrame) setSelectedFrame(parsed.selectedFrame);
         if (parsed.selectedPets) setSelectedPets(parsed.selectedPets);
         if (parsed.selectedBg) setSelectedBg(parsed.selectedBg);
         if (parsed.selectedAddOn) setSelectedAddOn(parsed.selectedAddOn);
@@ -1034,21 +1031,43 @@ export function ProductInfo() {
                       Preview
                     </button>
                   </div>
-                  <div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => choosePortraitStyle("framed")}
+                      className={`group relative flex flex-col md:flex-row items-center gap-2 md:gap-4 p-2 md:p-3.5 rounded-2xl border-[2px] transition-all text-center md:text-left ${portraitStyle === "framed"
+                        ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
+                        : "border-gray-200 hover:border-gray-300 bg-white"
+                        }`}
+                    >
+                      <div className="relative w-16 h-16 flex-shrink-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
+                        <Image src="/framestyle/black-frame.png" alt="Framed" fill sizes="64px" className="object-cover" />
+                      </div>
+                      <div className="flex-1 flex flex-col items-center md:items-start w-full">
+                        <span className="block font-black text-[#1a1a1b] text-[11px] md:text-sm">Framed Portrait</span>
+                        <span className="hidden md:block text-[10px] text-gray-500 font-medium">Ready to Hang • Classic Look</span>
+                      </div>
+                      <div className={`absolute top-2 right-2 md:static flex-shrink-0 w-4 h-4 md:w-5 md:h-5 rounded-full border-2 flex items-center justify-center transition-colors ${portraitStyle === "framed" ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
+                        {portraitStyle === "framed" && <Check size={10} className="text-white md:w-3 md:h-3" strokeWidth={3} />}
+                      </div>
+                    </button>
                     <button
                       type="button"
                       onClick={() => choosePortraitStyle("canvas")}
-                      className="group relative flex flex-row items-center gap-3 md:gap-4 p-3 md:p-3.5 rounded-2xl border-[2px] border-[#1a1a1b] shadow-md bg-[#fafafa] transition-all text-left w-full"
+                      className={`group relative flex flex-col md:flex-row items-center gap-2 md:gap-4 p-2 md:p-3.5 rounded-2xl border-[2px] transition-all text-center md:text-left ${portraitStyle === "canvas"
+                        ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
+                        : "border-gray-200 hover:border-gray-300 bg-white"
+                        }`}
                     >
-                      <div className="relative w-14 h-14 md:w-16 md:h-16 flex-shrink-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
+                      <div className="relative w-16 h-16 flex-shrink-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
                         <Image src="/framestyle/canvas-frame.png" alt="Canvas" fill sizes="64px" className="object-cover" />
                       </div>
-                      <div className="flex-1 flex flex-col items-start w-full">
-                        <span className="block font-black text-[#1a1a1b] text-sm">Canvas Portrait</span>
-                        <span className="block text-[11px] text-gray-500 font-medium">Gallery Wrapped • Premium</span>
+                      <div className="flex-1 flex flex-col items-center md:items-start w-full">
+                        <span className="block font-black text-[#1a1a1b] text-[11px] md:text-sm">Canvas Portrait</span>
+                        <span className="hidden md:block text-[10px] text-gray-500 font-medium">Gallery Wrapped • Premium</span>
                       </div>
-                      <div className="flex-shrink-0 w-5 h-5 rounded-full border-2 border-[#1a1a1b] bg-[#1a1a1b] flex items-center justify-center transition-colors">
-                        <Check size={12} className="text-white" strokeWidth={3} />
+                      <div className={`absolute top-2 right-2 md:static flex-shrink-0 w-4 h-4 md:w-5 md:h-5 rounded-full border-2 flex items-center justify-center transition-colors ${portraitStyle === "canvas" ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
+                        {portraitStyle === "canvas" && <Check size={10} className="text-white md:w-3 md:h-3" strokeWidth={3} />}
                       </div>
                     </button>
                   </div>
