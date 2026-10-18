@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { replaceSiteMedia, resetSiteMedia, type SiteMediaAdmin, type SiteMediaSlotView } from "@/app/actions/mediaActions";
 import { IMAGE_UPLOAD_LIMIT, VIDEO_UPLOAD_LIMIT, mediaGroups } from "@/lib/site-media-catalog";
 import { buttonClass, errorClass, ghostButtonClass, okClass, warnClass } from "@/components/admin/ui";
-import { PreviewImage } from "@/components/PreviewImage";
+import { PhotoUploadBar, PreviewImage } from "@/components/PreviewImage";
 import { prepareImageFile } from "@/utils/preparePetPhoto";
 
 function previewSrc(url: string) {
@@ -18,6 +18,21 @@ function formatWhen(value: string | null) {
   if (Number.isNaN(date.getTime())) return "";
   return date.toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 }
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function isAllowedVideo(file: File) {
+  if (file.type === "video/mp4" || file.type === "video/webm") return true;
+  return /\.(mp4|webm)$/i.test(file.name);
+}
+
+type UploadAlert = {
+  title: string;
+  message: string;
+};
 
 export function MediaPanel({
   initial,
@@ -33,15 +48,19 @@ export function MediaPanel({
   const [ready, setReady] = useState(initial.ready);
   const [setupError, setSetupError] = useState(initial.error || "");
   const [pendingId, setPendingId] = useState("");
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [notice, setNotice] = useState("");
   const [cardError, setCardError] = useState<Record<string, string>>({});
+  const [alert, setAlert] = useState<UploadAlert | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const draftUrls = useRef<Record<string, string>>({});
+  const progressTimer = useRef<number | null>(null);
 
   useEffect(() => {
     const urls = draftUrls.current;
     return () => {
       Object.values(urls).forEach((url) => URL.revokeObjectURL(url));
+      if (progressTimer.current) window.clearInterval(progressTimer.current);
     };
   }, []);
 
@@ -59,6 +78,33 @@ export function MediaPanel({
     if (previous) window.setTimeout(() => URL.revokeObjectURL(previous), 500);
   }
 
+  function showAlert(title: string, message: string, slotId?: string) {
+    setAlert({ title, message });
+    if (slotId) {
+      setCardError((current) => ({ ...current, [slotId]: message }));
+    }
+  }
+
+  function startProgress() {
+    if (progressTimer.current) window.clearInterval(progressTimer.current);
+    setUploadProgress(8);
+    progressTimer.current = window.setInterval(() => {
+      setUploadProgress((current) => {
+        if (current >= 92) return current;
+        const step = current < 40 ? 4 : current < 70 ? 2.5 : 1;
+        return Math.min(92, current + step);
+      });
+    }, 350);
+  }
+
+  function stopProgress(done: boolean) {
+    if (progressTimer.current) {
+      window.clearInterval(progressTimer.current);
+      progressTimer.current = null;
+    }
+    setUploadProgress(done ? 100 : 0);
+  }
+
   useEffect(() => {
     setSlots(initial.slots);
     setReady(initial.ready);
@@ -72,18 +118,45 @@ export function MediaPanel({
   });
 
   async function onReplace(slot: SiteMediaSlotView, file: File | null) {
-    if (!file || pendingId) return;
-    const limit = slot.kind === "video" ? VIDEO_UPLOAD_LIMIT : IMAGE_UPLOAD_LIMIT;
-    if (file.size > limit) {
-      const mb = Math.round(limit / (1024 * 1024));
-      setCardError((current) => ({ ...current, [slot.id]: `That file is too large. Keep it under ${mb} MB.` }));
+    if (!file) return;
+
+    if (pendingId) {
+      showAlert(
+        "Upload already in progress",
+        `“${slots.find((item) => item.id === pendingId)?.label || "Another file"}” is still uploading. Wait for the progress bar to finish, then try again.`
+      );
       return;
     }
-    const local = slot.kind === "image" ? URL.createObjectURL(file) : "";
-    if (local) rememberDraft(slot.id, local);
+
+    const limit = slot.kind === "video" ? VIDEO_UPLOAD_LIMIT : IMAGE_UPLOAD_LIMIT;
+    const limitLabel = formatFileSize(limit);
+    if (file.size > limit) {
+      showAlert(
+        "File is too large",
+        `“${file.name}” is ${formatFileSize(file.size)}. ${
+          slot.kind === "video" ? "Videos" : "Photos"
+        } must stay under ${limitLabel}. Compress the file and try again.`,
+        slot.id
+      );
+      return;
+    }
+
+    if (slot.kind === "video" && !isAllowedVideo(file)) {
+      showAlert(
+        "Video format not supported",
+        `“${file.name}” is not an MP4 or WebM file. MOV and other formats often will not play in the browser — export as MP4 and try again.`,
+        slot.id
+      );
+      return;
+    }
+
+    const local = URL.createObjectURL(file);
+    rememberDraft(slot.id, local);
     setPendingId(slot.id);
     setNotice("");
     setCardError((current) => ({ ...current, [slot.id]: "" }));
+    startProgress();
+
     let payload = file;
     if (slot.kind === "image") {
       try {
@@ -91,23 +164,28 @@ export function MediaPanel({
       } catch (err) {
         clearDraft(slot.id);
         setPendingId("");
-        setCardError((current) => ({
-          ...current,
-          [slot.id]: err instanceof Error ? err.message : "That photo could not be prepared. Try a JPG or PNG.",
-        }));
+        stopProgress(false);
+        const message = err instanceof Error ? err.message : "That photo could not be prepared. Try a JPG or PNG.";
+        showAlert("Photo could not be prepared", message, slot.id);
         return;
       }
     }
+
     const body = new FormData();
     body.set("slot", slot.id);
     body.set("file", payload);
     const result = await replaceSiteMedia(body);
     setPendingId("");
     clearDraft(slot.id);
+
     if (!result.ok) {
-      setCardError((current) => ({ ...current, [slot.id]: result.error }));
+      stopProgress(false);
+      const tooLarge = /too large|under \d+\s*MB/i.test(result.error);
+      showAlert(tooLarge ? "File is too large" : "Upload failed", result.error, slot.id);
       return;
     }
+
+    stopProgress(true);
     setSlots((current) =>
       current.map((item) =>
         item.id === slot.id ? { ...item, url: result.url, custom: true, updatedAt: result.updatedAt } : item
@@ -116,18 +194,25 @@ export function MediaPanel({
     setReady(true);
     setSetupError("");
     setNotice(`${slot.label} is updated on the shop.`);
+    window.setTimeout(() => setUploadProgress(0), 700);
     await onChanged();
   }
 
   async function onReset(slot: SiteMediaSlotView) {
-    if (pendingId) return;
+    if (pendingId) {
+      showAlert(
+        "Upload already in progress",
+        "Wait for the current upload to finish before restoring or removing a file."
+      );
+      return;
+    }
     setPendingId(slot.id);
     setNotice("");
     setCardError((current) => ({ ...current, [slot.id]: "" }));
     const result = await resetSiteMedia(slot.id);
     setPendingId("");
     if (!result.ok) {
-      setCardError((current) => ({ ...current, [slot.id]: result.error }));
+      showAlert("Could not restore", result.error, slot.id);
       return;
     }
     setSlots((current) =>
@@ -179,11 +264,23 @@ export function MediaPanel({
           {visible.map((slot) => {
             const busy = pendingId === slot.id;
             const when = formatWhen(slot.updatedAt);
+            const draft = drafts[slot.id];
             return (
               <article key={slot.id} className="overflow-hidden rounded-3xl border border-[#eeeeee] bg-white shadow-sm">
                 <div className="relative aspect-[4/3] bg-[#f3f4f6]">
-                  {drafts[slot.id] ? (
-                    <PreviewImage src={drafts[slot.id]} alt={slot.label} busy={busy} className="h-full w-full" />
+                  {draft ? (
+                    slot.kind === "video" ? (
+                      <video
+                        key={draft}
+                        src={draft}
+                        muted
+                        playsInline
+                        preload="metadata"
+                        className={`h-full w-full object-cover ${busy ? "opacity-70" : ""}`}
+                      />
+                    ) : (
+                      <PreviewImage src={draft} alt={slot.label} busy={busy} className="h-full w-full" />
+                    )
                   ) : !slot.url ? (
                     <div className="flex h-full w-full flex-col items-center justify-center gap-1 px-6 text-center">
                       <p className="text-sm font-semibold text-[#6b7280]">
@@ -199,7 +296,7 @@ export function MediaPanel({
                       muted
                       playsInline
                       preload="none"
-                      className="h-full w-full object-cover"
+                      className={`h-full w-full object-cover ${busy ? "opacity-70" : ""}`}
                     />
                   ) : (
                     <img
@@ -211,6 +308,11 @@ export function MediaPanel({
                       className="h-full w-full object-cover"
                     />
                   )}
+                  {busy ? (
+                    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+                      <div className="absolute inset-y-0 w-1/2 animate-photo-shimmer bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+                    </div>
+                  ) : null}
                   <span
                     className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${
                       slot.custom ? "bg-primary text-white" : "bg-white/95 text-[#6b7280]"
@@ -225,15 +327,26 @@ export function MediaPanel({
                     <p className="mt-1 text-xs leading-relaxed text-[#9ca3af]">{slot.hint}</p>
                     {when ? <p className="mt-1 text-[11px] text-[#9ca3af]">Updated {when}</p> : null}
                   </div>
+                  {busy ? (
+                    <PhotoUploadBar
+                      percent={uploadProgress}
+                      label={slot.kind === "video" ? "Uploading video" : "Uploading photo"}
+                      detail={`${slot.kind === "video" ? "Videos" : "Photos"} must stay under ${formatFileSize(
+                        slot.kind === "video" ? VIDEO_UPLOAD_LIMIT : IMAGE_UPLOAD_LIMIT
+                      )}.`}
+                    />
+                  ) : null}
                   {cardError[slot.id] ? <p className={errorClass}>{cardError[slot.id]}</p> : null}
                   <div className="flex flex-wrap gap-2">
-                    <label className={`${buttonClass} cursor-pointer ${busy ? "pointer-events-none opacity-50" : ""}`}>
-                      {busy ? "Saving…" : slot.url ? "Replace" : "Upload"}
+                    <label
+                      className={`${buttonClass} cursor-pointer ${busy ? "pointer-events-none opacity-50" : pendingId ? "opacity-70" : ""}`}
+                    >
+                      {busy ? "Uploading…" : slot.url ? "Replace" : "Upload"}
                       <input
                         type="file"
                         accept={slot.kind === "video" ? "video/mp4,video/webm" : "image/jpeg,image/png,image/webp"}
                         className="sr-only"
-                        disabled={Boolean(pendingId)}
+                        disabled={busy}
                         onChange={(event) => {
                           const file = event.target.files?.[0] || null;
                           event.target.value = "";
@@ -244,7 +357,7 @@ export function MediaPanel({
                     {slot.custom ? (
                       <button
                         type="button"
-                        disabled={Boolean(pendingId)}
+                        disabled={busy}
                         onClick={() => void onReset(slot)}
                         className={ghostButtonClass}
                       >
@@ -258,6 +371,31 @@ export function MediaPanel({
           })}
         </div>
       )}
+
+      {alert ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="media-upload-alert-title"
+          onClick={() => setAlert(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id="media-upload-alert-title" className="text-lg font-bold tracking-tight text-[#1a1a1b]">
+              {alert.title}
+            </h3>
+            <p className="mt-2 text-sm leading-relaxed text-[#4b5563]">{alert.message}</p>
+            <div className="mt-5 flex justify-end">
+              <button type="button" className={buttonClass} onClick={() => setAlert(null)}>
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

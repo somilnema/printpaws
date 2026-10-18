@@ -10,6 +10,7 @@ import {
   createShipper,
   deleteOrder,
   extendArtworkDeadline,
+  getAdminOrderDetails,
   holdOrder,
   removeArtist,
   removeShipper,
@@ -17,6 +18,7 @@ import {
   retryLoggedEmail,
   type AdminDashboard,
   type AdminOrder,
+  type AdminOrderDetails,
   type ArtistAccount,
 } from "@/app/actions/adminActions";
 import { addTeamNote, removeTeamNote, sendToVendor } from "@/app/actions/opsActions";
@@ -444,14 +446,50 @@ function OrderDetail({
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [problem, setProblem] = useState("");
+  const [details, setDetails] = useState<AdminOrderDetails | null>(null);
+  const [detailsLoading, setDetailsLoading] = useState(true);
   const assignedArtist = artists.find((artist) => artist.id === order.artist_id);
   const trackingLink = safeTrackingUrl(order.tracking_url);
   const cap = order.sla_started_at ? maximumDueAt(order.sla_started_at) : "";
-  const approvedPreview = order.updates?.find((update) => update.id === order.approved_update_id);
+  const updates = details?.updates ?? order.updates ?? [];
+  const teamNotes = details?.teamNotes ?? order.teamNotes ?? [];
+  const emails = details?.emails ?? order.emails ?? [];
+  const events = details?.events ?? order.events ?? [];
+  const vendor = details?.vendor ?? order.vendor ?? null;
+  const approvedPreview = updates.find((update) => update.id === order.approved_update_id);
+
+  async function loadDetails() {
+    if (!order.id) {
+      setDetailsLoading(false);
+      return;
+    }
+    setDetailsLoading(true);
+    const data = await getAdminOrderDetails(order.id);
+    setDetails(data);
+    setDetailsLoading(false);
+  }
 
   useEffect(() => {
     setArtistId(order.artist_id || "");
   }, [order.artist_id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setDetails(null);
+    setDetailsLoading(true);
+    if (!order.id) {
+      setDetailsLoading(false);
+      return;
+    }
+    getAdminOrderDetails(order.id).then((data) => {
+      if (cancelled) return;
+      setDetails(data);
+      setDetailsLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [order.id]);
 
   async function run(action: () => Promise<{ ok: boolean; error?: string }>, success: string) {
     if (!order.id) return false;
@@ -469,6 +507,7 @@ function OrderDetail({
     setCancelReason("");
     setExtensionReason("");
     await onChanged();
+    await loadDetails();
     return true;
   }
 
@@ -543,7 +582,7 @@ function OrderDetail({
             )}
           </div>
         ) : null}
-        <OrderTimeline stage={order.fulfillment_stage} updates={order.updates || []} trackingUrl={order.tracking_url} />
+        <OrderTimeline stage={order.fulfillment_stage} updates={updates} trackingUrl={order.tracking_url} />
         {adminCanAssign(order.fulfillment_stage) && (
           <div className="flex flex-col sm:flex-row gap-2">
             <select value={artistId} onChange={(e) => setArtistId(e.target.value)} className={inputClass}>
@@ -587,11 +626,11 @@ function OrderDetail({
         ) : null}
         {order.fulfillment_stage === "final_approval" || order.fulfillment_stage === "shipped" ? (
           <div className="space-y-2">
-            {order.vendor ? (
+            {vendor ? (
               <p className="text-[#6b7280]">
-                Vendor {order.vendor.status === "sent" ? "accepted this order" : "could not take this order"}
-                {order.vendor.attempted_at ? ` · ${formatDate(order.vendor.attempted_at)}` : ""}
-                {order.vendor.error ? ` · ${order.vendor.error}` : ""}
+                Vendor {vendor.status === "sent" ? "accepted this order" : "could not take this order"}
+                {vendor.attempted_at ? ` · ${formatDate(vendor.attempted_at)}` : ""}
+                {vendor.error ? ` · ${vendor.error}` : ""}
               </p>
             ) : (
               <p className="text-[#6b7280]">No vendor call yet. The shipment desk can still paste the tracking link.</p>
@@ -679,17 +718,26 @@ function OrderDetail({
         ) : null}
         {problem ? <p className={errorClass}>{problem}</p> : null}
         {notice ? <p className="text-sm">{notice}</p> : null}
-        <OrderHistory updates={order.updates} approvedUpdateId={order.approved_update_id} />
+        {detailsLoading ? <p className="text-xs text-[#9ca3af]">Loading artwork history…</p> : null}
+        <OrderHistory updates={updates} approvedUpdateId={order.approved_update_id} />
         <TeamNotes
-          notes={order.teamNotes || []}
-          onAdd={(body) => addTeamNote(order.id || "", body)}
-          onDelete={removeTeamNote}
+          notes={teamNotes}
+          onAdd={async (body) => {
+            const result = await addTeamNote(order.id || "", body);
+            if (result.ok) await loadDetails();
+            return result;
+          }}
+          onDelete={async (id) => {
+            const result = await removeTeamNote(id);
+            if (result.ok) await loadDetails();
+            return result;
+          }}
           canDelete={() => true}
         />
-        {order.emails?.length ? (
+        {emails.length ? (
           <div className="space-y-2">
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Emails</p>
-            {order.emails.map((email) => (
+            {emails.map((email) => (
               <div key={email.id} className="rounded-2xl bg-white p-3">
                 <p>
                   {email.subject} · {email.status}
@@ -714,10 +762,10 @@ function OrderDetail({
             ))}
           </div>
         ) : null}
-        {order.events?.length ? (
+        {events.length ? (
           <div className="space-y-2">
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">History of changes</p>
-            {order.events.map((event) => (
+            {events.map((event) => (
               <p key={event.id} className="text-xs text-[#6b7280]">
                 {formatDate(event.created_at)} · {event.actor} · {event.action}
                 {event.detail ? ` · ${event.detail}` : ""}

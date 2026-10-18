@@ -126,9 +126,14 @@ export function derivedWorkflow(order: { id: string; photo_url?: string | null; 
 }
 
 async function chunked<T>(ids: string[], load: (slice: string[]) => Promise<T[]>) {
-  const rows: T[] = [];
+  const slices: string[][] = [];
   for (let index = 0; index < ids.length; index += 100) {
-    rows.push(...(await load(ids.slice(index, index + 100))));
+    slices.push(ids.slice(index, index + 100));
+  }
+  const rows: T[] = [];
+  for (let index = 0; index < slices.length; index += 4) {
+    const batch = await Promise.all(slices.slice(index, index + 4).map(load));
+    for (const part of batch) rows.push(...part);
   }
   return rows;
 }
@@ -289,6 +294,16 @@ export async function workflowsFor(orderIds: string[]) {
   const map = new Map<string, OrderWorkflow>();
   if (!orderIds.length) return { map, missing: false };
   try {
+    // Admin loads every order: one full-table read beats hundreds of chunked IN queries.
+    if (orderIds.length > 200) {
+      const { data, error } = await supabaseAdmin.from("order_workflow").select(WORKFLOW_COLUMNS);
+      if (error) throw error;
+      const wanted = new Set(orderIds);
+      for (const row of (data ?? []) as OrderWorkflow[]) {
+        if (wanted.has(row.order_id)) map.set(row.order_id, asWorkflow(row));
+      }
+      return { map, missing: false };
+    }
     const rows = await chunked(orderIds, async (slice) => {
       const { data, error } = await supabaseAdmin.from("order_workflow").select(WORKFLOW_COLUMNS).in("order_id", slice);
       if (error) throw error;

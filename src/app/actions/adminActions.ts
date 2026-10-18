@@ -245,6 +245,35 @@ async function portalOrigin() {
   }
 }
 
+const ORDER_LIST_COLUMNS = [
+  "id",
+  "pet_name",
+  "customer_email",
+  "customer_name",
+  "customer_phone",
+  "size",
+  "frame_style",
+  "num_pets",
+  "background",
+  "font",
+  "addon",
+  "gift_wrap",
+  "total_price",
+  "photo_url",
+  "created_at",
+  "coupon_code",
+  "payment_mode",
+  "online_paid",
+  "cod_due",
+  "status",
+  "shipping_address",
+  "shipping_landmark",
+  "shipping_city",
+  "shipping_state",
+  "shipping_pincode",
+  "memorial_text",
+].join(", ");
+
 async function loadOrders(): Promise<{ orders: AdminOrder[]; warning?: string }> {
   const pageSize = 1000;
   const orders: AdminOrder[] = [];
@@ -252,7 +281,7 @@ async function loadOrders(): Promise<{ orders: AdminOrder[]; warning?: string }>
   for (let from = 0; from < 10000; from += pageSize) {
     const { data, error } = await supabaseAdmin
       .from("orders")
-      .select("*")
+      .select(ORDER_LIST_COLUMNS)
       .order("created_at", { ascending: false })
       .range(from, from + pageSize - 1);
 
@@ -297,63 +326,58 @@ function applyWorkflow(order: AdminOrder, workflow: OrderWorkflow | undefined): 
   };
 }
 
+export type AdminOrderDetails = {
+  updates: OrderUpdate[];
+  events: OrderEvent[];
+  emails: EmailLogRow[];
+  teamNotes: TeamNote[];
+  vendor: VendorAttempt | null;
+};
+
 export async function getAdminDashboard(): Promise<AdminDashboard | null> {
   try {
     const session = await getAdminSession();
     if (!session) return null;
-    await sendOverdueReminders().catch((error) => console.error("Overdue reminder error:", error));
+    // Do not block the desk on reminder emails — fire in the background.
+    void sendOverdueReminders().catch((error) => console.error("Overdue reminder error:", error));
     const { orders, warning } = await loadOrders();
     const ids = orders.map((order) => order.id).filter((id): id is string => !!id);
-    const [{ map: portals, missing }, updates, events, emails, artists, shippers, teamNotes, vendorAttempts] = await Promise.all([
+    // List view only needs workflow + accounts. Per-order history loads when a row is opened.
+    const [{ map: portals, missing }, artists, shippers] = await Promise.all([
       workflowsFor(ids),
-      updatesFor(ids),
-      eventsFor(ids),
-      emailLogFor(ids),
       listArtists(),
       listShippers(),
-      notesFor(ids),
-      latestVendorAttempts(ids),
     ]);
-    const byOrder = new Map<string, OrderUpdate[]>();
-    for (const update of updates) {
-      const list = byOrder.get(update.order_id) ?? [];
-      list.push(update);
-      byOrder.set(update.order_id, list);
-    }
-    const eventsByOrder = new Map<string, OrderEvent[]>();
-    for (const event of events) {
-      const list = eventsByOrder.get(event.order_id) ?? [];
-      list.push(event);
-      eventsByOrder.set(event.order_id, list);
-    }
-    const emailsByOrder = new Map<string, EmailLogRow[]>();
-    for (const email of emails) {
-      if (!email.order_id) continue;
-      const list = emailsByOrder.get(email.order_id) ?? [];
-      list.push(email);
-      emailsByOrder.set(email.order_id, list);
-    }
 
-    const notesByOrder = new Map<string, TeamNote[]>();
-    for (const note of teamNotes) {
-      const list = notesByOrder.get(note.order_id) ?? [];
-      list.push(note);
-      notesByOrder.set(note.order_id, list);
-    }
-    const vendorByOrder = new Map(vendorAttempts.map((attempt) => [attempt.order_id, attempt]));
+    const withWorkflow = orders.map((order) => applyWorkflow(order, order.id ? portals.get(order.id) : undefined));
 
-    const withHistory = orders.map((order) => ({
-      ...applyWorkflow(order, order.id ? portals.get(order.id) : undefined),
-      updates: order.id ? byOrder.get(order.id) ?? [] : [],
-      events: order.id ? eventsByOrder.get(order.id) ?? [] : [],
-      emails: order.id ? emailsByOrder.get(order.id) ?? [] : [],
-      teamNotes: order.id ? notesByOrder.get(order.id) ?? [] : [],
-      vendor: order.id ? vendorByOrder.get(order.id) ?? null : null,
-    }));
-
-    return buildDashboard(session.user, withHistory, artists, shippers, missing ? SETUP_MESSAGE : warning);
+    return buildDashboard(session.user, withWorkflow, artists, shippers, missing ? SETUP_MESSAGE : warning);
   } catch (err) {
     console.error("Admin dashboard error:", err);
+    return null;
+  }
+}
+
+export async function getAdminOrderDetails(orderId: string): Promise<AdminOrderDetails | null> {
+  try {
+    const session = await getAdminSession();
+    if (!session || !orderId) return null;
+    const [updates, events, emails, teamNotes, vendorAttempts] = await Promise.all([
+      updatesFor([orderId]),
+      eventsFor([orderId]),
+      emailLogFor([orderId]),
+      notesFor([orderId]),
+      latestVendorAttempts([orderId]),
+    ]);
+    return {
+      updates,
+      events,
+      emails,
+      teamNotes,
+      vendor: vendorAttempts[0] ?? null,
+    };
+  } catch (err) {
+    console.error("Admin order details error:", err);
     return null;
   }
 }
