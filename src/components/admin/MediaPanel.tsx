@@ -5,6 +5,7 @@ import { replaceSiteMedia, resetSiteMedia, type SiteMediaAdmin, type SiteMediaSl
 import { IMAGE_UPLOAD_LIMIT, VIDEO_UPLOAD_LIMIT, mediaGroups } from "@/lib/site-media-catalog";
 import { buttonClass, errorClass, ghostButtonClass, okClass, warnClass } from "@/components/admin/ui";
 import { PhotoUploadBar, PreviewImage } from "@/components/PreviewImage";
+import { UploadFailDialog, type UploadFailAlert } from "@/components/UploadFailDialog";
 import { prepareImageFile } from "@/utils/preparePetPhoto";
 
 function previewSrc(url: string) {
@@ -29,11 +30,6 @@ function isAllowedVideo(file: File) {
   return /\.(mp4|webm)$/i.test(file.name);
 }
 
-type UploadAlert = {
-  title: string;
-  message: string;
-};
-
 export function MediaPanel({
   initial,
   onChanged,
@@ -51,7 +47,7 @@ export function MediaPanel({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [notice, setNotice] = useState("");
   const [cardError, setCardError] = useState<Record<string, string>>({});
-  const [alert, setAlert] = useState<UploadAlert | null>(null);
+  const [alert, setAlert] = useState<UploadFailAlert | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const draftUrls = useRef<Record<string, string>>({});
   const progressTimer = useRef<number | null>(null);
@@ -372,30 +368,7 @@ export function MediaPanel({
         </div>
       )}
 
-      {alert ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="media-upload-alert-title"
-          onClick={() => setAlert(null)}
-        >
-          <div
-            className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <h3 id="media-upload-alert-title" className="text-lg font-bold tracking-tight text-[#1a1a1b]">
-              {alert.title}
-            </h3>
-            <p className="mt-2 text-sm leading-relaxed text-[#4b5563]">{alert.message}</p>
-            <div className="mt-5 flex justify-end">
-              <button type="button" className={buttonClass} onClick={() => setAlert(null)}>
-                Got it
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <UploadFailDialog alert={alert} onClose={() => setAlert(null)} />
     </div>
   );
 }

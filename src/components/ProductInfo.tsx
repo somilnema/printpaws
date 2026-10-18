@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { storedPetPhotoUrl } from "@/lib/pet-photo";
 import { uploadPetPhotoFile } from "@/lib/uploadPetPhoto";
 import { PhotoUploadBar, PreviewImage } from "@/components/PreviewImage";
+import { UploadFailDialog, type UploadFailAlert } from "@/components/UploadFailDialog";
 import {
   Upload,
   Star,
@@ -150,6 +151,7 @@ export function ProductInfo() {
   const [photoStatus, setPhotoStatus] = useState<"idle" | "uploading" | "saved" | "error">("idle");
   const [photoProgress, setPhotoProgress] = useState(0);
   const [photoError, setPhotoError] = useState("");
+  const [uploadFailAlert, setUploadFailAlert] = useState<UploadFailAlert | null>(null);
   const uploadedPhotoUrlRef = useRef("");
   const uploadPromiseRef = useRef<Promise<string> | null>(null);
   const photoUploadGeneration = useRef(0);
@@ -560,7 +562,24 @@ export function ProductInfo() {
     photoUrl,
   });
 
+  const showPhotoUploadFail = (title: string, message: string) => {
+    setPhotoStatus("error");
+    setPhotoError(message);
+    setUploadFailAlert({ title, message });
+  };
+
   const startPhotoUpload = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      const message = "Please choose a photo (JPG, PNG, or WebP).";
+      showPhotoUploadFail("Photo format not supported", message);
+      return Promise.reject(new Error(message));
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      const message = `“${file.name}” is too large (${(file.size / (1024 * 1024)).toFixed(1)} MB). Please choose a photo under 25 MB.`;
+      showPhotoUploadFail("File is too large", message);
+      return Promise.reject(new Error(message));
+    }
+
     const generation = ++photoUploadGeneration.current;
     uploadedPhotoUrlRef.current = "";
     setPhotoStatus("uploading");
@@ -582,8 +601,8 @@ export function ProductInfo() {
         if (photoUploadGeneration.current !== generation) return "";
         const message = err instanceof Error ? err.message : "We couldn't save the pet photo. Please try again.";
         uploadedPhotoUrlRef.current = "";
-        setPhotoStatus("error");
-        setPhotoError(message);
+        const tooLarge = /too large|smaller/i.test(message);
+        showPhotoUploadFail(tooLarge ? "File is too large" : "Photo upload failed", message);
         throw new Error(message);
       });
     uploadPromiseRef.current = promise;
@@ -1435,6 +1454,7 @@ export function ProductInfo() {
                         accept="image/*"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
+                          e.target.value = "";
                           if (!file) return;
                           if (previewObjectUrl.current) URL.revokeObjectURL(previewObjectUrl.current);
                           const url = URL.createObjectURL(file);
@@ -2496,6 +2516,8 @@ export function ProductInfo() {
           />
         )}
       </AnimatePresence>
+
+      <UploadFailDialog alert={uploadFailAlert} onClose={() => setUploadFailAlert(null)} buttonLabel="Try again" />
 
       {/* Warning Modal */}
       <AnimatePresence>

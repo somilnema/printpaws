@@ -2,6 +2,7 @@
 
 import { FormEvent, useMemo, useState, useEffect, useRef } from "react";
 import { PhotoUploadBar, PreviewImage } from "@/components/PreviewImage";
+import { UploadFailDialog, type UploadFailAlert } from "@/components/UploadFailDialog";
 import Link from "next/link";
 import {
   createArtworkUpload,
@@ -517,6 +518,7 @@ function ArtistOrderCard({
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ percent: number; label: string; detail?: string; done?: boolean } | null>(null);
   const [error, setError] = useState("");
+  const [uploadFailAlert, setUploadFailAlert] = useState<UploadFailAlert | null>(null);
   const [uploading, setUploading] = useState(false);
   const canUpload = artistCanUpload(order.fulfillment_stage);
   const canStart = artistCanStartRevision(order.fulfillment_stage);
@@ -600,7 +602,13 @@ function ArtistOrderCard({
         uploadRef.current = null;
         setUploading(false);
         setProgress(null);
-        setError(err instanceof Error && err.message ? err.message : "The artwork could not be uploaded. Please try again.");
+        const message =
+          err instanceof Error && err.message ? err.message : "The artwork could not be uploaded. Please try again.";
+        setError(message);
+        setUploadFailAlert({
+          title: /too large|under \d+\s*MB/i.test(message) ? "File is too large" : "Artwork upload failed",
+          message,
+        });
       }
     );
     return entry;
@@ -610,11 +618,15 @@ function ArtistOrderCard({
     if (!next) return;
     setError("");
     if (!["image/jpeg", "image/png", "image/webp"].includes(next.type)) {
-      setError("Use a JPG, PNG, or WebP image.");
+      const message = "Use a JPG, PNG, or WebP image.";
+      setError(message);
+      setUploadFailAlert({ title: "Image format not supported", message });
       return;
     }
     if (next.size > 20 * 1024 * 1024) {
-      setError("Use an artwork file under 20 MB.");
+      const message = `“${next.name}” is ${formatFileSize(next.size)}. Artwork must stay under 20 MB. Compress the file and try again.`;
+      setError(message);
+      setUploadFailAlert({ title: "File is too large", message });
       return;
     }
     setFile(next);
@@ -657,6 +669,10 @@ function ArtistOrderCard({
     if (!result.ok) {
       setProgress(null);
       setError(result.error);
+      setUploadFailAlert({
+        title: /too large|under \d+\s*MB/i.test(result.error) ? "File is too large" : "Artwork upload failed",
+        message: result.error,
+      });
       return;
     }
     setProgress({ percent: 100, label: "Sent for review", detail: "The customer can now see the watermarked preview", done: true });
@@ -799,6 +815,7 @@ function ArtistOrderCard({
           />
         </div>
       ) : null}
+      <UploadFailDialog alert={uploadFailAlert} onClose={() => setUploadFailAlert(null)} />
     </article>
   );
 }

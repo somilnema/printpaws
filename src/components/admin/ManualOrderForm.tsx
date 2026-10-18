@@ -4,6 +4,7 @@ import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { createManualOrder, type ManualOrderInput } from "@/app/actions/adminActions";
 import { buttonClass, errorClass, Field, ghostButtonClass, inputClass, okClass, Panel } from "@/components/admin/ui";
 import { PhotoUploadBar, PreviewImage } from "@/components/PreviewImage";
+import { UploadFailDialog, type UploadFailAlert } from "@/components/UploadFailDialog";
 import { CANVAS_SIZES, FRAMED_SIZES } from "@/lib/pricing";
 import { uploadPetPhotoFile } from "@/lib/uploadPetPhoto";
 
@@ -49,6 +50,7 @@ export function ManualOrderForm({ onClose, onCreated }: { onClose: () => void; o
   const [notice, setNotice] = useState("");
   const [localPreview, setLocalPreview] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadFailAlert, setUploadFailAlert] = useState<UploadFailAlert | null>(null);
   const previewUrl = useRef("");
 
   useEffect(() => {
@@ -65,6 +67,28 @@ export function ManualOrderForm({ onClose, onCreated }: { onClose: () => void; o
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+
+    if (uploading) {
+      setUploadFailAlert({
+        title: "Upload already in progress",
+        message: "Wait for the progress bar to finish, then try again.",
+      });
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      const message = "Please choose a photo (JPG, PNG, or WebP).";
+      setError(message);
+      setUploadFailAlert({ title: "Photo format not supported", message });
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      const message = `“${file.name}” is too large (${(file.size / (1024 * 1024)).toFixed(1)} MB). Please choose a photo under 25 MB.`;
+      setError(message);
+      setUploadFailAlert({ title: "File is too large", message });
+      return;
+    }
+
     if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
     const url = URL.createObjectURL(file);
     previewUrl.current = url;
@@ -73,10 +97,16 @@ export function ManualOrderForm({ onClose, onCreated }: { onClose: () => void; o
     setUploadProgress(6);
     setError("");
     try {
-      const url = await uploadPetPhotoFile(file, (progress) => setUploadProgress(progress.percent));
-      set("photoUrl", url);
+      const uploaded = await uploadPetPhotoFile(file, (progress) => setUploadProgress(progress.percent));
+      set("photoUrl", uploaded);
+      setUploadProgress(100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "The photo could not be uploaded.");
+      const message = err instanceof Error ? err.message : "The photo could not be uploaded.";
+      setError(message);
+      setUploadFailAlert({
+        title: /too large|smaller/i.test(message) ? "File is too large" : "Photo upload failed",
+        message,
+      });
     } finally {
       setUploading(false);
     }
@@ -300,6 +330,7 @@ export function ManualOrderForm({ onClose, onCreated }: { onClose: () => void; o
           </button>
         </div>
       </form>
+      <UploadFailDialog alert={uploadFailAlert} onClose={() => setUploadFailAlert(null)} />
     </Panel>
   );
 }
