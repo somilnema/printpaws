@@ -4,7 +4,7 @@ import { Star, Check } from "lucide-react";
 import Image from "next/image";
 import { useMedia } from "@/components/SiteMedia";
 
-interface ReviewItem {
+export interface ReviewItem {
   name: string;
   initial: string;
   verified: boolean;
@@ -20,7 +20,7 @@ interface ReviewItem {
   };
 }
 
-const REVIEWS: ReviewItem[] = [
+export const REVIEWS: ReviewItem[] = [
   {
     name: "Radha",
     initial: "R",

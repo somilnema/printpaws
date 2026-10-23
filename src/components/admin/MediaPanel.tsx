@@ -1,11 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { replaceSiteMedia, resetSiteMedia, type SiteMediaAdmin, type SiteMediaSlotView } from "@/app/actions/mediaActions";
+import {
+  cancelSiteMediaVideoUpload,
+  completeSiteMediaVideoUpload,
+  replaceSiteMedia,
+  resetSiteMedia,
+  startSiteMediaVideoUpload,
+  type SiteMediaAdmin,
+  type SiteMediaSlotView,
+} from "@/app/actions/mediaActions";
 import { IMAGE_UPLOAD_LIMIT, VIDEO_UPLOAD_LIMIT, mediaGroups } from "@/lib/site-media-catalog";
 import { buttonClass, errorClass, ghostButtonClass, okClass, warnClass } from "@/components/admin/ui";
 import { PhotoUploadBar, PreviewImage } from "@/components/PreviewImage";
 import { UploadFailDialog, type UploadFailAlert } from "@/components/UploadFailDialog";
+import { formatSecondsLeft, uploadToSignedUrl } from "@/lib/uploadArtwork";
 import { prepareImageFile } from "@/utils/preparePetPhoto";
 
 function previewSrc(url: string) {
@@ -30,6 +39,62 @@ function isAllowedVideo(file: File) {
   return /\.(mp4|webm)$/i.test(file.name);
 }
 
+async function isQuickTimeFile(file: File) {
+  try {
+    const buf = await file.slice(0, 12).arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    if (bytes.length < 12) return false;
+    const box = String.fromCharCode(bytes[4], bytes[5], bytes[6], bytes[7]);
+    const brand = String.fromCharCode(bytes[8], bytes[9], bytes[10], bytes[11]);
+    return box === "ftyp" && brand === "qt  ";
+  } catch {
+    return false;
+  }
+}
+
+function probeBrowserVideo(file: File): Promise<{ ok: true } | { ok: false; error: string }> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.muted = true;
+    video.playsInline = true;
+
+    const finish = (result: { ok: true } | { ok: false; error: string }) => {
+      window.clearTimeout(timer);
+      video.removeAttribute("src");
+      video.load();
+      URL.revokeObjectURL(url);
+      resolve(result);
+    };
+
+    const timer = window.setTimeout(() => {
+      finish({
+        ok: false,
+        error: "This video could not be read in the browser. Export it as H.264 MP4 (not HEVC/MOV) and try again.",
+      });
+    }, 10_000);
+
+    video.onloadedmetadata = () => {
+      if (!Number.isFinite(video.duration) || video.duration <= 0) {
+        finish({
+          ok: false,
+          error: "This video has no playable duration. Export as H.264 MP4 or WebM under 20 MB.",
+        });
+        return;
+      }
+      finish({ ok: true });
+    };
+    video.onerror = () => {
+      finish({
+        ok: false,
+        error: "This browser cannot play that video. Phone MOV/HEVC files often fail — export as H.264 MP4.",
+      });
+    };
+    video.src = url;
+  });
+}
+
 export function MediaPanel({
   initial,
   onChanged,
@@ -45,6 +110,7 @@ export function MediaPanel({
   const [setupError, setSetupError] = useState(initial.error || "");
   const [pendingId, setPendingId] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadDetail, setUploadDetail] = useState("");
   const [notice, setNotice] = useState("");
   const [cardError, setCardError] = useState<Record<string, string>>({});
   const [alert, setAlert] = useState<UploadFailAlert | null>(null);
@@ -81,9 +147,10 @@ export function MediaPanel({
     }
   }
 
-  function startProgress() {
+  function startFakeProgress() {
     if (progressTimer.current) window.clearInterval(progressTimer.current);
     setUploadProgress(8);
+    setUploadDetail("");
     progressTimer.current = window.setInterval(() => {
       setUploadProgress((current) => {
         if (current >= 92) return current;
@@ -99,6 +166,7 @@ export function MediaPanel({
       progressTimer.current = null;
     }
     setUploadProgress(done ? 100 : 0);
+    if (!done) setUploadDetail("");
   }
 
   useEffect(() => {
@@ -112,6 +180,153 @@ export function MediaPanel({
     const haystack = `${slot.label} ${slot.hint}`.toLowerCase();
     return haystack.includes(query.trim().toLowerCase());
   });
+
+  async function uploadVideo(slot: SiteMediaSlotView, file: File) {
+    if (await isQuickTimeFile(file)) {
+      showAlert(
+        "Video format not supported",
+        `“${file.name}” is a QuickTime / MOV file. Export it as H.264 MP4 or WebM and try again.`,
+        slot.id
+      );
+      return;
+    }
+
+    const playable = await probeBrowserVideo(file);
+    if (!playable.ok) {
+      showAlert("Video will not play", playable.error, slot.id);
+      return;
+    }
+
+    const local = URL.createObjectURL(file);
+    rememberDraft(slot.id, local);
+    setPendingId(slot.id);
+    setNotice("");
+    setCardError((current) => ({ ...current, [slot.id]: "" }));
+    setUploadProgress(4);
+    setUploadDetail(formatFileSize(file.size));
+
+    const contentType = file.type === "video/webm" || /\.webm$/i.test(file.name) ? "video/webm" : "video/mp4";
+    const started = await startSiteMediaVideoUpload({ slot: slot.id, type: contentType, size: file.size });
+    if (!started.ok) {
+      clearDraft(slot.id);
+      setPendingId("");
+      stopProgress(false);
+      showAlert("Upload failed", started.error, slot.id);
+      return;
+    }
+
+    try {
+      await uploadToSignedUrl(started.signedUrl, file, ({ ratio, secondsLeft }) => {
+        setUploadProgress(5 + Math.round(ratio * 90));
+        setUploadDetail(
+          `${formatFileSize(file.size * ratio)} of ${formatFileSize(file.size)} · ${formatSecondsLeft(secondsLeft)}`
+        );
+      });
+    } catch (err) {
+      void cancelSiteMediaVideoUpload({ path: started.path });
+      clearDraft(slot.id);
+      setPendingId("");
+      stopProgress(false);
+      const message = err instanceof Error ? err.message : "The video upload failed. Check your connection and try again.";
+      showAlert("Upload failed", message, slot.id);
+      return;
+    }
+
+    setUploadProgress(96);
+    setUploadDetail("Saving to the shop…");
+    const finished = await completeSiteMediaVideoUpload({ slot: slot.id, path: started.path, size: file.size });
+    setPendingId("");
+    clearDraft(slot.id);
+
+    if (!finished.ok) {
+      stopProgress(false);
+      const tooLarge = /too large|under \d+\s*MB/i.test(finished.error);
+      const badFormat = /MOV|QuickTime|MP4|WebM|HEVC|play/i.test(finished.error);
+      showAlert(
+        tooLarge ? "File is too large" : badFormat ? "Video format not supported" : "Upload failed",
+        finished.error,
+        slot.id
+      );
+      return;
+    }
+
+    stopProgress(true);
+    setUploadDetail("");
+    setSlots((current) =>
+      current.map((item) =>
+        item.id === slot.id ? { ...item, url: finished.url, custom: true, updatedAt: finished.updatedAt } : item
+      )
+    );
+    setReady(true);
+    setSetupError("");
+    setNotice(`${slot.label} is updated on the shop.`);
+    window.setTimeout(() => setUploadProgress(0), 700);
+    await onChanged();
+  }
+
+  async function uploadImage(slot: SiteMediaSlotView, file: File) {
+    const local = URL.createObjectURL(file);
+    rememberDraft(slot.id, local);
+    setPendingId(slot.id);
+    setNotice("");
+    setCardError((current) => ({ ...current, [slot.id]: "" }));
+    startFakeProgress();
+
+    let payload = file;
+    try {
+      payload = await prepareImageFile(file, { maxEdge: 2000, maxBytes: 1_400_000 });
+    } catch (err) {
+      clearDraft(slot.id);
+      setPendingId("");
+      stopProgress(false);
+      const message = err instanceof Error ? err.message : "That photo could not be prepared. Try a JPG or PNG.";
+      showAlert("Photo could not be prepared", message, slot.id);
+      return;
+    }
+
+    const body = new FormData();
+    body.set("slot", slot.id);
+    body.set("file", payload);
+
+    let result: Awaited<ReturnType<typeof replaceSiteMedia>>;
+    try {
+      result = await Promise.race([
+        replaceSiteMedia(body),
+        new Promise<never>((_, reject) => {
+          window.setTimeout(() => reject(new Error("The photo upload timed out. Please try again.")), 90_000);
+        }),
+      ]);
+    } catch (err) {
+      clearDraft(slot.id);
+      setPendingId("");
+      stopProgress(false);
+      const message = err instanceof Error ? err.message : "The photo could not be uploaded.";
+      showAlert("Upload failed", message, slot.id);
+      return;
+    }
+
+    setPendingId("");
+    clearDraft(slot.id);
+
+    if (!result.ok) {
+      stopProgress(false);
+      const tooLarge = /too large|under \d+\s*MB/i.test(result.error);
+      showAlert(tooLarge ? "File is too large" : "Upload failed", result.error, slot.id);
+      return;
+    }
+
+    stopProgress(true);
+    setSlots((current) =>
+      current.map((item) =>
+        item.id === slot.id ? { ...item, url: result.url, custom: true, updatedAt: result.updatedAt } : item
+      )
+    );
+    setReady(true);
+    setSetupError("");
+    setNotice(`${slot.label} is updated on the shop.`);
+    window.setTimeout(() => setUploadProgress(0), 700);
+    await onChanged();
+  }
 
   async function onReplace(slot: SiteMediaSlotView, file: File | null) {
     if (!file) return;
@@ -137,61 +352,20 @@ export function MediaPanel({
       return;
     }
 
-    if (slot.kind === "video" && !isAllowedVideo(file)) {
-      showAlert(
-        "Video format not supported",
-        `“${file.name}” is not an MP4 or WebM file. MOV and other formats often will not play in the browser — export as MP4 and try again.`,
-        slot.id
-      );
-      return;
-    }
-
-    const local = URL.createObjectURL(file);
-    rememberDraft(slot.id, local);
-    setPendingId(slot.id);
-    setNotice("");
-    setCardError((current) => ({ ...current, [slot.id]: "" }));
-    startProgress();
-
-    let payload = file;
-    if (slot.kind === "image") {
-      try {
-        payload = await prepareImageFile(file, { maxEdge: 2000, maxBytes: 1_400_000 });
-      } catch (err) {
-        clearDraft(slot.id);
-        setPendingId("");
-        stopProgress(false);
-        const message = err instanceof Error ? err.message : "That photo could not be prepared. Try a JPG or PNG.";
-        showAlert("Photo could not be prepared", message, slot.id);
+    if (slot.kind === "video") {
+      if (!isAllowedVideo(file)) {
+        showAlert(
+          "Video format not supported",
+          `“${file.name}” is not an MP4 or WebM file. MOV and HEVC phone videos often will not play — export as H.264 MP4 and try again.`,
+          slot.id
+        );
         return;
       }
-    }
-
-    const body = new FormData();
-    body.set("slot", slot.id);
-    body.set("file", payload);
-    const result = await replaceSiteMedia(body);
-    setPendingId("");
-    clearDraft(slot.id);
-
-    if (!result.ok) {
-      stopProgress(false);
-      const tooLarge = /too large|under \d+\s*MB/i.test(result.error);
-      showAlert(tooLarge ? "File is too large" : "Upload failed", result.error, slot.id);
+      await uploadVideo(slot, file);
       return;
     }
 
-    stopProgress(true);
-    setSlots((current) =>
-      current.map((item) =>
-        item.id === slot.id ? { ...item, url: result.url, custom: true, updatedAt: result.updatedAt } : item
-      )
-    );
-    setReady(true);
-    setSetupError("");
-    setNotice(`${slot.label} is updated on the shop.`);
-    window.setTimeout(() => setUploadProgress(0), 700);
-    await onChanged();
+    await uploadImage(slot, file);
   }
 
   async function onReset(slot: SiteMediaSlotView) {
@@ -225,8 +399,8 @@ export function MediaPanel({
   return (
     <div className="space-y-4">
       <p className="max-w-3xl text-sm leading-relaxed text-[#6b7280]">
-        Replace any shop photo or video here. Photos are resized and saved as WebP. Videos should be MP4 or WebM, under 20 MB.
-        The original file stays in place until you replace it, and you can restore it later.
+        Replace any shop photo or video here. Photos are resized and saved as WebP. Videos should be H.264 MP4 or WebM, under
+        20 MB (not MOV/HEVC). The original file stays in place until you replace it, and you can restore it later.
       </p>
       {!ready && setupError ? <p className={warnClass}>{setupError}</p> : null}
       {notice ? <p className={okClass}>{notice}</p> : null}
@@ -291,7 +465,7 @@ export function MediaPanel({
                       controls
                       muted
                       playsInline
-                      preload="none"
+                      preload="metadata"
                       className={`h-full w-full object-cover ${busy ? "opacity-70" : ""}`}
                     />
                   ) : (
@@ -327,9 +501,12 @@ export function MediaPanel({
                     <PhotoUploadBar
                       percent={uploadProgress}
                       label={slot.kind === "video" ? "Uploading video" : "Uploading photo"}
-                      detail={`${slot.kind === "video" ? "Videos" : "Photos"} must stay under ${formatFileSize(
-                        slot.kind === "video" ? VIDEO_UPLOAD_LIMIT : IMAGE_UPLOAD_LIMIT
-                      )}.`}
+                      detail={
+                        uploadDetail ||
+                        `${slot.kind === "video" ? "Videos" : "Photos"} must stay under ${formatFileSize(
+                          slot.kind === "video" ? VIDEO_UPLOAD_LIMIT : IMAGE_UPLOAD_LIMIT
+                        )}.`
+                      }
                     />
                   ) : null}
                   {cardError[slot.id] ? <p className={errorClass}>{cardError[slot.id]}</p> : null}

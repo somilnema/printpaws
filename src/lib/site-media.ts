@@ -244,8 +244,17 @@ function isWebp(bytes: Buffer) {
   return bytes.length > 12 && bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WEBP";
 }
 
+function ftypBrand(bytes: Buffer) {
+  if (bytes.length < 12 || bytes.toString("ascii", 4, 8) !== "ftyp") return null;
+  return bytes.toString("ascii", 8, 12);
+}
+
+/** Browser-friendly MP4 only — rejects QuickTime / MOV (same ftyp box, brand `qt  `). */
 function isMp4(bytes: Buffer) {
-  return bytes.length > 12 && bytes.toString("ascii", 4, 8) === "ftyp";
+  const brand = ftypBrand(bytes);
+  if (!brand) return false;
+  if (brand === "qt  ") return false;
+  return true;
 }
 
 function isWebm(bytes: Buffer) {
@@ -270,12 +279,48 @@ async function optimizeImage(bytes: Buffer, maxEdge: number) {
 }
 
 function prepareVideo(bytes: Buffer) {
+  const brand = ftypBrand(bytes);
+  if (brand === "qt  ") {
+    return {
+      ok: false as const,
+      error: "This looks like a QuickTime / MOV file. Export it as H.264 MP4 or WebM and try again.",
+    };
+  }
   if (isMp4(bytes)) return { ok: true as const, body: bytes, contentType: "video/mp4", ext: "mp4" };
   if (isWebm(bytes)) return { ok: true as const, body: bytes, contentType: "video/webm", ext: "webm" };
   return {
     ok: false as const,
-    error: "Upload an MP4 or WebM video. MOV files often will not play in the browser.",
+    error: "Upload an MP4 or WebM video. MOV and HEVC phone videos often will not play in the browser.",
   };
+}
+
+async function commitSlot(slotId: string, path: string, url: string, bytes: number) {
+  const current = await readManifest();
+  if (!current.ok) return { ok: false as const, error: current.error };
+
+  const previous = current.manifest.slots[slotId];
+  const updatedAt = new Date().toISOString();
+  const next: Manifest = {
+    version: 1,
+    slots: {
+      ...current.manifest.slots,
+      [slotId]: { url, path, bytes, updatedAt },
+    },
+  };
+
+  const written = await supabaseAdmin.storage.from(BUCKET).upload(MANIFEST, Buffer.from(JSON.stringify(next)), {
+    contentType: "application/json",
+    cacheControl: "60",
+    upsert: true,
+  });
+  if (written.error) {
+    await removeObject(path);
+    return { ok: false as const, error: "The file was uploaded but the site could not switch to it. Try again." };
+  }
+
+  if (previous?.path && previous.path !== path) await removeObject(previous.path);
+  publish();
+  return { ok: true as const, url, updatedAt };
 }
 
 async function uploadObject(path: string, body: Buffer, contentType: string) {
@@ -324,37 +369,101 @@ export async function saveSiteMedia(slotId: string, bytes: Buffer) {
       };
     }
 
-    const current = await readManifest();
-    if (!current.ok) return { ok: false as const, error: current.error };
-
     const path = `replacements/${slot.id}/${crypto.randomUUID()}.${prepared.ext}`;
     const uploaded = await uploadObject(path, prepared.body, prepared.contentType);
     if (!uploaded.ok) return uploaded;
-
-    const previous = current.manifest.slots[slot.id];
-    const updatedAt = new Date().toISOString();
-    const next: Manifest = {
-      version: 1,
-      slots: {
-        ...current.manifest.slots,
-        [slot.id]: { url: uploaded.url, path, bytes: prepared.body.length, updatedAt },
-      },
-    };
-
-    const written = await supabaseAdmin.storage.from(BUCKET).upload(MANIFEST, Buffer.from(JSON.stringify(next)), {
-      contentType: "application/json",
-      cacheControl: "60",
-      upsert: true,
-    });
-    if (written.error) {
-      await removeObject(path);
-      return { ok: false as const, error: "The file was uploaded but the site could not switch to it. Try again." };
-    }
-
-    if (previous?.path && previous.path !== path) await removeObject(previous.path);
-    publish();
-    return { ok: true as const, url: uploaded.url, updatedAt };
+    return commitSlot(slot.id, path, uploaded.url, prepared.body.length);
   });
+}
+
+/** Start a direct browser → Supabase upload for videos (avoids Vercel body/timeout limits). */
+export async function beginSiteMediaVideoUpload(slotId: string, size: number, contentType: string) {
+  const slot = mediaSlot(slotId);
+  if (!slot) return { ok: false as const, error: "That place on the site does not exist." };
+  if (slot.kind !== "video") return { ok: false as const, error: "That slot is for photos, not video." };
+  if (!size) return { ok: false as const, error: "Choose a file first." };
+  if (size > VIDEO_UPLOAD_LIMIT) {
+    const mb = Math.round(VIDEO_UPLOAD_LIMIT / (1024 * 1024));
+    return { ok: false as const, error: `That file is too large. Keep it under ${mb} MB.` };
+  }
+  if (contentType !== "video/mp4" && contentType !== "video/webm") {
+    return { ok: false as const, error: "Upload an MP4 or WebM video. MOV files often will not play in the browser." };
+  }
+
+  try {
+    await ensureBucket();
+  } catch {
+    return {
+      ok: false as const,
+      error: "Storage is not ready. In Supabase, create a public bucket named site-media, then try again.",
+    };
+  }
+
+  const ext = contentType === "video/webm" ? "webm" : "mp4";
+  const path = `replacements/${slot.id}/${crypto.randomUUID()}.${ext}`;
+  const { data, error } = await supabaseAdmin.storage.from(BUCKET).createSignedUploadUrl(path);
+  if (error || !data?.signedUrl) {
+    return { ok: false as const, error: error?.message || "The upload could not be started. Try again." };
+  }
+
+  return {
+    ok: true as const,
+    path,
+    signedUrl: data.signedUrl,
+    token: data.token,
+    contentType,
+    ext,
+  };
+}
+
+export async function finishSiteMediaVideoUpload(slotId: string, path: string, size: number) {
+  const slot = mediaSlot(slotId);
+  if (!slot || slot.kind !== "video") return { ok: false as const, error: "That place on the site does not exist." };
+  if (!path.startsWith(`replacements/${slot.id}/`) || path.includes("..")) {
+    return { ok: false as const, error: "The uploaded video path was invalid." };
+  }
+  if (size <= 0 || size > VIDEO_UPLOAD_LIMIT) {
+    await removeObject(path);
+    const mb = Math.round(VIDEO_UPLOAD_LIMIT / (1024 * 1024));
+    return { ok: false as const, error: `That file is too large. Keep it under ${mb} MB.` };
+  }
+
+  // Only the file header — never pull the whole video into the serverless function.
+  const { data: signed, error: signedError } = await supabaseAdmin.storage.from(BUCKET).createSignedUrl(path, 60);
+  if (signedError || !signed?.signedUrl) {
+    return { ok: false as const, error: "The uploaded video could not be found. Please upload it again." };
+  }
+
+  let header: Buffer;
+  try {
+    const response = await fetch(signed.signedUrl, { headers: { Range: "bytes=0-63" } });
+    if (!response.ok && response.status !== 206) {
+      return { ok: false as const, error: "The uploaded video could not be found. Please upload it again." };
+    }
+    header = Buffer.from(await response.arrayBuffer());
+  } catch {
+    return { ok: false as const, error: "The uploaded video could not be checked. Please try again." };
+  }
+
+  const prepared = prepareVideo(header);
+  if (!prepared.ok) {
+    await removeObject(path);
+    return prepared;
+  }
+
+  const { data: publicData } = supabaseAdmin.storage.from(BUCKET).getPublicUrl(path);
+  if (!isManagedUrl(publicData.publicUrl)) {
+    await removeObject(path);
+    return { ok: false as const, error: "The file was saved but the link was invalid." };
+  }
+
+  return withWriteLock(() => commitSlot(slot.id, path, publicData.publicUrl, size));
+}
+
+export async function discardSiteMediaUpload(path: string) {
+  if (!path.startsWith("replacements/")) return { ok: true as const };
+  await removeObject(path);
+  return { ok: true as const };
 }
 
 export async function clearSiteMedia(slotId: string) {

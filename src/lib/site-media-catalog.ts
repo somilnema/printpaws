@@ -81,6 +81,16 @@ export const MEDIA_SLOTS: MediaSlot[] = [
   { id: "extra-mug", group: "Add-on products", label: "Mug", hint: "Mug photo in the order form.", kind: "image", fallbackKey: "/extras/mug.jpg", maxEdge: 900 },
   { id: "extra-magnet", group: "Add-on products", label: "Magnet", hint: "Magnet photo in the order form.", kind: "image", fallbackKey: "/extras/magnet.jpg", maxEdge: 900 },
   { id: "extra-digital", group: "Add-on products", label: "Digital download", hint: "Digital download photo in the order form.", kind: "image", fallbackKey: "/extras/digital-download.jpg", maxEdge: 900 },
+
+  { id: "landing-hero", group: "Landing page", label: "Hero photo", hint: "Horizontal 16:9 photo of a pet beside its portrait. Keep the left side calm: the headline sits there. Until you upload one, the hero shows a portrait on the right.", kind: "image", fallbackKey: "", maxEdge: 2400, optional: true },
+  { id: "landing-hero-video", group: "Landing page", label: "Hero video", hint: "Horizontal 16:9 brand video, plays muted on a loop. Leave the left side calm for the headline. The hero photo shows while it loads.", kind: "video", fallbackKey: "", maxEdge: 0, optional: true },
+  { id: "landing-everyday", group: "Landing page", label: "Everyday Pet Portrait card", hint: "Vertical 3:4 photo: one pet and the finished portrait.", kind: "image", fallbackKey: "", maxEdge: 1400, optional: true },
+  { id: "landing-multi-pet", group: "Landing page", label: "Multi-Pet Portrait card", hint: "Vertical 3:4 photo: several pets together in one portrait.", kind: "image", fallbackKey: "", maxEdge: 1400, optional: true },
+  { id: "landing-you-and-pet", group: "Landing page", label: "You & Your Pet card", hint: "Vertical 3:4 photo: a person with their pet and the artwork.", kind: "image", fallbackKey: "", maxEdge: 1400, optional: true },
+  { id: "landing-memorial", group: "Landing page", label: "Memorial Portrait card", hint: "Vertical 3:4 photo. Gentle, respectful memorial imagery.", kind: "image", fallbackKey: "", maxEdge: 1400, optional: true },
+  { id: "landing-gift-bundle", group: "Landing page", label: "Signature Gift Bundle card", hint: "Vertical 3:4 photo of the actual bundle and what is inside.", kind: "image", fallbackKey: "", maxEdge: 1400, optional: true },
+  { id: "landing-mini-desk", group: "Landing page", label: "Mini Desk Portrait card", hint: "Vertical 3:4 photo showing the small portrait on a desk or shelf.", kind: "image", fallbackKey: "", maxEdge: 1400, optional: true },
+  { id: "landing-final", group: "Landing page", label: "Closing photo", hint: "Warm photo under “Your Favourite Photo Deserves More Than a Camera Roll.”", kind: "image", fallbackKey: "", maxEdge: 1800, optional: true },
 ];
 
 const SLOT_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;

@@ -7,8 +7,8 @@ import { X } from "lucide-react";
 import { useUploadedMedia } from "@/components/SiteMedia";
 
 const STYLES = [
-  { title: "Framed Portrait", image: "/framestyle/black-frame.png", tagline: "Ready to Hang • Classic Look" },
   { title: "Canvas Portrait", image: "/framestyle/canvas-frame.png", tagline: "Gallery Wrapped • Premium" },
+  { title: "Framed Portrait", image: "/framestyle/black-frame.png", tagline: "Ready to Hang • Classic Look" },
 ];
 
 export function PortraitStyleInfographic({ open, onClose }: { open: boolean; onClose: () => void }) {

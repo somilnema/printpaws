@@ -85,6 +85,9 @@ const ADD_ONS = [
   // { id: "heart", label: "Heart", image: "/bonus-image/heart.png" },
 ];
 
+// Shown on the size list but can't be picked.
+const OUT_OF_STOCK_FRAMED_SIZE = '18"x24"';
+
 function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
@@ -94,7 +97,13 @@ function FieldError({ message }: { message?: string }) {
   return <p className="text-[11px] font-bold text-red-500 mt-1.5">{message}</p>;
 }
 
-export function ProductInfo() {
+type ProductInfoProps = {
+  title?: string;
+  /** Pet choice a product page opens on. Ignored while the cart holds a portrait. */
+  presetPets?: string;
+};
+
+export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: ProductInfoProps = {}) {
   const media = useMedia();
   const [currentStep, setCurrentStepRaw] = useState(1);
   const currentStepSafe = Math.min(Math.max(currentStep, 1), 3);
@@ -116,10 +125,10 @@ export function ProductInfo() {
   const [couponError, setCouponError] = useState<string | null>(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [portraitStyle, setPortraitStyle] = useState<PortraitStyle>("framed");
+  const [portraitStyle, setPortraitStyle] = useState<PortraitStyle>("canvas");
   const [showStylePreview, setShowStylePreview] = useState(false);
-  const [selectedSize, setSelectedSize] = useState('8"x10"');
-  const [selectedFrame, setSelectedFrame] = useState("black");
+  const [selectedSize, setSelectedSize] = useState('16"x20"');
+  const [selectedFrame, setSelectedFrame] = useState("canva");
   const [selectedPets, setSelectedPets] = useState("one");
   const petNameCount = PET_OPTIONS.find((pet) => pet.id === selectedPets)?.names ?? 1;
   const humanPetImage = useUploadedMedia("pets-human");
@@ -192,6 +201,15 @@ export function ProductInfo() {
     return () => window.removeEventListener('toggleCart', handleToggleCart);
   }, []);
 
+  // Pages without the order form send the cart button here with ?cart=open
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("cart") !== "open") return;
+    setShowCart(true);
+    url.searchParams.delete("cart");
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     fetch("/api/pricing", { cache: "no-store" })
@@ -207,10 +225,12 @@ export function ProductInfo() {
 
   // 2. Load customizer choices & cart details from persisted cache on mount
   useEffect(() => {
+    let cartHasPortrait = false;
     try {
       const saved = localStorage.getItem('peternity_cart');
       if (saved) {
         const parsed = JSON.parse(saved);
+        cartHasPortrait = Boolean(parsed.addedToCart);
         if (parsed.productType === "portrait") setProductType("portrait");
         if (parsed.customPaymentAmount) setCustomPaymentAmount(parsed.customPaymentAmount);
         if (parsed.digitalDownloadAmount) setDigitalDownloadAmount(parsed.digitalDownloadAmount);
@@ -218,7 +238,8 @@ export function ProductInfo() {
         if (parsed.appliedCoupon) setAppliedCoupon(parsed.appliedCoupon);
         if (parsed.couponInput) setCouponInput(parsed.couponInput);
         if (parsed.portraitStyle === "framed" || parsed.portraitStyle === "canvas") setPortraitStyle(parsed.portraitStyle);
-        if (parsed.selectedSize) setSelectedSize(parsed.selectedSize);
+        if (parsed.portraitStyle === "framed" && parsed.selectedSize === OUT_OF_STOCK_FRAMED_SIZE) setSelectedSize('8"x10"');
+        else if (parsed.selectedSize) setSelectedSize(parsed.selectedSize);
         if (parsed.selectedFrame) setSelectedFrame(parsed.selectedFrame);
         if (parsed.selectedPets) setSelectedPets(parsed.selectedPets);
         if (parsed.selectedBg) setSelectedBg(parsed.selectedBg);
@@ -243,7 +264,9 @@ export function ProductInfo() {
     } catch (e) {
       console.warn("Failed to load persisted cart cache:", e);
     }
-  }, []);
+    // Changing pets here would silently change the portrait already in the cart.
+    if (presetPets && !cartHasPortrait) setSelectedPets(presetPets);
+  }, [presetPets]);
 
   // 3. Keep cache synchronized in localStorage when configurations change
   useEffect(() => {
@@ -950,7 +973,7 @@ export function ProductInfo() {
           <span className="text-sm font-medium text-gray-400 ml-1">145 Reviews</span>
         </div>
         <h1 className="hidden lg:block text-5xl lg:text-[56px] font-normal text-[#1a1a1b] leading-tight font-playfair tracking-tight">
-          Custom Pet Portrait
+          {title}
         </h1>
     
         <div className="flex items-center gap-4">
@@ -1053,25 +1076,6 @@ export function ProductInfo() {
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
-                      onClick={() => choosePortraitStyle("framed")}
-                      className={`group relative flex flex-col md:flex-row items-center gap-2 md:gap-4 p-2 md:p-3.5 rounded-2xl border-[2px] transition-all text-center md:text-left ${portraitStyle === "framed"
-                        ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
-                        : "border-gray-200 hover:border-gray-300 bg-white"
-                        }`}
-                    >
-                      <div className="relative w-16 h-16 flex-shrink-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
-                        <Image src="/framestyle/black-frame.png" alt="Framed" fill sizes="64px" className="object-cover" />
-                      </div>
-                      <div className="flex-1 flex flex-col items-center md:items-start w-full">
-                        <span className="block font-black text-[#1a1a1b] text-[11px] md:text-sm">Framed Portrait</span>
-                        <span className="hidden md:block text-[10px] text-gray-500 font-medium">Ready to Hang • Classic Look</span>
-                      </div>
-                      <div className={`absolute top-2 right-2 md:static flex-shrink-0 w-4 h-4 md:w-5 md:h-5 rounded-full border-2 flex items-center justify-center transition-colors ${portraitStyle === "framed" ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
-                        {portraitStyle === "framed" && <Check size={10} className="text-white md:w-3 md:h-3" strokeWidth={3} />}
-                      </div>
-                    </button>
-                    <button
-                      type="button"
                       onClick={() => choosePortraitStyle("canvas")}
                       className={`group relative flex flex-col md:flex-row items-center gap-2 md:gap-4 p-2 md:p-3.5 rounded-2xl border-[2px] transition-all text-center md:text-left ${portraitStyle === "canvas"
                         ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
@@ -1087,6 +1091,25 @@ export function ProductInfo() {
                       </div>
                       <div className={`absolute top-2 right-2 md:static flex-shrink-0 w-4 h-4 md:w-5 md:h-5 rounded-full border-2 flex items-center justify-center transition-colors ${portraitStyle === "canvas" ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
                         {portraitStyle === "canvas" && <Check size={10} className="text-white md:w-3 md:h-3" strokeWidth={3} />}
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => choosePortraitStyle("framed")}
+                      className={`group relative flex flex-col md:flex-row items-center gap-2 md:gap-4 p-2 md:p-3.5 rounded-2xl border-[2px] transition-all text-center md:text-left ${portraitStyle === "framed"
+                        ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
+                        : "border-gray-200 hover:border-gray-300 bg-white"
+                        }`}
+                    >
+                      <div className="relative w-16 h-16 flex-shrink-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
+                        <Image src="/framestyle/black-frame.png" alt="Framed" fill sizes="64px" className="object-cover" />
+                      </div>
+                      <div className="flex-1 flex flex-col items-center md:items-start w-full">
+                        <span className="block font-black text-[#1a1a1b] text-[11px] md:text-sm">Framed Portrait</span>
+                        <span className="hidden md:block text-[10px] text-gray-500 font-medium">Ready to Hang • Classic Look</span>
+                      </div>
+                      <div className={`absolute top-2 right-2 md:static flex-shrink-0 w-4 h-4 md:w-5 md:h-5 rounded-full border-2 flex items-center justify-center transition-colors ${portraitStyle === "framed" ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
+                        {portraitStyle === "framed" && <Check size={10} className="text-white md:w-3 md:h-3" strokeWidth={3} />}
                       </div>
                     </button>
                   </div>
@@ -1120,14 +1143,12 @@ export function ProductInfo() {
                             {selectedSize === '12"x16"' && <Check size={12} className="text-white" strokeWidth={3} />}
                           </div>
                         </button>
-                        <button onClick={() => { setSelectedSize('18"x24"'); window.dispatchEvent(new CustomEvent('sizeSelectionChanged', { detail: 'framed_size' })); }} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '18"x24"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
-                          <div>
+                        <button type="button" disabled aria-disabled="true" className="group relative flex items-center justify-between p-4 rounded-2xl border-[2px] border-gray-200 bg-gray-50 text-left cursor-not-allowed">
+                          <div className="opacity-50">
                             <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">18×24</span></div>
-                            <span className="text-xs font-bold text-gray-500">{formatRupee(catalog.framed['18"x24"'])}</span>
+                            <span className="text-xs font-bold text-gray-500">{formatRupee(catalog.framed[OUT_OF_STOCK_FRAMED_SIZE])}</span>
                           </div>
-                          <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedSize === '18"x24"' ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
-                            {selectedSize === '18"x24"' && <Check size={12} className="text-white" strokeWidth={3} />}
-                          </div>
+                          <span className="text-[10px] font-black text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded uppercase tracking-wider">Out of Stock</span>
                         </button>
                       </>
                     ) : (
@@ -1152,7 +1173,7 @@ export function ProductInfo() {
                         </button>
                         <button onClick={() => { setSelectedSize('20"x30"'); window.dispatchEvent(new CustomEvent('sizeSelectionChanged', { detail: 'canvas_size' })); }} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '20"x30"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
                           <div>
-                            <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">20×30</span></div>
+                            <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">20×30</span><span className="text-[10px] font-black text-white bg-[#A87B62] px-1.5 py-0.5 rounded uppercase tracking-wider">💰 Value for Money</span></div>
                             <span className="text-xs font-bold text-gray-500">{formatRupee(catalog.canvas['20"x30"'])}</span>
                           </div>
                           <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedSize === '20"x30"' ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
