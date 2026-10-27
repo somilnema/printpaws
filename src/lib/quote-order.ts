@@ -1,7 +1,9 @@
-import { calculateOriginalAmount, calculateQuote, type PricingInput } from "@/lib/pricing";
+import { calculateOriginalAmount, calculateQuote, framedSaleProblem, type PricingInput } from "@/lib/pricing";
 import { loadPriceCatalog, resolveCoupon } from "@/lib/store-config";
 
 export async function quoteCheckout(input: PricingInput, customerEmail?: string) {
+  const framed = framedSaleProblem(input);
+  if (framed) throw new Error(framed);
   const { catalog } = await loadPriceCatalog();
   const clean: PricingInput = { ...input, couponRule: null };
   const originalAmount = calculateOriginalAmount(clean, catalog);

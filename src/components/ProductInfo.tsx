@@ -36,6 +36,7 @@ import {
   extraProductLines,
   extrasTotal,
   formatRupee,
+  FRAMED_FOR_SALE,
   frameColorLabel,
   formatRs,
   getPortraitBreakdown,
@@ -237,10 +238,17 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
         if (parsed.paymentMethod) setPaymentMethod(parsed.paymentMethod);
         if (parsed.appliedCoupon) setAppliedCoupon(parsed.appliedCoupon);
         if (parsed.couponInput) setCouponInput(parsed.couponInput);
-        if (parsed.portraitStyle === "framed" || parsed.portraitStyle === "canvas") setPortraitStyle(parsed.portraitStyle);
-        if (parsed.portraitStyle === "framed" && parsed.selectedSize === OUT_OF_STOCK_FRAMED_SIZE) setSelectedSize('8"x10"');
-        else if (parsed.selectedSize) setSelectedSize(parsed.selectedSize);
-        if (parsed.selectedFrame) setSelectedFrame(parsed.selectedFrame);
+        const framedPaused = parsed.portraitStyle === "framed" && !FRAMED_FOR_SALE;
+        if (framedPaused) {
+          setPortraitStyle("canvas");
+          setSelectedFrame("canva");
+          setSelectedSize('16"x20"');
+        } else {
+          if (parsed.portraitStyle === "framed" || parsed.portraitStyle === "canvas") setPortraitStyle(parsed.portraitStyle);
+          if (parsed.portraitStyle === "framed" && parsed.selectedSize === OUT_OF_STOCK_FRAMED_SIZE) setSelectedSize('8"x10"');
+          else if (parsed.selectedSize) setSelectedSize(parsed.selectedSize);
+          if (parsed.selectedFrame) setSelectedFrame(parsed.selectedFrame);
+        }
         if (parsed.selectedPets) setSelectedPets(parsed.selectedPets);
         if (parsed.selectedBg) setSelectedBg(parsed.selectedBg);
         if (parsed.selectedAddOn) setSelectedAddOn(parsed.selectedAddOn);
@@ -947,6 +955,7 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
   const hasCustomizedItem = addedToCart;
 
   const choosePortraitStyle = (style: PortraitStyle) => {
+    if (style === "framed" && !FRAMED_FOR_SALE) return;
     const frame = style === "framed" ? "black" : "canva";
     setPortraitStyle(style);
     setSelectedFrame(frame);
@@ -1095,22 +1104,30 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
                     </button>
                     <button
                       type="button"
+                      disabled={!FRAMED_FOR_SALE}
+                      aria-disabled={!FRAMED_FOR_SALE}
                       onClick={() => choosePortraitStyle("framed")}
-                      className={`group relative flex flex-col md:flex-row items-center gap-2 md:gap-4 p-2 md:p-3.5 rounded-2xl border-[2px] transition-all text-center md:text-left ${portraitStyle === "framed"
+                      className={`group relative flex flex-col md:flex-row items-center gap-2 md:gap-4 p-2 md:p-3.5 rounded-2xl border-[2px] transition-all text-center md:text-left ${!FRAMED_FOR_SALE
+                        ? "cursor-not-allowed border-gray-200 bg-gray-50"
+                        : portraitStyle === "framed"
                         ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
                         : "border-gray-200 hover:border-gray-300 bg-white"
                         }`}
                     >
-                      <div className="relative w-16 h-16 flex-shrink-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
+                      <div className={`relative w-16 h-16 flex-shrink-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm ${FRAMED_FOR_SALE ? "" : "opacity-50"}`}>
                         <Image src="/framestyle/black-frame.png" alt="Framed" fill sizes="64px" className="object-cover" />
                       </div>
                       <div className="flex-1 flex flex-col items-center md:items-start w-full">
-                        <span className="block font-black text-[#1a1a1b] text-[11px] md:text-sm">Framed Portrait</span>
-                        <span className="hidden md:block text-[10px] text-gray-500 font-medium">Ready to Hang • Classic Look</span>
+                        <span className={`block font-black text-[11px] md:text-sm ${FRAMED_FOR_SALE ? "text-[#1a1a1b]" : "text-gray-400"}`}>Framed Portrait</span>
+                        <span className={`text-[10px] font-medium ${FRAMED_FOR_SALE ? "hidden text-gray-500 md:block" : "text-gray-500"}`}>
+                          {FRAMED_FOR_SALE ? "Ready to Hang • Classic Look" : "Temporarily unavailable"}
+                        </span>
                       </div>
+                      {FRAMED_FOR_SALE && (
                       <div className={`absolute top-2 right-2 md:static flex-shrink-0 w-4 h-4 md:w-5 md:h-5 rounded-full border-2 flex items-center justify-center transition-colors ${portraitStyle === "framed" ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
                         {portraitStyle === "framed" && <Check size={10} className="text-white md:w-3 md:h-3" strokeWidth={3} />}
                       </div>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -1164,7 +1181,7 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
                         </button>
                         <button onClick={() => { setSelectedSize('16"x20"'); window.dispatchEvent(new CustomEvent('sizeSelectionChanged', { detail: 'canvas_size' })); }} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '16"x20"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
                           <div>
-                            <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">16×20</span><span className="text-[10px] font-black text-white bg-[#A87B62] px-1.5 py-0.5 rounded uppercase tracking-wider">⭐ Best Seller</span></div>
+                            <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">16×20</span></div>
                             <span className="text-xs font-bold text-gray-500">{formatRupee(catalog.canvas['16"x20"'])}</span>
                           </div>
                           <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedSize === '16"x20"' ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>

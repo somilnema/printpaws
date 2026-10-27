@@ -115,6 +115,17 @@ export const DEFAULT_CATALOG: PriceCatalog = {
 export const FRAMED_SIZES = ['8"x10"', '12"x16"', '18"x24"'] as const;
 export const CANVAS_SIZES = ['8"x12"', '16"x20"', '20"x30"'] as const;
 
+/** Supply is paused. Customer checkout must not sell a framed portrait until this is turned back on. */
+export const FRAMED_FOR_SALE = false;
+export const FRAMED_UNAVAILABLE = "Framed portraits are temporarily unavailable.";
+
+export function framedSaleProblem(input: Pick<PricingInput, "productType" | "portraitStyle">) {
+  if (FRAMED_FOR_SALE) return null;
+  const type = input.productType || "portrait";
+  if (type === "portrait" && input.portraitStyle === "framed") return FRAMED_UNAVAILABLE;
+  return null;
+}
+
 export const PREPAID_DISCOUNT_PERCENT = DEFAULT_CATALOG.prepaidPercent;
 export const COD_ADVANCE_PERCENT = DEFAULT_CATALOG.codAdvancePercent;
 export const COD_REMAINING_PERCENT = 100 - DEFAULT_CATALOG.codAdvancePercent;

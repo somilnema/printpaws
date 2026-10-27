@@ -5,10 +5,11 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { useUploadedMedia } from "@/components/SiteMedia";
+import { FRAMED_FOR_SALE, FRAMED_UNAVAILABLE } from "@/lib/pricing";
 
 const STYLES = [
   { title: "Canvas Portrait", image: "/framestyle/canvas-frame.png", tagline: "Gallery Wrapped • Premium" },
-  { title: "Framed Portrait", image: "/framestyle/black-frame.png", tagline: "Ready to Hang • Classic Look" },
+  { title: "Framed Portrait", image: "/framestyle/black-frame.png", tagline: "Temporarily unavailable" },
 ];
 
 export function PortraitStyleInfographic({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -54,7 +55,10 @@ export function PortraitStyleInfographic({ open, onClose }: { open: boolean; onC
               <X size={16} strokeWidth={2.5} />
             </button>
             {infographic ? (
-              <img src={infographic} alt="Framed portrait vs canvas portrait" className="block h-auto w-full" />
+              <div>
+                <img src={infographic} alt="Framed portrait vs canvas portrait" className="block h-auto w-full" />
+                {!FRAMED_FOR_SALE && <p className="px-5 py-3 text-center text-xs font-medium text-gray-500">{FRAMED_UNAVAILABLE}</p>}
+              </div>
             ) : (
               <div className="space-y-4 p-5 pt-12">
                 <h3 className="text-center text-lg font-black text-[#1a1a1b]">Framed vs Canvas</h3>
@@ -65,7 +69,7 @@ export function PortraitStyleInfographic({ open, onClose }: { open: boolean; onC
                         <img src={style.image} alt={style.title} className="aspect-square w-full object-cover" />
                       </div>
                       <p className="text-sm font-black text-[#1a1a1b]">{style.title}</p>
-                      <p className="text-[11px] font-medium text-gray-500">{style.tagline}</p>
+                      <p className="text-[11px] font-medium text-gray-500">{style.title === "Framed Portrait" && !FRAMED_FOR_SALE ? FRAMED_UNAVAILABLE.replace(/\.$/, "") : style.tagline}</p>
                     </div>
                   ))}
                 </div>
