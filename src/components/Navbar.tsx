@@ -6,7 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { TrackOrderPanel } from "@/components/TrackOrderPanel";
 
-export function Navbar() {
+export function Navbar({ homeHref = "/" }: { homeHref?: string } = {}) {
   const [cartCount, setCartCount] = useState(0);
   const [tracking, setTracking] = useState(false);
 
@@ -46,7 +46,7 @@ export function Navbar() {
           <Menu size={24} className="text-secondary" />
         </button>
 
-        <Link href="/" className="flex items-center">
+        <Link href={homeHref} className="flex items-center">
           <div className="relative h-35 w-45 md:h-50 md:w-100 translate-y-2 md:translate-y-4">
             <Image
               src="/IMG_4060.PNG"

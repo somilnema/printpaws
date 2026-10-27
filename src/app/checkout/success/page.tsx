@@ -34,7 +34,7 @@ function SuccessContent() {
             trackPixel("Purchase", {
               value: amount,
               currency: "INR",
-              content_name: "Custom Pet Portrait",
+              content_name: found.frame_style === "fixed" ? found.size || found.pet_name || "Peternity" : "Custom Pet Portrait",
             });
           }
         };

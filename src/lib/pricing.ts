@@ -4,7 +4,8 @@ export type ProductType =
   | "portrait"
   | "custom_payment"
   | "fresh_payment"
-  | "digital_download";
+  | "digital_download"
+  | "landing_offer";
 
 export type PaymentMethod = "prepaid" | "cod";
 
@@ -54,6 +55,10 @@ export type PricingInput = {
   addMug?: boolean;
   customPaymentAmount?: number;
   digitalDownloadAmount?: number;
+  /** Set on the server from the landing product. The browser amount is ignored. */
+  offerId?: string;
+  offerAmount?: number;
+  productLabel?: string;
   couponCode?: string | null;
   couponRule?: CouponRule | null;
   paymentMethod?: PaymentMethod;
@@ -185,6 +190,7 @@ export const PRODUCT_LABELS: Record<ProductType, string> = {
   custom_payment: "Custom Payment",
   fresh_payment: "Fresh Payment",
   digital_download: "Digital Download",
+  landing_offer: "Peternity",
 };
 
 export const PORTRAIT_STYLE_LABELS: Record<PortraitStyle, string> = {
@@ -362,6 +368,11 @@ export function calculateOriginalAmount(input: PricingInput, catalog: PriceCatal
       if (catalog.digitalDownloads.includes(amount)) return amount;
       throw new Error("Select a valid Digital Download amount.");
     }
+    case "landing_offer": {
+      const amount = Math.round(Number(input.offerAmount));
+      if (!Number.isInteger(amount) || amount < 1) throw new Error("This product is not available.");
+      return amount;
+    }
     default:
       return calculatePortraitBasePrice(input, catalog);
   }
@@ -407,7 +418,7 @@ function ruleFromCode(code: string): CouponRule | null {
 }
 
 export function productAllowsCod(productType: ProductType) {
-  return productType === "portrait";
+  return productType === "portrait" || productType === "landing_offer";
 }
 
 /**
@@ -447,7 +458,7 @@ export function calculateQuote(input: PricingInput, catalog: PriceCatalog = DEFA
 
   const shared = {
     productType,
-    productLabel: PRODUCT_LABELS[productType],
+    productLabel: input.productLabel || PRODUCT_LABELS[productType],
     originalAmount,
     couponCode: rule?.code ?? null,
     couponType: rule?.discountType ?? null,

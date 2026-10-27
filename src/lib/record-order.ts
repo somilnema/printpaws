@@ -29,7 +29,14 @@ export function customerProblems(body: CheckoutBody, productType: string) {
   if (!customerName) return "Please enter your name to continue.";
   if (!customerEmail || !isValidEmail(customerEmail)) return "Please enter your email to continue.";
   if (!customerPhone || customerPhone.replace(/\D/g, "").length < 10) return "Please enter a valid contact number.";
-  if (productType === "portrait" && !shippingAddress) return "Please enter your full address to continue.";
+  if ((productType === "portrait" || productType === "landing_offer") && !shippingAddress) {
+    return "Please enter your full address to continue.";
+  }
+  if (productType === "landing_offer") {
+    if (!text(body, "shippingCity")) return "Please enter your city to continue.";
+    if (!text(body, "shippingState")) return "Please enter your state to continue.";
+    if (text(body, "shippingPincode").replace(/\D/g, "").length < 6) return "Please enter a valid PIN code to continue.";
+  }
   return "";
 }
 
@@ -39,7 +46,7 @@ export async function photoProblem(body: CheckoutBody, productType: string) {
     .replace(/\/$/, "");
   const rawPhotoUrl = text(body, "photoUrl");
   const photoUrl = storedPetPhotoUrl(rawPhotoUrl, supabaseHost);
-  const photoRequired = productType === "portrait" || productType === "digital_download";
+  const photoRequired = productType === "portrait" || productType === "digital_download" || productType === "landing_offer";
   if (rawPhotoUrl.startsWith("blob:")) {
     return "The pet photo was not saved. Please upload it again before paying.";
   }
@@ -62,13 +69,14 @@ function orderFields(body: CheckoutBody, quote: Quote, razorpayOrderId: string) 
     body.addDigitalDownload ? "digital_download" : "",
   ].filter(Boolean);
   const paymentMode = quote.paymentMethod === "cod" ? "partial" : "prepaid";
+  const fixedOffer = quote.productType === "landing_offer";
   return {
-    size: text(body, "size") || quote.productLabel,
-    frame_style: text(body, "frameStyle") || quote.productType,
+    size: fixedOffer ? quote.productLabel : text(body, "size") || quote.productLabel,
+    frame_style: fixedOffer ? "fixed" : text(body, "frameStyle") || quote.productType,
     num_pets: text(body, "numPets") || "one",
     background: text(body, "background"),
     font: text(body, "font"),
-    addon: text(body, "addon") || extras.join(", ") || quote.productType,
+    addon: fixedOffer ? text(body, "offerId") : text(body, "addon") || extras.join(", ") || quote.productType,
     pet_name: text(body, "petName") || quote.productLabel,
     gift_wrap: !!body.giftWrap,
     customer_email: text(body, "customerEmail"),

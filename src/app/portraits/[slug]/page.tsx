@@ -19,27 +19,69 @@ import { ScrollingTicker } from "@/components/ScrollingTicker";
 import { Footer } from "@/components/Footer";
 import { SiteMediaProvider } from "@/components/SiteMedia";
 import { ViewContentPixel } from "@/components/ViewContentPixel";
+import { OfferCheckout } from "@/components/landing/OfferCheckout";
+import { getLandingProduct, productIsPurchasable } from "@/lib/landing-products";
+import { calculateQuote, formatRupee } from "@/lib/pricing";
 import { SELLABLE_PORTRAITS, portraitBySlug } from "@/lib/portraits";
 import { loadSiteMedia } from "@/lib/site-media";
+import { loadPriceCatalog } from "@/lib/store-config";
 
 type PortraitPageProps = { params: Promise<{ slug: string }> };
 
-export const dynamicParams = false;
+export const dynamicParams = true;
 
 export function generateStaticParams() {
   return SELLABLE_PORTRAITS.map(({ slug }) => ({ slug }));
 }
 
 export async function generateMetadata({ params }: PortraitPageProps): Promise<Metadata> {
-  const portrait = portraitBySlug((await params).slug);
+  const slug = (await params).slug;
+  const stored = await getLandingProduct(slug);
+  const portrait = stored || portraitBySlug(slug);
   if (!portrait) return {};
   return { title: `${portrait.name} | Peternity`, description: portrait.description };
 }
 
 /** The shop's existing product page, opened on one portrait's pet choice. */
 export default async function PortraitPage({ params }: PortraitPageProps) {
-  const portrait = portraitBySlug((await params).slug);
-  if (!portrait?.pets) notFound();
+  const slug = (await params).slug;
+  const stored = await getLandingProduct(slug);
+  if (stored?.kind === "fixed") {
+    if (!productIsPurchasable(stored) || stored.price == null) notFound();
+    const { catalog } = await loadPriceCatalog();
+    const base = {
+      productType: "landing_offer" as const,
+      offerId: stored.id,
+      offerAmount: stored.price,
+      productLabel: stored.name,
+    };
+    const prepaid = calculateQuote({ ...base, paymentMethod: "prepaid" }, catalog);
+    const cod = calculateQuote({ ...base, paymentMethod: "cod" }, catalog);
+    return (
+      <div className="flex min-h-screen flex-col bg-cream text-cocoa">
+        <AnnouncementBar />
+        <Navbar homeHref="/landing" />
+        <main className="flex-1">
+          <OfferCheckout
+            id={stored.id}
+            name={stored.name}
+            description={stored.description}
+            image={stored.imageUrl}
+            priceLabel={formatRupee(stored.price)}
+            prepaidLabel={formatRupee(prepaid.payableNow)}
+            codNowLabel={formatRupee(cod.payableNow)}
+            codLaterLabel={formatRupee(cod.remainingAmount)}
+          />
+        </main>
+        <WhatsAppButton />
+        <Footer />
+        <ViewContentPixel id={stored.slug} name={stored.name} />
+      </div>
+    );
+  }
+
+  const portrait = stored?.kind === "portrait" && stored.pets ? stored : portraitBySlug(slug);
+  if (!portrait?.pets || (stored && !productIsPurchasable(stored))) notFound();
   const media = await loadSiteMedia();
 
   return (

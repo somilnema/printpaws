@@ -11,7 +11,8 @@ import { VideoCarousel } from "@/components/landing/VideoCarousel";
 import { ReviewCarousel } from "@/components/landing/ReviewCarousel";
 import { FinalCta } from "@/components/landing/FinalCta";
 import { ANNOUNCEMENTS, FINAL_CTA, VIDEO_SECTION } from "@/lib/landing-content";
-import { PORTRAITS, startingPrice } from "@/lib/portraits";
+import { listPublicLandingProducts, productIsPurchasable } from "@/lib/landing-products";
+import { PORTRAITS, portraitBySlug, startingPrice } from "@/lib/portraits";
 import { formatRupee } from "@/lib/pricing";
 import { loadSiteMedia } from "@/lib/site-media";
 import { resolveMediaUrl } from "@/lib/site-media-catalog";
@@ -40,23 +41,51 @@ async function liveAnnouncements() {
 }
 
 export default async function LandingPage() {
-  const [media, { catalog }, announcements] = await Promise.all([loadSiteMedia(), loadPriceCatalog(), liveAnnouncements()]);
+  const [media, { catalog }, announcements, landingProducts] = await Promise.all([
+    loadSiteMedia(),
+    loadPriceCatalog(),
+    liveAnnouncements(),
+    listPublicLandingProducts(),
+  ]);
   const resolve = (key: string) => resolveMediaUrl(key, media);
 
-  const cards: PortraitCard[] = PORTRAITS.map((portrait) => ({
+  const source = landingProducts ?? PORTRAITS.map((portrait) => ({
     slug: portrait.slug,
     name: portrait.name,
     description: portrait.description,
-    image: media[portrait.imageSlot] || (portrait.fallbackImage ? resolve(portrait.fallbackImage) : ""),
-    price: portrait.pets ? formatRupee(startingPrice(catalog, portrait.pets)) : null,
+    imageUrl: "",
+    active: true,
+    kind: "portrait" as const,
+    pets: portrait.pets,
+    price: null,
+    forSale: Boolean(portrait.pets),
+    id: portrait.slug,
+    sortOrder: 0,
   }));
+
+  const cards: PortraitCard[] = source.map((product) => {
+    const known = portraitBySlug(product.slug);
+    const image =
+      product.imageUrl ||
+      (known ? media[known.imageSlot] : "") ||
+      (known?.fallbackImage ? resolve(known.fallbackImage) : "");
+    const sellable = productIsPurchasable(product);
+    const price = !sellable
+      ? null
+      : product.kind === "fixed" && product.price
+        ? formatRupee(product.price)
+        : product.pets
+          ? formatRupee(startingPrice(catalog, product.pets))
+          : null;
+    return { slug: product.slug, name: product.name, description: product.description, image, price };
+  });
   const clips = VIDEO_SECTION.clips.map(({ video, caption }) => ({ src: resolve(video), caption }));
 
   return (
     <SiteMediaProvider overrides={media}>
       <div className="flex min-h-screen flex-col bg-cream text-cocoa">
         <AnnouncementBar messages={announcements} colorClass="bg-terracotta" />
-        <Navbar />
+        <Navbar homeHref="/landing" />
         <CartBridge />
 
         <main className="flex-1">

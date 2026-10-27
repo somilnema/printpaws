@@ -23,6 +23,7 @@ import {
 } from "@/app/actions/adminActions";
 import { addTeamNote, removeTeamNote, sendToVendor } from "@/app/actions/opsActions";
 import { getSiteMediaAdmin, type SiteMediaAdmin } from "@/app/actions/mediaActions";
+import { getLandingProductsAdmin } from "@/app/actions/landingActions";
 import { getStoreAdmin, type StoreAdmin } from "@/app/actions/storeActions";
 import { MessagesPanel } from "@/components/admin/MessagesPanel";
 import { TeamNotes } from "@/components/TeamNotes";
@@ -32,7 +33,9 @@ import { PasswordInput } from "@/components/PasswordInput";
 import { AnalyticsOverview, DateRangeBar, defaultRange } from "@/components/admin/AnalyticsOverview";
 import { CouponsPanel } from "@/components/admin/CouponsPanel";
 import { ManualOrderForm } from "@/components/admin/ManualOrderForm";
+import { LandingProductsPanel } from "@/components/admin/LandingProductsPanel";
 import { MediaPanel } from "@/components/admin/MediaPanel";
+import type { LandingProduct } from "@/lib/landing-products";
 import { PricingPanel } from "@/components/admin/PricingPanel";
 import { sectionTabClass } from "@/components/admin/DeskSwitch";
 import { buttonClass, dangerButtonClass, DeskLogo, errorClass, ghostButtonClass, inputClass, okClass, Panel, warnClass } from "@/components/admin/ui";
@@ -40,7 +43,7 @@ import { orderInRange, rangeBounds, type DateRange } from "@/lib/admin-analytics
 import { adminCanAssign, adminCanCancel, adminCanHold, artworkIsOpen, maximumDueAt, safeTrackingUrl, stageLabel } from "@/lib/fulfillment";
 import { isWatermarkedProof, storedPetPhotoUrl } from "@/lib/pet-photo";
 
-type Section = "overview" | "orders" | "artists" | "shipment" | "pricing" | "coupons" | "media" | "messages";
+type Section = "overview" | "orders" | "artists" | "shipment" | "pricing" | "coupons" | "media" | "landing" | "messages";
 
 const NAV: { id: Section; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -50,6 +53,7 @@ const NAV: { id: Section; label: string }[] = [
   { id: "pricing", label: "Pricing" },
   { id: "coupons", label: "Coupons" },
   { id: "media", label: "Media" },
+  { id: "landing", label: "Landing" },
   { id: "messages", label: "Messages" },
 ];
 
@@ -89,6 +93,10 @@ export function AdminShell({
   const [storeState, setStoreState] = useState<"idle" | "loading" | "ready" | "signed-out">("idle");
   const [mediaLibrary, setMediaLibrary] = useState<SiteMediaAdmin | null>(null);
   const [mediaState, setMediaState] = useState<"idle" | "loading" | "ready" | "signed-out">("idle");
+  const [landingProducts, setLandingProducts] = useState<LandingProduct[]>([]);
+  const [landingReady, setLandingReady] = useState(false);
+  const [landingError, setLandingError] = useState<string | undefined>();
+  const [landingState, setLandingState] = useState<"idle" | "loading" | "ready" | "signed-out">("idle");
 
   async function loadStore() {
     setStoreState("loading");
@@ -118,11 +126,30 @@ export function AdminShell({
     }
   }, [section, storeState]);
 
+  async function loadLanding() {
+    setLandingState("loading");
+    const data = await getLandingProductsAdmin();
+    if (!data) {
+      setLandingState("signed-out");
+      return;
+    }
+    setLandingProducts(data.products);
+    setLandingReady(data.ready);
+    setLandingError(data.ready ? undefined : data.error);
+    setLandingState("ready");
+  }
+
   useEffect(() => {
     if (section === "media" && mediaState === "idle") {
       loadMedia();
     }
   }, [section, mediaState]);
+
+  useEffect(() => {
+    if (section === "landing" && landingState === "idle") {
+      loadLanding();
+    }
+  }, [section, landingState]);
 
   const title = NAV.find((item) => item.id === section)?.label;
 
@@ -190,6 +217,20 @@ export function AdminShell({
               <p className="text-sm text-[#6b7280]">Loading…</p>
             ) : (
               <MediaPanel initial={mediaLibrary} onChanged={() => loadMedia(true)} />
+            )
+          ) : null}
+          {section === "landing" ? (
+            landingState === "signed-out" ? (
+              <p className="text-sm text-[#6b7280]">Sign in again to edit landing products.</p>
+            ) : landingState !== "ready" ? (
+              <p className="text-sm text-[#6b7280]">Loading…</p>
+            ) : (
+              <LandingProductsPanel
+                products={landingProducts}
+                ready={landingReady}
+                setupError={landingError}
+                onChanged={loadLanding}
+              />
             )
           ) : null}
           {section === "pricing" || section === "coupons" ? (
