@@ -247,7 +247,9 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
       return;
     }
 
-    if (!isOptionSelectable(sizeOptionMeta(catalog, portraitStyle, selectedSize))) {
+    const sizeMeta = sizeOptionMeta(catalog, portraitStyle, selectedSize);
+    // Missing meta = size doesn't belong to this style (e.g. framed size after switching to canvas).
+    if (!sizeMeta || !isOptionSelectable(sizeMeta)) {
       const nextSize = firstAvailableSize(portraitStyle, catalog);
       if (nextSize) setSelectedSize(nextSize);
     }
@@ -1233,10 +1235,20 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
                   <div className="flex flex-col gap-3">
                     {portraitStyle === "framed"
                       ? FRAMED_SIZES.map((size) =>
-                          sizeCard(portraitStyle, size, catalog.framed[size], catalog.options.framedSizes[size])
+                          sizeCard(
+                            portraitStyle,
+                            size,
+                            (catalog.framed[size] ?? 0) + (catalog.pets[selectedPets] ?? 0),
+                            catalog.options.framedSizes[size]
+                          )
                         )
                       : CANVAS_SIZES.map((size) =>
-                          sizeCard(portraitStyle, size, catalog.canvas[size], catalog.options.canvasSizes[size])
+                          sizeCard(
+                            portraitStyle,
+                            size,
+                            (catalog.canvas[size] ?? 0) + (catalog.pets[selectedPets] ?? 0),
+                            catalog.options.canvasSizes[size]
+                          )
                         )}
                   </div>
                 </div>
