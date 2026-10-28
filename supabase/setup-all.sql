@@ -289,7 +289,7 @@ create table if not exists public.option_meta (
 
 insert into public.option_meta (key, status, badge) values
   ('style_canvas', 'available', ''),
-  ('style_framed', 'out_of_stock', ''),
+  ('style_framed', 'available', ''),
   ('framed_8x10', 'available', ''),
   ('framed_12x16', 'available', '⭐ Most Popular'),
   ('framed_18x24', 'out_of_stock', ''),
@@ -301,7 +301,10 @@ insert into public.option_meta (key, status, badge) values
   ('pets_three', 'available', ''),
   ('pets_four', 'available', ''),
   ('pets_human', 'available', '')
-on conflict (key) do nothing;
+on conflict (key) do update set
+  status = excluded.status,
+  badge = excluded.badge,
+  updated_at = now();
 
 -- ---------------------------------------------------------------------------
 -- Storage buckets and pet-photo policies

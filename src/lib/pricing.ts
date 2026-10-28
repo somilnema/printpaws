@@ -70,11 +70,11 @@ function meta(status: OptionStatus = "available", badge = ""): OptionMeta {
   return { status, badge };
 }
 
-/** Matches the previous hardcoded shop: framed paused, 18×24 OOS, two marketing badges. */
+/** Shop defaults: both styles on sale; 18×24 OOS; canvas 20×30 keeps the value badge. */
 export const DEFAULT_OPTION_CONFIG: OptionConfig = {
   styles: {
     canvas: meta("available"),
-    framed: meta("out_of_stock"),
+    framed: meta("available"),
   },
   framedSizes: {
     '8"x10"': meta("available"),
