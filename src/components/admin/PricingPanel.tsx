@@ -2,7 +2,17 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { updatePrices } from "@/app/actions/storeActions";
-import { cloneCatalog, type PriceCatalog } from "@/lib/pricing";
+import {
+  CANVAS_SIZES,
+  cloneCatalog,
+  displaySizeLabel,
+  FRAMED_SIZES,
+  OPTION_STATUS_LABELS,
+  OPTION_STATUSES,
+  type OptionMeta,
+  type OptionStatus,
+  type PriceCatalog,
+} from "@/lib/pricing";
 import { buttonClass, errorClass, Field, inputClass, okClass, Panel, warnClass } from "@/components/admin/ui";
 
 function Money({
@@ -30,6 +40,71 @@ function Money({
   );
 }
 
+function OptionControls({
+  label,
+  price,
+  onPriceChange,
+  meta,
+  onMetaChange,
+  priceHint,
+  showPrice = true,
+}: {
+  label: string;
+  price?: number;
+  onPriceChange?: (value: number) => void;
+  meta: OptionMeta;
+  onMetaChange: (meta: OptionMeta) => void;
+  priceHint?: string;
+  showPrice?: boolean;
+}) {
+  return (
+    <div className="rounded-2xl border border-[#eeeeee] bg-[#fafafa] p-3 space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-[#1a1a1b]">{label}</p>
+        <span
+          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+            meta.status === "available"
+              ? "bg-[#eefbf3] text-[#067647]"
+              : meta.status === "out_of_stock"
+                ? "bg-[#fff7e8] text-[#8a5a00]"
+                : "bg-[#f3f4f6] text-[#6b7280]"
+          }`}
+        >
+          {OPTION_STATUS_LABELS[meta.status]}
+        </span>
+      </div>
+      <div className={`grid gap-3 ${showPrice ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+        {showPrice && onPriceChange ? (
+          <Money label="Price (₹)" value={price ?? 0} onChange={onPriceChange} hint={priceHint} />
+        ) : null}
+        <Field label="Shop status" hint="Hidden removes it. Out of stock greys it out.">
+          <select
+            value={meta.status}
+            onChange={(e) => onMetaChange({ ...meta, status: e.target.value as OptionStatus })}
+            className={inputClass}
+          >
+            {OPTION_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {OPTION_STATUS_LABELS[status]}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Badge" hint="Optional chip, e.g. Value for Money">
+          <input
+            type="text"
+            maxLength={40}
+            value={meta.badge}
+            onChange={(e) => onMetaChange({ ...meta, badge: e.target.value })}
+            placeholder="None"
+            className={inputClass}
+          />
+        </Field>
+      </div>
+    </div>
+  );
+}
+
 export function PricingPanel({
   initial,
   ready,
@@ -54,6 +129,13 @@ export function PricingPanel({
     setCatalog((current) => ({ ...current, ...next }));
   }
 
+  function patchOptions(next: Partial<PriceCatalog["options"]>) {
+    setCatalog((current) => ({
+      ...current,
+      options: { ...current.options, ...next },
+    }));
+  }
+
   async function handleSave(e: FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -65,7 +147,7 @@ export function PricingPanel({
       setError(result.error);
       return;
     }
-    setMessage("Prices saved. New checkouts use these amounts. Orders already placed stay unchanged.");
+    setMessage("Saved. New checkouts use these prices and visibility settings. Orders already placed stay unchanged.");
     await onSaved();
   }
 
@@ -77,32 +159,101 @@ export function PricingPanel({
         <p className={warnClass}>{setupError}</p>
       ) : null}
       <p className="text-sm text-[#6b7280] leading-relaxed max-w-3xl">
-        Amounts are in rupees. A crossed-out price is shown on the shop only when it is higher than the selling price.
-        The cash-on-delivery amount due later is always 100 minus the pay-now percent.
+        Amounts are in rupees. Use shop status to show a choice, hide it completely, or leave it visible as out of stock.
+        Badges appear as chips next to the option on the product page. A crossed-out price is shown only when it is higher
+        than the selling price.
       </p>
 
-      <Panel title="Framed portraits">
-        <div className="grid sm:grid-cols-3 gap-3">
-          <Money label='8" × 10"' value={catalog.framed['8"x10"']} onChange={(value) => patch({ framed: { ...catalog.framed, '8"x10"': value } })} />
-          <Money label='12" × 16"' value={catalog.framed['12"x16"']} onChange={(value) => patch({ framed: { ...catalog.framed, '12"x16"': value } })} />
-          <Money label='18" × 24"' value={catalog.framed['18"x24"']} onChange={(value) => patch({ framed: { ...catalog.framed, '18"x24"': value } })} />
+      <Panel
+        title="Portrait styles"
+        note="Out of stock greys the card with “Temporarily unavailable”. Hidden removes the style from the shop entirely."
+      >
+        <div className="grid md:grid-cols-2 gap-3">
+          <OptionControls
+            label="Canvas Portrait"
+            showPrice={false}
+            meta={catalog.options.styles.canvas}
+            onMetaChange={(meta) =>
+              patchOptions({ styles: { ...catalog.options.styles, canvas: meta } })
+            }
+          />
+          <OptionControls
+            label="Framed Portrait"
+            showPrice={false}
+            meta={catalog.options.styles.framed}
+            onMetaChange={(meta) =>
+              patchOptions({ styles: { ...catalog.options.styles, framed: meta } })
+            }
+          />
         </div>
       </Panel>
 
-      <Panel title="Canvas portraits">
-        <div className="grid sm:grid-cols-3 gap-3">
-          <Money label='8" × 12"' value={catalog.canvas['8"x12"']} onChange={(value) => patch({ canvas: { ...catalog.canvas, '8"x12"': value } })} />
-          <Money label='16" × 20"' value={catalog.canvas['16"x20"']} onChange={(value) => patch({ canvas: { ...catalog.canvas, '16"x20"': value } })} />
-          <Money label='20" × 30"' value={catalog.canvas['20"x30"']} onChange={(value) => patch({ canvas: { ...catalog.canvas, '20"x30"': value } })} />
+      <Panel title="Framed sizes" note="Only shown when Framed Portrait is visible.">
+        <div className="space-y-3">
+          {FRAMED_SIZES.map((size) => (
+            <OptionControls
+              key={size}
+              label={displaySizeLabel(size)}
+              price={catalog.framed[size]}
+              onPriceChange={(value) => patch({ framed: { ...catalog.framed, [size]: value } })}
+              meta={catalog.options.framedSizes[size]}
+              onMetaChange={(meta) =>
+                patchOptions({
+                  framedSizes: { ...catalog.options.framedSizes, [size]: meta },
+                })
+              }
+            />
+          ))}
         </div>
       </Panel>
 
-      <Panel title="Extra pets" note="One pet stays included at ₹0.">
-        <div className="grid sm:grid-cols-4 gap-3">
-          <Money label="2 pets" value={catalog.pets.two} onChange={(value) => patch({ pets: { ...catalog.pets, two: value } })} />
-          <Money label="3 pets" value={catalog.pets.three} onChange={(value) => patch({ pets: { ...catalog.pets, three: value } })} />
-          <Money label="4 pets" value={catalog.pets.four} onChange={(value) => patch({ pets: { ...catalog.pets, four: value } })} />
-          <Money label="Human + pet" value={catalog.pets.human} onChange={(value) => patch({ pets: { ...catalog.pets, human: value } })} />
+      <Panel title="Canvas sizes" note="Only shown when Canvas Portrait is visible.">
+        <div className="space-y-3">
+          {CANVAS_SIZES.map((size) => (
+            <OptionControls
+              key={size}
+              label={displaySizeLabel(size)}
+              price={catalog.canvas[size]}
+              onPriceChange={(value) => patch({ canvas: { ...catalog.canvas, [size]: value } })}
+              meta={catalog.options.canvasSizes[size]}
+              onMetaChange={(meta) =>
+                patchOptions({
+                  canvasSizes: { ...catalog.options.canvasSizes, [size]: meta },
+                })
+              }
+            />
+          ))}
+        </div>
+      </Panel>
+
+      <Panel title="Number of pets" note="One pet stays ₹0 when included. Status still controls show / hide / out of stock.">
+        <div className="space-y-3">
+          {(
+            [
+              { id: "one", label: "One pet", fixed: true },
+              { id: "two", label: "Two pets" },
+              { id: "three", label: "Three pets" },
+              { id: "four", label: "Four pets" },
+              { id: "human", label: "Human + pet" },
+            ] as const
+          ).map((pet) => (
+            <OptionControls
+              key={pet.id}
+              label={pet.label}
+              showPrice={!("fixed" in pet && pet.fixed)}
+              price={catalog.pets[pet.id]}
+              onPriceChange={
+                "fixed" in pet && pet.fixed
+                  ? undefined
+                  : (value) => patch({ pets: { ...catalog.pets, [pet.id]: value } })
+              }
+              priceHint={pet.id === "one" ? "Always included at ₹0" : undefined}
+              meta={catalog.options.pets[pet.id]}
+              onMetaChange={(meta) =>
+                patchOptions({ pets: { ...catalog.options.pets, [pet.id]: meta } })
+              }
+            />
+          ))}
         </div>
       </Panel>
 
@@ -179,7 +330,7 @@ export function PricingPanel({
       {error ? <p className={errorClass}>{error}</p> : null}
       {message ? <p className={okClass}>{message}</p> : null}
       <button type="submit" disabled={saving || !ready} className={buttonClass}>
-        {saving ? "Saving…" : "Save prices"}
+        {saving ? "Saving…" : "Save prices & availability"}
       </button>
     </form>
   );

@@ -1,11 +1,8 @@
 import { getSellableFixedOffer } from "@/lib/landing-products";
-import { calculateOriginalAmount, calculateQuote, framedSaleProblem, type PricingInput } from "@/lib/pricing";
+import { calculateOriginalAmount, calculateQuote, portraitOptionProblem, type PricingInput } from "@/lib/pricing";
 import { loadPriceCatalog, resolveCoupon } from "@/lib/store-config";
 
 export async function quoteCheckout(input: PricingInput, customerEmail?: string) {
-  const framed = framedSaleProblem(input);
-  if (framed) throw new Error(framed);
-
   let priced = input;
   if (input.productType === "landing_offer") {
     const offer = await getSellableFixedOffer(String(input.offerId || ""));
@@ -14,6 +11,9 @@ export async function quoteCheckout(input: PricingInput, customerEmail?: string)
   }
 
   const { catalog } = await loadPriceCatalog();
+  const unavailable = portraitOptionProblem(priced, catalog);
+  if (unavailable) throw new Error(unavailable);
+
   const clean: PricingInput = { ...priced, couponRule: null };
   const originalAmount = calculateOriginalAmount(clean, catalog);
   const resolved = await resolveCoupon(clean.couponCode, {

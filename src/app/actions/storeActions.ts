@@ -3,8 +3,15 @@
 import { getAdminSession } from "@/lib/admin-auth";
 import {
   cloneCatalog,
+  cloneOptionMeta,
+  firstAvailablePets,
+  firstAvailableSize,
+  firstAvailableStyle,
   FRAMED_SIZES,
   CANVAS_SIZES,
+  isOptionSelectable,
+  OPTION_STATUSES,
+  type OptionStatus,
   type PriceCatalog,
 } from "@/lib/pricing";
 import {
@@ -90,6 +97,54 @@ function validateCatalog(input: PriceCatalog): { ok: true; catalog: PriceCatalog
     checks.push("Standalone digital download needs two amounts of at least ₹1.");
   } else if (catalog.digitalDownloads[0] === catalog.digitalDownloads[1]) {
     checks.push("The two digital download amounts must be different.");
+  }
+
+  const options = catalog.options;
+  for (const style of ["canvas", "framed"] as const) {
+    const status = options.styles[style].status;
+    if (!OPTION_STATUSES.includes(status)) checks.push(`Portrait style (${style}) needs a valid shop status.`);
+    options.styles[style] = cloneOptionMeta({
+      status,
+      badge: String(options.styles[style].badge || "").trim().slice(0, 40),
+    });
+  }
+  for (const size of FRAMED_SIZES) {
+    const status = (options.framedSizes[size]?.status || "available") as OptionStatus;
+    if (!OPTION_STATUSES.includes(status)) checks.push(`Framed ${size} needs a valid shop status.`);
+    options.framedSizes[size] = cloneOptionMeta({
+      status,
+      badge: String(options.framedSizes[size]?.badge || "").trim().slice(0, 40),
+    });
+  }
+  for (const size of CANVAS_SIZES) {
+    const status = (options.canvasSizes[size]?.status || "available") as OptionStatus;
+    if (!OPTION_STATUSES.includes(status)) checks.push(`Canvas ${size} needs a valid shop status.`);
+    options.canvasSizes[size] = cloneOptionMeta({
+      status,
+      badge: String(options.canvasSizes[size]?.badge || "").trim().slice(0, 40),
+    });
+  }
+  for (const id of ["one", "two", "three", "four", "human"] as const) {
+    const status = (options.pets[id]?.status || "available") as OptionStatus;
+    if (!OPTION_STATUSES.includes(status)) checks.push(`Pet option (${id}) needs a valid shop status.`);
+    options.pets[id] = cloneOptionMeta({
+      status,
+      badge: String(options.pets[id]?.badge || "").trim().slice(0, 40),
+    });
+  }
+
+  if (!firstAvailableStyle(catalog)) {
+    checks.push("At least one portrait style must be available with at least one size in stock.");
+  } else {
+    if (isOptionSelectable(options.styles.canvas) && !firstAvailableSize("canvas", catalog)) {
+      checks.push("Canvas is available, so at least one canvas size must also be available.");
+    }
+    if (isOptionSelectable(options.styles.framed) && !firstAvailableSize("framed", catalog)) {
+      checks.push("Framed is available, so at least one framed size must also be available.");
+    }
+  }
+  if (!firstAvailablePets(catalog)) {
+    checks.push("At least one pet option must be available.");
   }
 
   const error = checks.find(Boolean);

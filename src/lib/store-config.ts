@@ -1,13 +1,21 @@
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { saveOfferRule } from "@/lib/save-offer";
 import {
+  CANVAS_SIZES,
   cloneCatalog,
+  cloneOptionConfig,
   COUPON_SCOPES,
   DEFAULT_CATALOG,
+  DEFAULT_OPTION_CONFIG,
+  FRAMED_SIZES,
   getCoupon,
   normalizeCouponCode,
+  OPTION_STATUSES,
   type CouponRule,
   type CouponScope,
+  type OptionConfig,
+  type OptionMeta,
+  type OptionStatus,
   type PriceCatalog,
 } from "@/lib/pricing";
 
@@ -34,8 +42,72 @@ export type CouponRecord = {
 };
 
 const SETUP_HINT = "Run printpaws/supabase/store-pricing.sql in the Supabase SQL editor, then refresh.";
+const OPTION_SETUP_HINT =
+  "Run printpaws/supabase/option-meta.sql in the Supabase SQL editor (or re-run store-pricing.sql), then refresh.";
 
 type PriceRow = { key: string; amount: number; compare_at: number | null };
+type OptionRow = { key: string; status: string; badge: string | null };
+
+const OPTION_KEYS = {
+  style_canvas: { kind: "style" as const, id: "canvas" as const },
+  style_framed: { kind: "style" as const, id: "framed" as const },
+  framed_8x10: { kind: "framedSize" as const, id: '8"x10"' },
+  framed_12x16: { kind: "framedSize" as const, id: '12"x16"' },
+  framed_18x24: { kind: "framedSize" as const, id: '18"x24"' },
+  canvas_8x12: { kind: "canvasSize" as const, id: '8"x12"' },
+  canvas_16x20: { kind: "canvasSize" as const, id: '16"x20"' },
+  canvas_20x30: { kind: "canvasSize" as const, id: '20"x30"' },
+  pets_one: { kind: "pets" as const, id: "one" },
+  pets_two: { kind: "pets" as const, id: "two" },
+  pets_three: { kind: "pets" as const, id: "three" },
+  pets_four: { kind: "pets" as const, id: "four" },
+  pets_human: { kind: "pets" as const, id: "human" },
+};
+
+function asStatus(value: string | null | undefined): OptionStatus | null {
+  return OPTION_STATUSES.includes(value as OptionStatus) ? (value as OptionStatus) : null;
+}
+
+export function optionConfigFromRows(rows: OptionRow[]): OptionConfig {
+  const options = cloneOptionConfig(DEFAULT_OPTION_CONFIG);
+  for (const row of rows) {
+    const map = OPTION_KEYS[row.key as keyof typeof OPTION_KEYS];
+    if (!map) continue;
+    const status = asStatus(row.status);
+    if (!status) continue;
+    const meta: OptionMeta = { status, badge: (row.badge || "").trim() };
+    if (map.kind === "style") options.styles[map.id] = meta;
+    else if (map.kind === "framedSize") options.framedSizes[map.id] = meta;
+    else if (map.kind === "canvasSize") options.canvasSizes[map.id] = meta;
+    else options.pets[map.id] = meta;
+  }
+  return options;
+}
+
+const FRAMED_OPTION_KEYS = ["framed_8x10", "framed_12x16", "framed_18x24"] as const;
+const CANVAS_OPTION_KEYS = ["canvas_8x12", "canvas_16x20", "canvas_20x30"] as const;
+
+export function rowsFromOptionConfig(options: OptionConfig): OptionRow[] {
+  return [
+    { key: "style_canvas", status: options.styles.canvas.status, badge: options.styles.canvas.badge },
+    { key: "style_framed", status: options.styles.framed.status, badge: options.styles.framed.badge },
+    ...FRAMED_SIZES.map((size, index) => ({
+      key: FRAMED_OPTION_KEYS[index],
+      status: options.framedSizes[size]?.status || "available",
+      badge: options.framedSizes[size]?.badge || "",
+    })),
+    ...CANVAS_SIZES.map((size, index) => ({
+      key: CANVAS_OPTION_KEYS[index],
+      status: options.canvasSizes[size]?.status || "available",
+      badge: options.canvasSizes[size]?.badge || "",
+    })),
+    ...(["one", "two", "three", "four", "human"] as const).map((id) => ({
+      key: `pets_${id}`,
+      status: options.pets[id]?.status || "available",
+      badge: options.pets[id]?.badge || "",
+    })),
+  ];
+}
 
 const SIZE_KEYS: Record<string, { style: "framed" | "canvas"; size: string }> = {
   framed_8x10: { style: "framed", size: '8"x10"' },
@@ -136,7 +208,22 @@ export async function loadPriceCatalog(): Promise<CatalogLoad> {
     }
     return { catalog: cloneCatalog(DEFAULT_CATALOG), ready: false, error: error.message };
   }
-  return { catalog: catalogFromRows((data || []) as PriceRow[]), ready: true };
+
+  const catalog = catalogFromRows((data || []) as PriceRow[]);
+  const { data: optionData, error: optionError } = await supabaseAdmin
+    .from("option_meta")
+    .select("key, status, badge");
+
+  if (optionError) {
+    if (isMissingTable(optionError)) {
+      // Prices work; option visibility still uses the built-in defaults until SQL is run.
+      return { catalog, ready: true, error: OPTION_SETUP_HINT };
+    }
+    return { catalog, ready: true, error: optionError.message };
+  }
+
+  catalog.options = optionConfigFromRows((optionData || []) as OptionRow[]);
+  return { catalog, ready: true };
 }
 
 export async function savePriceCatalog(catalog: PriceCatalog) {
@@ -149,6 +236,17 @@ export async function savePriceCatalog(catalog: PriceCatalog) {
     if (isMissingTable(error)) return { ok: false as const, error: SETUP_HINT };
     return { ok: false as const, error: error.message };
   }
+
+  const optionRows = rowsFromOptionConfig(catalog.options || DEFAULT_OPTION_CONFIG).map((row) => ({
+    ...row,
+    updated_at: new Date().toISOString(),
+  }));
+  const { error: optionError } = await supabaseAdmin.from("option_meta").upsert(optionRows, { onConflict: "key" });
+  if (optionError) {
+    if (isMissingTable(optionError)) return { ok: false as const, error: OPTION_SETUP_HINT };
+    return { ok: false as const, error: optionError.message };
+  }
+
   return { ok: true as const };
 }
 

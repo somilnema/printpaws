@@ -24,6 +24,22 @@ export type CouponRule = {
   minOrderAmount: number | null;
 };
 
+/** Shop display for a customizer choice. Admin can change this without a deploy. */
+export type OptionStatus = "available" | "hidden" | "out_of_stock";
+
+export type OptionMeta = {
+  status: OptionStatus;
+  /** Marketing chip next to the label, e.g. "Value for Money". Empty = none. */
+  badge: string;
+};
+
+export type OptionConfig = {
+  styles: Record<PortraitStyle, OptionMeta>;
+  framedSizes: Record<string, OptionMeta>;
+  canvasSizes: Record<string, OptionMeta>;
+  pets: Record<string, OptionMeta>;
+};
+
 export type PriceCatalog = {
   framed: Record<string, number>;
   canvas: Record<string, number>;
@@ -39,7 +55,77 @@ export type PriceCatalog = {
   customPayments: number[];
   freshPayment: number;
   digitalDownloads: number[];
+  options: OptionConfig;
 };
+
+export const OPTION_STATUSES: OptionStatus[] = ["available", "hidden", "out_of_stock"];
+
+export const OPTION_STATUS_LABELS: Record<OptionStatus, string> = {
+  available: "Available",
+  hidden: "Hidden",
+  out_of_stock: "Out of stock",
+};
+
+function meta(status: OptionStatus = "available", badge = ""): OptionMeta {
+  return { status, badge };
+}
+
+/** Matches the previous hardcoded shop: framed paused, 18×24 OOS, two marketing badges. */
+export const DEFAULT_OPTION_CONFIG: OptionConfig = {
+  styles: {
+    canvas: meta("available"),
+    framed: meta("out_of_stock"),
+  },
+  framedSizes: {
+    '8"x10"': meta("available"),
+    '12"x16"': meta("available", "⭐ Most Popular"),
+    '18"x24"': meta("out_of_stock"),
+  },
+  canvasSizes: {
+    '8"x12"': meta("available"),
+    '16"x20"': meta("available"),
+    '20"x30"': meta("available", "💰 Value for Money"),
+  },
+  pets: {
+    one: meta("available"),
+    two: meta("available"),
+    three: meta("available"),
+    four: meta("available"),
+    human: meta("available"),
+  },
+};
+
+export function cloneOptionMeta(value: OptionMeta = meta()): OptionMeta {
+  return { status: value.status, badge: value.badge || "" };
+}
+
+export function cloneOptionConfig(config: OptionConfig = DEFAULT_OPTION_CONFIG): OptionConfig {
+  return {
+    styles: {
+      canvas: cloneOptionMeta(config.styles.canvas),
+      framed: cloneOptionMeta(config.styles.framed),
+    },
+    framedSizes: Object.fromEntries(
+      Object.entries(config.framedSizes).map(([key, value]) => [key, cloneOptionMeta(value)])
+    ),
+    canvasSizes: Object.fromEntries(
+      Object.entries(config.canvasSizes).map(([key, value]) => [key, cloneOptionMeta(value)])
+    ),
+    pets: Object.fromEntries(Object.entries(config.pets).map(([key, value]) => [key, cloneOptionMeta(value)])),
+  };
+}
+
+export function isOptionVisible(value?: OptionMeta | null) {
+  return (value?.status || "available") !== "hidden";
+}
+
+export function isOptionSelectable(value?: OptionMeta | null) {
+  return (value?.status || "available") === "available";
+}
+
+export function displaySizeLabel(size: string) {
+  return size.replace(/"/g, "").replace("x", "×");
+}
 
 export type PricingInput = {
   productType: ProductType;
@@ -86,6 +172,9 @@ export type Quote = {
   allowsCod: boolean;
 };
 
+export const FRAMED_SIZES = ['8"x10"', '12"x16"', '18"x24"'] as const;
+export const CANVAS_SIZES = ['8"x12"', '16"x20"', '20"x30"'] as const;
+
 export const DEFAULT_CATALOG: PriceCatalog = {
   framed: {
     '8"x10"': 1499,
@@ -115,19 +204,80 @@ export const DEFAULT_CATALOG: PriceCatalog = {
   customPayments: [500, 600],
   freshPayment: 200,
   digitalDownloads: [300, 500],
+  options: cloneOptionConfig(DEFAULT_OPTION_CONFIG),
 };
 
-export const FRAMED_SIZES = ['8"x10"', '12"x16"', '18"x24"'] as const;
-export const CANVAS_SIZES = ['8"x12"', '16"x20"', '20"x30"'] as const;
-
-/** Supply is paused. Customer checkout must not sell a framed portrait until this is turned back on. */
-export const FRAMED_FOR_SALE = false;
+/** @deprecated Prefer catalog.options.styles.framed — kept for older imports. */
+export const FRAMED_FOR_SALE = isOptionSelectable(DEFAULT_OPTION_CONFIG.styles.framed);
 export const FRAMED_UNAVAILABLE = "Framed portraits are temporarily unavailable.";
 
-export function framedSaleProblem(input: Pick<PricingInput, "productType" | "portraitStyle">) {
-  if (FRAMED_FOR_SALE) return null;
+/** Blocks checkout when style / size / pets is hidden or out of stock in the live catalog. */
+export function portraitOptionProblem(
+  input: Pick<PricingInput, "productType" | "portraitStyle" | "size" | "numPets">,
+  catalog: PriceCatalog = DEFAULT_CATALOG
+) {
   const type = input.productType || "portrait";
-  if (type === "portrait" && input.portraitStyle === "framed") return FRAMED_UNAVAILABLE;
+  if (type !== "portrait") return null;
+
+  const style: PortraitStyle = input.portraitStyle === "canvas" ? "canvas" : "framed";
+  const styleMeta = catalog.options.styles[style];
+  if (!isOptionVisible(styleMeta)) {
+    return `${PORTRAIT_STYLE_LABELS[style]} is not available.`;
+  }
+  if (!isOptionSelectable(styleMeta)) {
+    return style === "framed" ? FRAMED_UNAVAILABLE : `${PORTRAIT_STYLE_LABELS[style]} is temporarily unavailable.`;
+  }
+
+  const size = input.size || firstAvailableSize(style, catalog) || (style === "canvas" ? '8"x12"' : '8"x10"');
+  const sizeMeta = sizeOptionMeta(catalog, style, size);
+  if (!sizeMeta || !isOptionVisible(sizeMeta)) {
+    return `Size ${displaySizeLabel(size)} is not available.`;
+  }
+  if (!isOptionSelectable(sizeMeta)) {
+    return `Size ${displaySizeLabel(size)} is out of stock.`;
+  }
+
+  const pets = input.numPets || "one";
+  const petMeta = catalog.options.pets[pets];
+  if (petMeta && !isOptionVisible(petMeta)) {
+    return "That pet option is not available.";
+  }
+  if (petMeta && !isOptionSelectable(petMeta)) {
+    return "That pet option is temporarily unavailable.";
+  }
+
+  return null;
+}
+
+export function framedSaleProblem(
+  input: Pick<PricingInput, "productType" | "portraitStyle" | "size" | "numPets">,
+  catalog: PriceCatalog = DEFAULT_CATALOG
+) {
+  return portraitOptionProblem(input, catalog);
+}
+
+export function sizeOptionMeta(catalog: PriceCatalog, style: PortraitStyle, size: string) {
+  return style === "framed" ? catalog.options.framedSizes[size] : catalog.options.canvasSizes[size];
+}
+
+export function firstAvailableSize(style: PortraitStyle, catalog: PriceCatalog = DEFAULT_CATALOG) {
+  const sizes = style === "framed" ? FRAMED_SIZES : CANVAS_SIZES;
+  for (const size of sizes) {
+    if (isOptionSelectable(sizeOptionMeta(catalog, style, size))) return size;
+  }
+  return null;
+}
+
+export function firstAvailableStyle(catalog: PriceCatalog = DEFAULT_CATALOG): PortraitStyle | null {
+  if (isOptionSelectable(catalog.options.styles.canvas) && firstAvailableSize("canvas", catalog)) return "canvas";
+  if (isOptionSelectable(catalog.options.styles.framed) && firstAvailableSize("framed", catalog)) return "framed";
+  return null;
+}
+
+export function firstAvailablePets(catalog: PriceCatalog = DEFAULT_CATALOG) {
+  for (const id of ["one", "two", "three", "four", "human"] as const) {
+    if (isOptionSelectable(catalog.options.pets[id])) return id;
+  }
   return null;
 }
 
@@ -228,6 +378,7 @@ export function cloneCatalog(catalog: PriceCatalog = DEFAULT_CATALOG): PriceCata
     customPayments: [...catalog.customPayments],
     freshPayment: catalog.freshPayment,
     digitalDownloads: [...catalog.digitalDownloads],
+    options: cloneOptionConfig(catalog.options || DEFAULT_OPTION_CONFIG),
   };
 }
 

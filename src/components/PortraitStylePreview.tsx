@@ -5,15 +5,24 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
 import { useUploadedMedia } from "@/components/SiteMedia";
-import { FRAMED_FOR_SALE, FRAMED_UNAVAILABLE } from "@/lib/pricing";
+import { FRAMED_UNAVAILABLE, isOptionSelectable, type OptionMeta } from "@/lib/pricing";
 
 const STYLES = [
-  { title: "Canvas Portrait", image: "/framestyle/canvas-frame.png", tagline: "Gallery Wrapped • Premium" },
-  { title: "Framed Portrait", image: "/framestyle/black-frame.png", tagline: "Temporarily unavailable" },
+  { id: "canvas" as const, title: "Canvas Portrait", image: "/framestyle/canvas-frame.png", tagline: "Gallery Wrapped • Premium" },
+  { id: "framed" as const, title: "Framed Portrait", image: "/framestyle/black-frame.png", tagline: "Ready to Hang • Classic Look" },
 ];
 
-export function PortraitStyleInfographic({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function PortraitStyleInfographic({
+  open,
+  onClose,
+  styleOptions,
+}: {
+  open: boolean;
+  onClose: () => void;
+  styleOptions?: { canvas?: OptionMeta; framed?: OptionMeta };
+}) {
   const infographic = useUploadedMedia("style-infographic");
+  const framedAvailable = isOptionSelectable(styleOptions?.framed);
 
   useEffect(() => {
     if (!open) return;
@@ -57,21 +66,28 @@ export function PortraitStyleInfographic({ open, onClose }: { open: boolean; onC
             {infographic ? (
               <div>
                 <img src={infographic} alt="Framed portrait vs canvas portrait" className="block h-auto w-full" />
-                {!FRAMED_FOR_SALE && <p className="px-5 py-3 text-center text-xs font-medium text-gray-500">{FRAMED_UNAVAILABLE}</p>}
+                {!framedAvailable && (
+                  <p className="px-5 py-3 text-center text-xs font-medium text-gray-500">{FRAMED_UNAVAILABLE}</p>
+                )}
               </div>
             ) : (
               <div className="space-y-4 p-5 pt-12">
                 <h3 className="text-center text-lg font-black text-[#1a1a1b]">Framed vs Canvas</h3>
                 <div className="grid grid-cols-2 gap-3">
-                  {STYLES.map((style) => (
-                    <div key={style.title} className="space-y-2 text-center">
-                      <div className="overflow-hidden rounded-2xl border border-gray-100 bg-[#f6f3ef]">
-                        <img src={style.image} alt={style.title} className="aspect-square w-full object-cover" />
+                  {STYLES.map((style) => {
+                    const available = isOptionSelectable(styleOptions?.[style.id]);
+                    return (
+                      <div key={style.title} className="space-y-2 text-center">
+                        <div className={`overflow-hidden rounded-2xl border border-gray-100 bg-[#f6f3ef] ${available ? "" : "opacity-50"}`}>
+                          <img src={style.image} alt={style.title} className="aspect-square w-full object-cover" />
+                        </div>
+                        <p className="text-sm font-black text-[#1a1a1b]">{style.title}</p>
+                        <p className="text-[11px] font-medium text-gray-500">
+                          {available ? style.tagline : FRAMED_UNAVAILABLE.replace(/\.$/, "")}
+                        </p>
                       </div>
-                      <p className="text-sm font-black text-[#1a1a1b]">{style.title}</p>
-                      <p className="text-[11px] font-medium text-gray-500">{style.title === "Framed Portrait" && !FRAMED_FOR_SALE ? FRAMED_UNAVAILABLE.replace(/\.$/, "") : style.tagline}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

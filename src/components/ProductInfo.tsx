@@ -31,19 +31,29 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useMedia, useUploadedMedia } from "@/components/SiteMedia";
 import {
   calculateQuote,
+  CANVAS_SIZES,
+  cloneCatalog,
   couponOffLabel,
   DEFAULT_CATALOG,
+  displaySizeLabel,
   extraProductLines,
   extrasTotal,
+  firstAvailablePets,
+  firstAvailableSize,
+  firstAvailableStyle,
   formatRupee,
-  FRAMED_FOR_SALE,
+  FRAMED_SIZES,
   frameColorLabel,
   formatRs,
   getPortraitBreakdown,
+  isOptionSelectable,
+  isOptionVisible,
   PET_COUNT_LABELS,
   PORTRAIT_STYLE_LABELS,
   PRODUCT_LABELS,
+  sizeOptionMeta,
   type CouponRule,
+  type OptionMeta,
   type PaymentMethod,
   type PriceCatalog,
   type PortraitStyle,
@@ -85,9 +95,6 @@ const ADD_ONS = [
   { id: "halo_effect", label: "Halo Effect", image: "/bonus-image/halo-effect.png" },
   // { id: "heart", label: "Heart", image: "/bonus-image/heart.png" },
 ];
-
-// Shown on the size list but can't be picked.
-const OUT_OF_STOCK_FRAMED_SIZE = '18"x24"';
 
 function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -216,13 +223,40 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
     fetch("/api/pricing", { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
-        if (!cancelled && data?.catalog) setCatalog(data.catalog);
+        if (!cancelled && data?.catalog) setCatalog(cloneCatalog(data.catalog as PriceCatalog));
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
   }, []);
+
+  // Drop selections that admin has hidden or marked out of stock.
+  useEffect(() => {
+    const styleOk =
+      isOptionSelectable(catalog.options.styles[portraitStyle]) &&
+      !!firstAvailableSize(portraitStyle, catalog);
+    if (!styleOk) {
+      const nextStyle = firstAvailableStyle(catalog);
+      if (nextStyle) {
+        setPortraitStyle(nextStyle);
+        setSelectedFrame(nextStyle === "framed" ? "black" : "canva");
+        const nextSize = firstAvailableSize(nextStyle, catalog);
+        if (nextSize) setSelectedSize(nextSize);
+      }
+      return;
+    }
+
+    if (!isOptionSelectable(sizeOptionMeta(catalog, portraitStyle, selectedSize))) {
+      const nextSize = firstAvailableSize(portraitStyle, catalog);
+      if (nextSize) setSelectedSize(nextSize);
+    }
+
+    if (!isOptionSelectable(catalog.options.pets[selectedPets])) {
+      const nextPets = firstAvailablePets(catalog);
+      if (nextPets) setSelectedPets(nextPets);
+    }
+  }, [catalog, portraitStyle, selectedSize, selectedPets]);
 
   // 2. Load customizer choices & cart details from persisted cache on mount
   useEffect(() => {
@@ -238,17 +272,11 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
         if (parsed.paymentMethod) setPaymentMethod(parsed.paymentMethod);
         if (parsed.appliedCoupon) setAppliedCoupon(parsed.appliedCoupon);
         if (parsed.couponInput) setCouponInput(parsed.couponInput);
-        const framedPaused = parsed.portraitStyle === "framed" && !FRAMED_FOR_SALE;
-        if (framedPaused) {
-          setPortraitStyle("canvas");
-          setSelectedFrame("canva");
-          setSelectedSize('16"x20"');
-        } else {
-          if (parsed.portraitStyle === "framed" || parsed.portraitStyle === "canvas") setPortraitStyle(parsed.portraitStyle);
-          if (parsed.portraitStyle === "framed" && parsed.selectedSize === OUT_OF_STOCK_FRAMED_SIZE) setSelectedSize('8"x10"');
-          else if (parsed.selectedSize) setSelectedSize(parsed.selectedSize);
-          if (parsed.selectedFrame) setSelectedFrame(parsed.selectedFrame);
+        if (parsed.portraitStyle === "framed" || parsed.portraitStyle === "canvas") {
+          setPortraitStyle(parsed.portraitStyle);
         }
+        if (parsed.selectedSize) setSelectedSize(parsed.selectedSize);
+        if (parsed.selectedFrame) setSelectedFrame(parsed.selectedFrame);
         if (parsed.selectedPets) setSelectedPets(parsed.selectedPets);
         if (parsed.selectedBg) setSelectedBg(parsed.selectedBg);
         if (parsed.selectedAddOn) setSelectedAddOn(parsed.selectedAddOn);
@@ -955,12 +983,119 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
   const hasCustomizedItem = addedToCart;
 
   const choosePortraitStyle = (style: PortraitStyle) => {
-    if (style === "framed" && !FRAMED_FOR_SALE) return;
+    if (!isOptionSelectable(catalog.options.styles[style])) return;
+    const nextSize = firstAvailableSize(style, catalog);
+    if (!nextSize) return;
     const frame = style === "framed" ? "black" : "canva";
     setPortraitStyle(style);
     setSelectedFrame(frame);
-    setSelectedSize(style === "framed" ? '8"x10"' : '16"x20"');
+    setSelectedSize(nextSize);
     window.dispatchEvent(new CustomEvent('frameSelectionChanged', { detail: frame }));
+  };
+
+  const styleCard = (style: PortraitStyle, image: string, tagline: string) => {
+    const meta = catalog.options.styles[style];
+    if (!isOptionVisible(meta)) return null;
+    const selectable = isOptionSelectable(meta);
+    const selected = portraitStyle === style;
+    return (
+      <button
+        key={style}
+        type="button"
+        disabled={!selectable}
+        aria-disabled={!selectable}
+        onClick={() => choosePortraitStyle(style)}
+        className={`group relative flex flex-col md:flex-row items-center gap-2 md:gap-4 p-2 md:p-3.5 rounded-2xl border-[2px] transition-all text-center md:text-left ${
+          !selectable
+            ? "cursor-not-allowed border-gray-200 bg-gray-50"
+            : selected
+              ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
+              : "border-gray-200 hover:border-gray-300 bg-white"
+        }`}
+      >
+        <div
+          className={`relative w-16 h-16 flex-shrink-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm ${
+            selectable ? "" : "opacity-50"
+          }`}
+        >
+          <Image src={image} alt={PORTRAIT_STYLE_LABELS[style]} fill sizes="64px" className="object-cover" />
+        </div>
+        <div className="flex-1 flex flex-col items-center md:items-start w-full">
+          <span className={`block font-black text-[11px] md:text-sm ${selectable ? "text-[#1a1a1b]" : "text-gray-400"}`}>
+            {PORTRAIT_STYLE_LABELS[style]}
+          </span>
+          {meta.badge ? (
+            <span className="mt-1 text-[10px] font-black text-white bg-[#A87B62] px-1.5 py-0.5 rounded uppercase tracking-wider">
+              {meta.badge}
+            </span>
+          ) : null}
+          <span className={`text-[10px] font-medium ${selectable ? "hidden text-gray-500 md:block" : "text-gray-500"}`}>
+            {selectable ? tagline : "Temporarily unavailable"}
+          </span>
+        </div>
+        {selectable ? (
+          <div
+            className={`absolute top-2 right-2 md:static flex-shrink-0 w-4 h-4 md:w-5 md:h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+              selected ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"
+            }`}
+          >
+            {selected && <Check size={10} className="text-white md:w-3 md:h-3" strokeWidth={3} />}
+          </div>
+        ) : null}
+      </button>
+    );
+  };
+
+  const sizeCard = (style: PortraitStyle, size: string, price: number, meta: OptionMeta) => {
+    if (!isOptionVisible(meta)) return null;
+    const selectable = isOptionSelectable(meta);
+    const selected = selectedSize === size;
+    const eventDetail = style === "framed" ? "framed_size" : "canvas_size";
+    return (
+      <button
+        key={size}
+        type="button"
+        disabled={!selectable}
+        aria-disabled={!selectable}
+        onClick={() => {
+          if (!selectable) return;
+          setSelectedSize(size);
+          window.dispatchEvent(new CustomEvent("sizeSelectionChanged", { detail: eventDetail }));
+        }}
+        className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${
+          !selectable
+            ? "border-gray-200 bg-gray-50 cursor-not-allowed"
+            : selected
+              ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
+              : "border-gray-200 hover:border-gray-300 bg-white"
+        }`}
+      >
+        <div className={selectable ? "" : "opacity-50"}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-black text-[#1a1a1b] text-base">{displaySizeLabel(size)}</span>
+            {meta.badge ? (
+              <span className="text-[10px] font-black text-white bg-[#A87B62] px-1.5 py-0.5 rounded uppercase tracking-wider">
+                {meta.badge}
+              </span>
+            ) : null}
+          </div>
+          <span className="text-xs font-bold text-gray-500">{formatRupee(price)}</span>
+        </div>
+        {selectable ? (
+          <div
+            className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+              selected ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"
+            }`}
+          >
+            {selected && <Check size={12} className="text-white" strokeWidth={3} />}
+          </div>
+        ) : (
+          <span className="text-[10px] font-black text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded uppercase tracking-wider">
+            Out of Stock
+          </span>
+        )}
+      </button>
+    );
   };
 
   return (
@@ -1083,52 +1218,8 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
                     </button>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => choosePortraitStyle("canvas")}
-                      className={`group relative flex flex-col md:flex-row items-center gap-2 md:gap-4 p-2 md:p-3.5 rounded-2xl border-[2px] transition-all text-center md:text-left ${portraitStyle === "canvas"
-                        ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
-                        : "border-gray-200 hover:border-gray-300 bg-white"
-                        }`}
-                    >
-                      <div className="relative w-16 h-16 flex-shrink-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
-                        <Image src="/framestyle/canvas-frame.png" alt="Canvas" fill sizes="64px" className="object-cover" />
-                      </div>
-                      <div className="flex-1 flex flex-col items-center md:items-start w-full">
-                        <span className="block font-black text-[#1a1a1b] text-[11px] md:text-sm">Canvas Portrait</span>
-                        <span className="hidden md:block text-[10px] text-gray-500 font-medium">Gallery Wrapped • Premium</span>
-                      </div>
-                      <div className={`absolute top-2 right-2 md:static flex-shrink-0 w-4 h-4 md:w-5 md:h-5 rounded-full border-2 flex items-center justify-center transition-colors ${portraitStyle === "canvas" ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
-                        {portraitStyle === "canvas" && <Check size={10} className="text-white md:w-3 md:h-3" strokeWidth={3} />}
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!FRAMED_FOR_SALE}
-                      aria-disabled={!FRAMED_FOR_SALE}
-                      onClick={() => choosePortraitStyle("framed")}
-                      className={`group relative flex flex-col md:flex-row items-center gap-2 md:gap-4 p-2 md:p-3.5 rounded-2xl border-[2px] transition-all text-center md:text-left ${!FRAMED_FOR_SALE
-                        ? "cursor-not-allowed border-gray-200 bg-gray-50"
-                        : portraitStyle === "framed"
-                        ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
-                        : "border-gray-200 hover:border-gray-300 bg-white"
-                        }`}
-                    >
-                      <div className={`relative w-16 h-16 flex-shrink-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm ${FRAMED_FOR_SALE ? "" : "opacity-50"}`}>
-                        <Image src="/framestyle/black-frame.png" alt="Framed" fill sizes="64px" className="object-cover" />
-                      </div>
-                      <div className="flex-1 flex flex-col items-center md:items-start w-full">
-                        <span className={`block font-black text-[11px] md:text-sm ${FRAMED_FOR_SALE ? "text-[#1a1a1b]" : "text-gray-400"}`}>Framed Portrait</span>
-                        <span className={`text-[10px] font-medium ${FRAMED_FOR_SALE ? "hidden text-gray-500 md:block" : "text-gray-500"}`}>
-                          {FRAMED_FOR_SALE ? "Ready to Hang • Classic Look" : "Temporarily unavailable"}
-                        </span>
-                      </div>
-                      {FRAMED_FOR_SALE && (
-                      <div className={`absolute top-2 right-2 md:static flex-shrink-0 w-4 h-4 md:w-5 md:h-5 rounded-full border-2 flex items-center justify-center transition-colors ${portraitStyle === "framed" ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
-                        {portraitStyle === "framed" && <Check size={10} className="text-white md:w-3 md:h-3" strokeWidth={3} />}
-                      </div>
-                      )}
-                    </button>
+                    {styleCard("canvas", "/framestyle/canvas-frame.png", "Gallery Wrapped • Premium")}
+                    {styleCard("framed", "/framestyle/black-frame.png", "Ready to Hang • Classic Look")}
                   </div>
                 </div>
 
@@ -1140,65 +1231,13 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
                     2. Choose Your Size
                   </label>
                   <div className="flex flex-col gap-3">
-                    {portraitStyle === "framed" ? (
-                      <>
-                        <button onClick={() => { setSelectedSize('8"x10"'); window.dispatchEvent(new CustomEvent('sizeSelectionChanged', { detail: 'framed_size' })); }} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '8"x10"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
-                          <div>
-                            <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">8×10</span></div>
-                            <span className="text-xs font-bold text-gray-500">{formatRupee(catalog.framed['8"x10"'])}</span>
-                          </div>
-                          <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedSize === '8"x10"' ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
-                            {selectedSize === '8"x10"' && <Check size={12} className="text-white" strokeWidth={3} />}
-                          </div>
-                        </button>
-                        <button onClick={() => { setSelectedSize('12"x16"'); window.dispatchEvent(new CustomEvent('sizeSelectionChanged', { detail: 'framed_size' })); }} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '12"x16"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
-                          <div>
-                            <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">12×16</span><span className="text-[10px] font-black text-white bg-[#A87B62] px-1.5 py-0.5 rounded uppercase tracking-wider">⭐ Most Popular</span></div>
-                            <span className="text-xs font-bold text-gray-500">{formatRupee(catalog.framed['12"x16"'])}</span>
-                          </div>
-                          <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedSize === '12"x16"' ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
-                            {selectedSize === '12"x16"' && <Check size={12} className="text-white" strokeWidth={3} />}
-                          </div>
-                        </button>
-                        <button type="button" disabled aria-disabled="true" className="group relative flex items-center justify-between p-4 rounded-2xl border-[2px] border-gray-200 bg-gray-50 text-left cursor-not-allowed">
-                          <div className="opacity-50">
-                            <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">18×24</span></div>
-                            <span className="text-xs font-bold text-gray-500">{formatRupee(catalog.framed[OUT_OF_STOCK_FRAMED_SIZE])}</span>
-                          </div>
-                          <span className="text-[10px] font-black text-gray-500 bg-gray-200 px-1.5 py-0.5 rounded uppercase tracking-wider">Out of Stock</span>
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button onClick={() => { setSelectedSize('8"x12"'); window.dispatchEvent(new CustomEvent('sizeSelectionChanged', { detail: 'canvas_size' })); }} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '8"x12"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
-                          <div>
-                            <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">8×12</span></div>
-                            <span className="text-xs font-bold text-gray-500">{formatRupee(catalog.canvas['8"x12"'])}</span>
-                          </div>
-                          <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedSize === '8"x12"' ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
-                            {selectedSize === '8"x12"' && <Check size={12} className="text-white" strokeWidth={3} />}
-                          </div>
-                        </button>
-                        <button onClick={() => { setSelectedSize('16"x20"'); window.dispatchEvent(new CustomEvent('sizeSelectionChanged', { detail: 'canvas_size' })); }} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '16"x20"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
-                          <div>
-                            <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">16×20</span></div>
-                            <span className="text-xs font-bold text-gray-500">{formatRupee(catalog.canvas['16"x20"'])}</span>
-                          </div>
-                          <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedSize === '16"x20"' ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
-                            {selectedSize === '16"x20"' && <Check size={12} className="text-white" strokeWidth={3} />}
-                          </div>
-                        </button>
-                        <button onClick={() => { setSelectedSize('20"x30"'); window.dispatchEvent(new CustomEvent('sizeSelectionChanged', { detail: 'canvas_size' })); }} className={`group relative flex items-center justify-between p-4 rounded-2xl border-[2px] transition-all text-left ${selectedSize === '20"x30"' ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10" : "border-gray-200 hover:border-gray-300 bg-white"}`}>
-                          <div>
-                            <div className="flex items-center gap-2"><span className="font-black text-[#1a1a1b] text-base">20×30</span><span className="text-[10px] font-black text-white bg-[#A87B62] px-1.5 py-0.5 rounded uppercase tracking-wider">💰 Value for Money</span></div>
-                            <span className="text-xs font-bold text-gray-500">{formatRupee(catalog.canvas['20"x30"'])}</span>
-                          </div>
-                          <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedSize === '20"x30"' ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
-                            {selectedSize === '20"x30"' && <Check size={12} className="text-white" strokeWidth={3} />}
-                          </div>
-                        </button>
-                      </>
-                    )}
+                    {portraitStyle === "framed"
+                      ? FRAMED_SIZES.map((size) =>
+                          sizeCard(portraitStyle, size, catalog.framed[size], catalog.options.framedSizes[size])
+                        )
+                      : CANVAS_SIZES.map((size) =>
+                          sizeCard(portraitStyle, size, catalog.canvas[size], catalog.options.canvasSizes[size])
+                        )}
                   </div>
                 </div>
 
@@ -1208,19 +1247,31 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
                     3. Number of Pets
                   </label>
                   <div className="grid grid-cols-2 gap-3">
-                    {PET_OPTIONS.map((pet) => (
+                    {PET_OPTIONS.map((pet) => {
+                      const meta = catalog.options.pets[pet.id];
+                      if (!isOptionVisible(meta)) return null;
+                      const selectable = isOptionSelectable(meta);
+                      const selected = selectedPets === pet.id;
+                      return (
                       <button
                         key={pet.id}
+                        type="button"
+                        disabled={!selectable}
+                        aria-disabled={!selectable}
                         onClick={() => {
+                          if (!selectable) return;
                           setSelectedPets(pet.id);
                           window.dispatchEvent(new CustomEvent('petSelectionChanged', { detail: pet.id }));
                         }}
-                        className={`group relative flex flex-col md:flex-row items-center md:items-center justify-between gap-2 md:gap-4 p-2 md:p-3.5 rounded-2xl border-[2px] transition-all overflow-hidden ${pet.id === "human" ? "col-span-2" : ""} ${selectedPets === pet.id
-                          ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
-                          : "border-gray-200 hover:border-gray-300 bg-white"
+                        className={`group relative flex flex-col md:flex-row items-center md:items-center justify-between gap-2 md:gap-4 p-2 md:p-3.5 rounded-2xl border-[2px] transition-all overflow-hidden ${pet.id === "human" ? "col-span-2" : ""} ${
+                          !selectable
+                            ? "cursor-not-allowed border-gray-200 bg-gray-50"
+                            : selected
+                              ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
+                              : "border-gray-200 hover:border-gray-300 bg-white"
                           }`}
                       >
-                        <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4 w-full">
+                        <div className={`flex flex-col md:flex-row items-center gap-2 md:gap-4 w-full ${selectable ? "" : "opacity-50"}`}>
                            <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl overflow-hidden bg-gray-50 border border-gray-100 flex-shrink-0 relative shadow-sm">
                              {pet.id === "human" ? (
                                humanPetImage ? (
@@ -1236,17 +1287,31 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
                              )}
                            </div>
                            <div className="text-center md:text-left flex-1">
-                             <span className="block font-black text-[11px] md:text-sm text-[#1a1a1b]">{pet.label}</span>
+                             <span className={`block font-black text-[11px] md:text-sm ${selectable ? "text-[#1a1a1b]" : "text-gray-400"}`}>
+                               {pet.label}
+                             </span>
+                             {meta.badge ? (
+                               <span className="inline-block mt-1 text-[10px] font-black text-white bg-[#A87B62] px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                 {meta.badge}
+                               </span>
+                             ) : null}
                              <span className="block text-[9px] md:text-[10px] font-bold text-gray-500 uppercase mt-0.5">
-                               {pet.id === "one" || !(catalog.pets[pet.id] > 0) ? "Included" : `+${formatRupee(catalog.pets[pet.id])}`}
+                               {!selectable
+                                 ? "Temporarily unavailable"
+                                 : pet.id === "one" || !(catalog.pets[pet.id] > 0)
+                                   ? "Included"
+                                   : `+${formatRupee(catalog.pets[pet.id])}`}
                              </span>
                            </div>
                         </div>
-                        <div className={`absolute top-2 right-2 md:static flex-shrink-0 w-4 h-4 md:w-5 md:h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selectedPets === pet.id ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
-                          {selectedPets === pet.id && <Check size={10} className="text-white md:w-3 md:h-3" strokeWidth={3} />}
+                        {selectable ? (
+                        <div className={`absolute top-2 right-2 md:static flex-shrink-0 w-4 h-4 md:w-5 md:h-5 rounded-full border-2 flex items-center justify-center transition-colors ${selected ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"}`}>
+                          {selected && <Check size={10} className="text-white md:w-3 md:h-3" strokeWidth={3} />}
                         </div>
+                        ) : null}
                       </button>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -2593,7 +2658,11 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
         )}
       </AnimatePresence>
 
-      <PortraitStyleInfographic open={showStylePreview} onClose={() => setShowStylePreview(false)} />
+      <PortraitStyleInfographic
+        open={showStylePreview}
+        onClose={() => setShowStylePreview(false)}
+        styleOptions={catalog.options.styles}
+      />
     </div>
   );
 }
