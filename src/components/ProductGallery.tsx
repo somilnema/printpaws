@@ -35,7 +35,7 @@ export function ProductGallery() {
   const processVideo = useUploadedMedia("gallery-video");
   const [activeImage, setActiveImage] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState("one");
-  const [selectedFrame, setSelectedFrame] = useState("canva");
+  const [selectedFrame, setSelectedFrame] = useState("black");
   const [selectedBgImage, setSelectedBgImage] = useState("/bg7.png");
   const [muted, setMuted] = useState(true);
 

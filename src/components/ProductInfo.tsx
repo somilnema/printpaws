@@ -133,10 +133,10 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
   const [couponError, setCouponError] = useState<string | null>(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [portraitStyle, setPortraitStyle] = useState<PortraitStyle>("canvas");
+  const [portraitStyle, setPortraitStyle] = useState<PortraitStyle>("framed");
   const [showStylePreview, setShowStylePreview] = useState(false);
-  const [selectedSize, setSelectedSize] = useState('16"x20"');
-  const [selectedFrame, setSelectedFrame] = useState("canva");
+  const [selectedSize, setSelectedSize] = useState('12"x16"');
+  const [selectedFrame, setSelectedFrame] = useState("black");
   const [selectedPets, setSelectedPets] = useState("one");
   const petNameCount = PET_OPTIONS.find((pet) => pet.id === selectedPets)?.names ?? 1;
   const humanPetImage = useUploadedMedia("pets-human");
@@ -1218,8 +1218,8 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
                     </button>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    {styleCard("canvas", "/framestyle/canvas-frame.png", "Gallery Wrapped • Premium")}
                     {styleCard("framed", "/framestyle/black-frame.png", "Ready to Hang • Classic Look")}
+                    {styleCard("canvas", "/framestyle/canvas-frame.png", "Gallery Wrapped • Premium")}
                   </div>
                 </div>
 

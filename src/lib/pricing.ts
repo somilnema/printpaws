@@ -269,8 +269,8 @@ export function firstAvailableSize(style: PortraitStyle, catalog: PriceCatalog =
 }
 
 export function firstAvailableStyle(catalog: PriceCatalog = DEFAULT_CATALOG): PortraitStyle | null {
-  if (isOptionSelectable(catalog.options.styles.canvas) && firstAvailableSize("canvas", catalog)) return "canvas";
   if (isOptionSelectable(catalog.options.styles.framed) && firstAvailableSize("framed", catalog)) return "framed";
+  if (isOptionSelectable(catalog.options.styles.canvas) && firstAvailableSize("canvas", catalog)) return "canvas";
   return null;
 }
 

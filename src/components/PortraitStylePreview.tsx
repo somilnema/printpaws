@@ -8,8 +8,8 @@ import { useUploadedMedia } from "@/components/SiteMedia";
 import { FRAMED_UNAVAILABLE, isOptionSelectable, type OptionMeta } from "@/lib/pricing";
 
 const STYLES = [
-  { id: "canvas" as const, title: "Canvas Portrait", image: "/framestyle/canvas-frame.png", tagline: "Gallery Wrapped • Premium" },
   { id: "framed" as const, title: "Framed Portrait", image: "/framestyle/black-frame.png", tagline: "Ready to Hang • Classic Look" },
+  { id: "canvas" as const, title: "Canvas Portrait", image: "/framestyle/canvas-frame.png", tagline: "Gallery Wrapped • Premium" },
 ];
 
 export function PortraitStyleInfographic({
