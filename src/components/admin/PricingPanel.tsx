@@ -259,17 +259,18 @@ export function PricingPanel({
 
       <Panel
         title="Add-ons"
-        note="Premium background is charged when a customer picks bg7, bg8, or bg9. Those three backgrounds are currently hidden on the product page."
+        note="Limited Edition backgrounds (bg7–bg9) charge premium background. Priority Preview is an Everyday Pet Portrait option."
       >
-        <div className="grid sm:grid-cols-3 gap-3">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Money label="Halo effect" value={catalog.halo} onChange={(halo) => patch({ halo })} />
           <Money label="Gift wrap" value={catalog.giftWrap} onChange={(giftWrap) => patch({ giftWrap })} />
-          <Money label="Premium background" value={catalog.premiumBackground} onChange={(premiumBackground) => patch({ premiumBackground })} />
+          <Money label="Limited Edition background" value={catalog.premiumBackground} onChange={(premiumBackground) => patch({ premiumBackground })} />
+          <Money label="Priority Preview" value={catalog.priorityPreview} onChange={(priorityPreview) => patch({ priorityPreview })} />
         </div>
       </Panel>
 
       <Panel title="Extras">
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="space-y-3">
             <Money label="Mug price" value={catalog.mug.price} onChange={(price) => patch({ mug: { ...catalog.mug, price } })} />
             <Money label="Mug crossed-out" value={catalog.mug.compareAt} onChange={(compareAt) => patch({ mug: { ...catalog.mug, compareAt } })} />
@@ -281,6 +282,10 @@ export function PricingPanel({
           <div className="space-y-3">
             <Money label="Digital file price" value={catalog.digital.price} onChange={(price) => patch({ digital: { ...catalog.digital, price } })} />
             <Money label="Digital file crossed-out" value={catalog.digital.compareAt} onChange={(compareAt) => patch({ digital: { ...catalog.digital, compareAt } })} />
+          </div>
+          <div className="space-y-3">
+            <Money label="Desk Portrait price" value={catalog.desk.price} onChange={(price) => patch({ desk: { ...catalog.desk, price } })} />
+            <Money label="Desk Portrait crossed-out" value={catalog.desk.compareAt} onChange={(compareAt) => patch({ desk: { ...catalog.desk, compareAt } })} />
           </div>
         </div>
       </Panel>

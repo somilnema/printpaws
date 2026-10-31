@@ -144,16 +144,20 @@ export function catalogFromRows(rows: PriceRow[]): PriceCatalog {
   const halo = byKey.get("addon_halo");
   const wrap = byKey.get("addon_gift_wrap");
   const bg = byKey.get("addon_premium_bg");
+  const priority = byKey.get("addon_priority_preview");
   if (halo) catalog.halo = halo.amount;
   if (wrap) catalog.giftWrap = wrap.amount;
   if (bg) catalog.premiumBackground = bg.amount;
+  if (priority) catalog.priorityPreview = priority.amount;
 
   const mug = byKey.get("extra_mug");
   const magnet = byKey.get("extra_magnet");
   const digital = byKey.get("extra_digital");
+  const desk = byKey.get("extra_desk");
   if (mug) catalog.mug = { price: mug.amount, compareAt: mug.compare_at ?? 0 };
   if (magnet) catalog.magnet = { price: magnet.amount, compareAt: magnet.compare_at ?? 0 };
   if (digital) catalog.digital = { price: digital.amount, compareAt: digital.compare_at ?? 0 };
+  if (desk) catalog.desk = { price: desk.amount, compareAt: desk.compare_at ?? 0 };
 
   const prepaid = byKey.get("rule_prepaid_percent");
   const cod = byKey.get("rule_cod_advance_percent");
@@ -187,9 +191,11 @@ export function rowsFromCatalog(catalog: PriceCatalog): PriceRow[] {
     { key: "addon_halo", amount: catalog.halo, compare_at: null },
     { key: "addon_gift_wrap", amount: catalog.giftWrap, compare_at: null },
     { key: "addon_premium_bg", amount: catalog.premiumBackground, compare_at: null },
+    { key: "addon_priority_preview", amount: catalog.priorityPreview, compare_at: null },
     { key: "extra_mug", amount: catalog.mug.price, compare_at: catalog.mug.compareAt },
     { key: "extra_magnet", amount: catalog.magnet.price, compare_at: catalog.magnet.compareAt },
     { key: "extra_digital", amount: catalog.digital.price, compare_at: catalog.digital.compareAt },
+    { key: "extra_desk", amount: catalog.desk.price, compare_at: catalog.desk.compareAt },
     { key: "rule_prepaid_percent", amount: catalog.prepaidPercent, compare_at: null },
     { key: "rule_cod_advance_percent", amount: catalog.codAdvancePercent, compare_at: null },
     { key: "pay_custom_a", amount: catalog.customPayments[0], compare_at: null },

@@ -47,9 +47,12 @@ export type PriceCatalog = {
   halo: number;
   giftWrap: number;
   premiumBackground: number;
+  /** Priority Preview add-on (Everyday configurator). Suggested ₹199 pending approval. */
+  priorityPreview: number;
   mug: { price: number; compareAt: number };
   magnet: { price: number; compareAt: number };
   digital: { price: number; compareAt: number };
+  desk: { price: number; compareAt: number };
   prepaidPercent: number;
   codAdvancePercent: number;
   customPayments: number[];
@@ -57,6 +60,13 @@ export type PriceCatalog = {
   digitalDownloads: number[];
   options: OptionConfig;
 };
+
+/** Premium / Limited Edition background ids that charge premiumBackground. */
+export const LIMITED_EDITION_BACKGROUNDS = ["bg7", "bg8", "bg9"] as const;
+
+export function isLimitedEditionBackground(name?: string | null) {
+  return LIMITED_EDITION_BACKGROUNDS.includes((name || "") as (typeof LIMITED_EDITION_BACKGROUNDS)[number]);
+}
 
 export const OPTION_STATUSES: OptionStatus[] = ["available", "hidden", "out_of_stock"];
 
@@ -135,10 +145,12 @@ export type PricingInput = {
   background?: string;
   addon?: string;
   giftWrap?: boolean;
+  priorityPreview?: boolean;
   cartQty?: number;
   addDigitalDownload?: boolean;
   addMagnet?: boolean;
   addMug?: boolean;
+  addDesk?: boolean;
   customPaymentAmount?: number;
   digitalDownloadAmount?: number;
   /** Set on the server from the landing product. The browser amount is ignored. */
@@ -194,11 +206,13 @@ export const DEFAULT_CATALOG: PriceCatalog = {
     human: 500,
   },
   halo: 200,
-  giftWrap: 99,
+  giftWrap: 199,
   premiumBackground: 199,
+  priorityPreview: 199,
   mug: { price: 600, compareAt: 799 },
   magnet: { price: 200, compareAt: 299 },
   digital: { price: 300, compareAt: 399 },
+  desk: { price: 999, compareAt: 1299 },
   prepaidPercent: 4,
   codAdvancePercent: 40,
   customPayments: [500, 600],
@@ -294,6 +308,7 @@ export const ADDON_PRICES: Record<string, number> = {
 };
 export const GIFT_WRAP_PRICE = DEFAULT_CATALOG.giftWrap;
 export const PREMIUM_BACKGROUND_PRICE = DEFAULT_CATALOG.premiumBackground;
+export const PRIORITY_PREVIEW_PRICE = DEFAULT_CATALOG.priorityPreview;
 
 export const EXTRA_PRODUCTS = {
   mug: {
@@ -315,10 +330,18 @@ export const EXTRA_PRODUCTS = {
   digital: {
     id: "digital" as const,
     label: "Digital Download",
-    description: "Digital file suitable for wallpapers and other digital uses.",
+    description: "Digital files suitable for wallpapers and other digital uses.",
     price: DEFAULT_CATALOG.digital.price,
     compareAt: DEFAULT_CATALOG.digital.compareAt,
     image: "/extras/digital-download.jpg",
+  },
+  desk: {
+    id: "desk" as const,
+    label: "Desk Portrait",
+    description: "A compact portrait with a stand, perfect for your desk.",
+    price: DEFAULT_CATALOG.desk.price,
+    compareAt: DEFAULT_CATALOG.desk.compareAt,
+    image: "/feature-detail.png",
   },
 } as const;
 
@@ -370,9 +393,11 @@ export function cloneCatalog(catalog: PriceCatalog = DEFAULT_CATALOG): PriceCata
     halo: catalog.halo,
     giftWrap: catalog.giftWrap,
     premiumBackground: catalog.premiumBackground,
+    priorityPreview: catalog.priorityPreview ?? DEFAULT_CATALOG.priorityPreview,
     mug: { ...catalog.mug },
     magnet: { ...catalog.magnet },
     digital: { ...catalog.digital },
+    desk: { ...(catalog.desk || DEFAULT_CATALOG.desk) },
     prepaidPercent: catalog.prepaidPercent,
     codAdvancePercent: catalog.codAdvancePercent,
     customPayments: [...catalog.customPayments],
@@ -382,9 +407,9 @@ export function cloneCatalog(catalog: PriceCatalog = DEFAULT_CATALOG): PriceCata
   };
 }
 
-export function extraCatalog(catalog: PriceCatalog, id: "mug" | "magnet" | "digital") {
+export function extraCatalog(catalog: PriceCatalog, id: "mug" | "magnet" | "digital" | "desk") {
   const meta = EXTRA_PRODUCTS[id];
-  const money = catalog[id];
+  const money = catalog[id] || DEFAULT_CATALOG[id];
   return {
     ...meta,
     price: money.price,
@@ -393,7 +418,7 @@ export function extraCatalog(catalog: PriceCatalog, id: "mug" | "magnet" | "digi
 }
 
 export function extraProductLines(
-  input: Pick<PricingInput, "addMug" | "addMagnet" | "addDigitalDownload">,
+  input: Pick<PricingInput, "addMug" | "addMagnet" | "addDigitalDownload" | "addDesk">,
   catalog: PriceCatalog = DEFAULT_CATALOG
 ) {
   const lines: { id: string; label: string; price: number }[] = [];
@@ -402,11 +427,14 @@ export function extraProductLines(
   if (input.addDigitalDownload) {
     lines.push({ id: "digital", label: EXTRA_PRODUCTS.digital.label, price: catalog.digital.price });
   }
+  if (input.addDesk) {
+    lines.push({ id: "desk", label: EXTRA_PRODUCTS.desk.label, price: (catalog.desk || DEFAULT_CATALOG.desk).price });
+  }
   return lines;
 }
 
 export function extrasTotal(
-  input: Pick<PricingInput, "addMug" | "addMagnet" | "addDigitalDownload">,
+  input: Pick<PricingInput, "addMug" | "addMagnet" | "addDigitalDownload" | "addDesk">,
   catalog: PriceCatalog = DEFAULT_CATALOG
 ) {
   return extraProductLines(input, catalog).reduce((sum, line) => sum + line.price, 0);
@@ -427,8 +455,9 @@ export function getPortraitBreakdown(input: PricingInput, catalog: PriceCatalog 
       : (catalog.canvas[size] ?? catalog.canvas['8"x12"'] ?? 0);
   const petUpgrade = catalog.pets[input.numPets || "one"] ?? 0;
   const halo = input.addon === "halo_effect" ? catalog.halo : 0;
+  const priority = input.priorityPreview ? (catalog.priorityPreview ?? DEFAULT_CATALOG.priorityPreview) : 0;
   const wrap = input.giftWrap ? catalog.giftWrap : 0;
-  const premiumBg = ["bg7", "bg8", "bg9"].includes(input.background || "") ? catalog.premiumBackground : 0;
+  const premiumBg = isLimitedEditionBackground(input.background) ? catalog.premiumBackground : 0;
   const qty = Math.max(1, input.cartQty || 1);
   const extras = extraProductLines(input, catalog);
 
@@ -443,16 +472,18 @@ export function getPortraitBreakdown(input: PricingInput, catalog: PriceCatalog 
     });
   }
   if (halo > 0) portraitLines.push({ id: "halo", label: "Halo Effect", price: halo * qty });
+  if (priority > 0) portraitLines.push({ id: "priority", label: "Priority Preview", price: priority * qty });
   if (wrap > 0) portraitLines.push({ id: "wrap", label: "Gift Wrap", price: wrap * qty });
-  if (premiumBg > 0) portraitLines.push({ id: "bg", label: "Premium background", price: premiumBg * qty });
+  if (premiumBg > 0) portraitLines.push({ id: "bg", label: "Limited Edition background", price: premiumBg * qty });
 
-  const portraitSubtotal = (sizePrice + petUpgrade + halo + wrap + premiumBg) * qty;
+  const portraitSubtotal = (sizePrice + petUpgrade + halo + priority + wrap + premiumBg) * qty;
   return {
     style,
     size,
     sizePrice: sizePrice * qty,
     petUpgrade: petUpgrade * qty,
     halo: halo * qty,
+    priority: priority * qty,
     wrap: wrap * qty,
     premiumBg: premiumBg * qty,
     extras,
@@ -485,14 +516,15 @@ export function calculatePortraitBasePrice(input: PricingInput, catalog: PriceCa
 
   price += catalog.pets[input.numPets || "one"] ?? 0;
 
-  if (["bg7", "bg8", "bg9"].includes(input.background || "")) {
+  if (isLimitedEditionBackground(input.background)) {
     price += catalog.premiumBackground;
   }
 
   const addon = input.addon || "none";
   if (addon === "halo_effect") price += catalog.halo;
-  else if (addon !== "none") price += 100;
+  else if (addon !== "none" && addon !== "priority_preview") price += 100;
 
+  if (input.priorityPreview) price += catalog.priorityPreview ?? DEFAULT_CATALOG.priorityPreview;
   if (input.giftWrap) price += catalog.giftWrap;
 
   const qty = Math.max(1, input.cartQty || 1);
@@ -501,6 +533,7 @@ export function calculatePortraitBasePrice(input: PricingInput, catalog: PriceCa
   if (input.addMagnet) price += catalog.magnet.price;
   if (input.addMug) price += catalog.mug.price;
   if (input.addDigitalDownload) price += catalog.digital.price;
+  if (input.addDesk) price += (catalog.desk || DEFAULT_CATALOG.desk).price;
 
   return price;
 }

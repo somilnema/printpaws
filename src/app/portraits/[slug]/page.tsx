@@ -113,7 +113,11 @@ export default async function PortraitPage({ params }: PortraitPageProps) {
                 <ProductGallery />
               </div>
             </div>
-            <ProductInfo title={portrait.name} presetPets={portrait.pets} />
+            <ProductInfo
+              title={portrait.name}
+              presetPets={portrait.pets}
+              flow={portrait.slug === "everyday-pet-portrait" ? "everyday" : "standard"}
+            />
           </div>
 
           <UnboxingCarousel />

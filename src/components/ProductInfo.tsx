@@ -62,6 +62,9 @@ import {
 } from "@/lib/pricing";
 import { trackPixel } from "@/lib/pixel";
 import { ExtraProducts } from "@/components/ExtraProducts";
+import { ConfiguratorProgress } from "@/components/ConfiguratorProgress";
+import { EverydayPersonalizeStep } from "@/components/everyday/EverydayPersonalizeStep";
+import { EverydayUploadStep } from "@/components/everyday/EverydayUploadStep";
 import { SaveOfferModal } from "@/components/SaveOfferModal";
 import { SAVE_OFFER_STORAGE_KEY, SAVE_WHEEL, pickSaveOfferIndex, saveOfferRule } from "@/lib/save-offer";
 import { DeliveryEstimate } from "@/components/DeliveryEstimate";
@@ -77,7 +80,14 @@ const PET_OPTIONS = [
 ];
 
 
-type BackgroundType = { name: string; value: string; textColor: string; isImage?: boolean };
+type BackgroundType = {
+  name: string;
+  value: string;
+  textColor: string;
+  isImage?: boolean;
+  limited?: boolean;
+  label?: string;
+};
 const BACKGROUNDS: BackgroundType[] = [
   { name: "Pearl", value: "#f9f9f7", textColor: "#d1d1cf" },
   { name: "Almond", value: "#f3e4d4", textColor: "#c4a484" },
@@ -85,10 +95,22 @@ const BACKGROUNDS: BackgroundType[] = [
   { name: "Celadon", value: "#b8cfc1", textColor: "#ffffff" },
   { name: "Tea Rosé", value: "#f3ccc6", textColor: "#ffffff" },
   { name: "Black", value: "#000000", textColor: "#ffffff" },
-  // { name: "bg7", value: "/bg7.png", textColor: "#ffffff", isImage: true },
-  // { name: "bg8", value: "/bg8.png", textColor: "#ffffff", isImage: true },
-  // { name: "bg9", value: "/bg9.png", textColor: "#ffffff", isImage: true }
 ];
+
+const LIMITED_BACKGROUNDS: BackgroundType[] = [
+  { name: "bg7", label: "Aurora", value: "/bg7.png", textColor: "#ffffff", isImage: true, limited: true },
+  { name: "bg8", label: "Meadow", value: "/bg8.png", textColor: "#ffffff", isImage: true, limited: true },
+  { name: "bg9", label: "Dusk", value: "/bg9.png", textColor: "#ffffff", isImage: true, limited: true },
+];
+
+const SUBTITLE_MAX = 30;
+
+function isValidIndianMobile(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 10) return /^[6-9]\d{9}$/.test(digits);
+  if (digits.length === 12 && digits.startsWith("91")) return /^91[6-9]\d{9}$/.test(digits);
+  return false;
+}
 
 const ADD_ONS = [
   // { id: "bowtie_bonus", label: "Bow Tie (Bonus)", image: "/bonus-image/bow-tie.png" },
@@ -109,9 +131,16 @@ type ProductInfoProps = {
   title?: string;
   /** Pet choice a product page opens on. Ignored while the cart holds a portrait. */
   presetPets?: string;
+  /** Everyday Pet Portrait three-step configurator (PDF handoff). */
+  flow?: "everyday" | "standard";
 };
 
-export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: ProductInfoProps = {}) {
+export function ProductInfo({
+  title = "Custom Pet Portrait",
+  presetPets,
+  flow = "standard",
+}: ProductInfoProps = {}) {
+  const everyday = flow === "everyday";
   const media = useMedia();
   const [currentStep, setCurrentStepRaw] = useState(1);
   const currentStepSafe = Math.min(Math.max(currentStep, 1), 3);
@@ -143,6 +172,10 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
   const [selectedBg, setSelectedBg] = useState("Pearl");
   const [selectedAddOn, setSelectedAddOn] = useState("none");
   const [giftWrap, setGiftWrap] = useState(false);
+  const [priorityPreview, setPriorityPreview] = useState(false);
+  const [includePetName, setIncludePetName] = useState(false);
+  const [includeSubtitle, setIncludeSubtitle] = useState(false);
+  const [subtitle, setSubtitle] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderStatus, setOrderStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -164,6 +197,7 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
   const [addMagnet, setAddMagnet] = useState(false);
   const [addMug, setAddMug] = useState(false);
   const [addDigitalDownload, setAddDigitalDownload] = useState(false);
+  const [addDesk, setAddDesk] = useState(false);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string>("/feature-detail.png");
   const [photoStatus, setPhotoStatus] = useState<"idle" | "uploading" | "saved" | "error">("idle");
   const [photoProgress, setPhotoProgress] = useState(0);
@@ -283,6 +317,10 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
         if (parsed.selectedBg) setSelectedBg(parsed.selectedBg);
         if (parsed.selectedAddOn) setSelectedAddOn(parsed.selectedAddOn);
         if (parsed.giftWrap !== undefined) setGiftWrap(parsed.giftWrap);
+        if (parsed.priorityPreview !== undefined) setPriorityPreview(parsed.priorityPreview);
+        if (parsed.includePetName !== undefined) setIncludePetName(parsed.includePetName);
+        if (parsed.includeSubtitle !== undefined) setIncludeSubtitle(parsed.includeSubtitle);
+        if (parsed.subtitle) setSubtitle(parsed.subtitle);
         if (parsed.petName) setPetName(parsed.petName);
         if (parsed.customerName) setCustomerName(parsed.customerName);
         if (parsed.customerPhone) setCustomerPhone(parsed.customerPhone);
@@ -296,6 +334,7 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
         if (parsed.addMagnet !== undefined) setAddMagnet(parsed.addMagnet);
         if (parsed.addMug !== undefined) setAddMug(parsed.addMug);
         if (parsed.addDigitalDownload !== undefined) setAddDigitalDownload(parsed.addDigitalDownload);
+        if (parsed.addDesk !== undefined) setAddDesk(parsed.addDesk);
         if (parsed.addedToCart) setAddedToCart(true);
         if (parsed.memorialText) setMemorialText(parsed.memorialText);
       }
@@ -303,8 +342,12 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
       console.warn("Failed to load persisted cart cache:", e);
     }
     // Changing pets here would silently change the portrait already in the cart.
-    if (presetPets && !cartHasPortrait) setSelectedPets(presetPets);
-  }, [presetPets]);
+    if (everyday) {
+      if (!cartHasPortrait) setSelectedPets("one");
+    } else if (presetPets && !cartHasPortrait) {
+      setSelectedPets(presetPets);
+    }
+  }, [presetPets, everyday]);
 
   // 3. Keep cache synchronized in localStorage when configurations change
   useEffect(() => {
@@ -318,10 +361,14 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
       portraitStyle,
       selectedSize,
       selectedFrame,
-      selectedPets,
+      selectedPets: everyday ? "one" : selectedPets,
       selectedBg,
       selectedAddOn,
       giftWrap,
+      priorityPreview,
+      includePetName,
+      includeSubtitle,
+      subtitle,
       petName,
       memorialText,
       customerName,
@@ -336,13 +383,16 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
       addMagnet,
       addMug,
       addDigitalDownload,
+      addDesk,
       addedToCart,
       hasCustomizedItem: addedToCart
     };
     try {
       localStorage.setItem('peternity_cart', JSON.stringify(cartState));
       
-      const count = addedToCart ? (1 + (addMagnet ? 1 : 0) + (addMug ? 1 : 0) + (addDigitalDownload ? 1 : 0)) : 0;
+      const count = addedToCart
+        ? (1 + (addMagnet ? 1 : 0) + (addMug ? 1 : 0) + (addDigitalDownload ? 1 : 0) + (addDesk ? 1 : 0) + (giftWrap ? 1 : 0))
+        : 0;
       window.dispatchEvent(new CustomEvent('cartBadgeUpdated', { detail: count }));
     } catch (e) {
       console.warn("Failed to persist cart cache:", e);
@@ -355,6 +405,10 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
     selectedBg,
     selectedAddOn,
     giftWrap,
+    priorityPreview,
+    includePetName,
+    includeSubtitle,
+    subtitle,
     petName,
     memorialText,
     customerName,
@@ -369,6 +423,7 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
     addMagnet,
     addMug,
     addDigitalDownload,
+    addDesk,
     addedToCart,
     selectedFile,
     productType,
@@ -376,7 +431,8 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
     digitalDownloadAmount,
     paymentMethod,
     appliedCoupon,
-    couponInput
+    couponInput,
+    everyday,
   ]);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -414,20 +470,26 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
     productType,
     portraitStyle,
     size: selectedSize,
-    numPets: selectedPets,
+    numPets: everyday ? "one" : selectedPets,
     background: selectedBg,
-    addon: selectedAddOn,
+    addon: everyday ? "none" : selectedAddOn,
     giftWrap,
+    priorityPreview: everyday ? priorityPreview : false,
     cartQty,
     addDigitalDownload: productType === "portrait" ? addDigitalDownload : false,
     addMagnet,
     addMug,
+    addDesk: everyday ? addDesk : false,
     customPaymentAmount,
     digitalDownloadAmount,
     couponCode: appliedCoupon,
     couponRule,
     paymentMethod: productType === "portrait" ? paymentMethod : "prepaid",
   };
+
+  const effectivePetName = everyday ? (includePetName ? petName.trim() : "") : petName;
+  const effectiveSubtitle = everyday ? (includeSubtitle ? subtitle.trim() : "") : memorialText;
+  const everydayBackgrounds = [...BACKGROUNDS, ...LIMITED_BACKGROUNDS];
 
   let quote;
   try {
@@ -476,9 +538,12 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
       addMug={addMug}
       addMagnet={addMagnet}
       addGift={addDigitalDownload}
+      addDesk={addDesk}
+      showDesk={everyday}
       onToggleMug={() => setAddMug(!addMug)}
       onToggleMagnet={() => setAddMagnet(!addMagnet)}
       onToggleGift={() => setAddDigitalDownload(!addDigitalDownload)}
+      onToggleDesk={() => setAddDesk(!addDesk)}
       title={title || "Additional Products"}
     />
   ) : null;
@@ -503,7 +568,14 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
 
   const validateStep2 = () => {
     const errors: Record<string, string> = {};
-    if (productType === "portrait" || productType === "digital_download") {
+    if (everyday) {
+      if (includePetName && !petName.trim()) {
+        errors.petName = "Please enter your pet's name, or turn the toggle off.";
+      }
+      if (includeSubtitle && !subtitle.trim()) {
+        errors.subtitle = "Please enter a subtitle, or turn the toggle off.";
+      }
+    } else if (productType === "portrait" || productType === "digital_download") {
       if (!petName.trim()) errors.petName = "Please enter your pet's name to continue.";
       if (!selectedFile) errors.photo = "Please choose a pet photo to continue.";
     }
@@ -513,10 +585,22 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
 
   const validateStep3 = () => {
     const errors: Record<string, string> = {};
+    if (everyday) {
+      if (!selectedFile) errors.photo = "Please choose a pet photo to continue.";
+      if (photoStatus === "error") errors.photo = photoError || "Please upload your photo again.";
+    }
     if (!customerName.trim()) errors.customerName = "Please enter your full name to continue.";
-    if (!customerEmail.trim()) errors.customerEmail = "Please enter your email to continue.";
-    else if (!isValidEmail(customerEmail)) errors.customerEmail = "Please enter a valid email to continue.";
-    if (!customerPhone.trim() || customerPhone.replace(/\D/g, "").length < 10) {
+    if (!everyday) {
+      if (!customerEmail.trim()) errors.customerEmail = "Please enter your email to continue.";
+      else if (!isValidEmail(customerEmail)) errors.customerEmail = "Please enter a valid email to continue.";
+    } else if (customerEmail.trim() && !isValidEmail(customerEmail)) {
+      errors.customerEmail = "Please enter a valid email to continue.";
+    }
+    if (everyday) {
+      if (!isValidIndianMobile(customerPhone)) {
+        errors.customerPhone = "Please enter a valid Indian mobile number.";
+      }
+    } else if (!customerPhone.trim() || customerPhone.replace(/\D/g, "").length < 10) {
       errors.customerPhone = "Please enter a valid mobile number to continue.";
     }
     setFieldErrors(errors);
@@ -552,7 +636,7 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
 
   const handleContinueFromStep2 = async () => {
     if (!validateStep2()) return;
-    if (productType === "portrait" || productType === "digital_download") {
+    if (!everyday && (productType === "portrait" || productType === "digital_download")) {
       try {
         const url = await ensurePhotoUploaded();
         if (!storedPetPhotoUrl(url)) {
@@ -570,8 +654,23 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
     goToStep(3);
   };
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!validateStep3()) return;
+    if (everyday && (productType === "portrait" || productType === "digital_download")) {
+      try {
+        const url = await ensurePhotoUploaded();
+        if (!storedPetPhotoUrl(url)) {
+          setFieldErrors((prev) => ({ ...prev, photo: "Please choose a pet photo to continue." }));
+          return;
+        }
+      } catch (err) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          photo: err instanceof Error ? err.message : "We couldn't save the pet photo. Please try again.",
+        }));
+        return;
+      }
+    }
     setAddedToCart(true);
     setShowCheckout(false);
     setShowCart(true);
@@ -602,14 +701,16 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
     background: productType === "portrait" ? selectedBg : "",
     addon: productType === "portrait"
       ? [
-          selectedAddOn !== "none" ? selectedAddOn : "",
+          everyday ? "" : selectedAddOn !== "none" ? selectedAddOn : "",
+          everyday && priorityPreview ? "priority_preview" : "",
           addMug ? "custom_mug" : "",
           addMagnet ? "fridge_magnet" : "",
           addDigitalDownload ? "digital_download" : "",
+          everyday && addDesk ? "desk_portrait" : "",
         ].filter(Boolean).join(", ") || "none"
       : productType,
-    petName: petName || PRODUCT_LABELS[productType],
-    memorialText,
+    petName: effectivePetName || PRODUCT_LABELS[productType],
+    memorialText: everyday ? effectiveSubtitle : memorialText,
     giftWrap,
     portraitStyle: productType === "portrait" ? portraitStyle : productType,
     customerName,
@@ -1011,34 +1112,44 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
           !selectable
             ? "cursor-not-allowed border-gray-200 bg-gray-50"
             : selected
-              ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
+              ? everyday
+                ? "border-[#A97659] shadow-md bg-white scale-[1.01] z-10"
+                : "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
               : "border-gray-200 hover:border-gray-300 bg-white"
         }`}
       >
         <div
-          className={`relative w-16 h-16 flex-shrink-0 bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm ${
+          className={`relative ${everyday ? "w-full aspect-[4/5] md:w-24 md:h-auto md:aspect-[4/5]" : "w-16 h-16"} flex-shrink-0 bg-white rounded-[10px] border border-gray-100 overflow-hidden shadow-sm ${
             selectable ? "" : "opacity-50"
           }`}
         >
-          <Image src={image} alt={PORTRAIT_STYLE_LABELS[style]} fill sizes="64px" className="object-cover" />
+          <Image src={image} alt={PORTRAIT_STYLE_LABELS[style]} fill sizes="160px" className="object-cover" />
         </div>
-        <div className="flex-1 flex flex-col items-center md:items-start w-full">
-          <span className={`block font-black text-[11px] md:text-sm ${selectable ? "text-[#1a1a1b]" : "text-gray-400"}`}>
+        <div className={`flex-1 flex flex-col ${everyday ? "items-center" : "items-center md:items-start"} w-full`}>
+          <span className={`block font-black text-[11px] md:text-sm ${selectable ? "text-[#292522]" : "text-gray-400"}`}>
             {PORTRAIT_STYLE_LABELS[style]}
           </span>
           {meta.badge ? (
-            <span className="mt-1 text-[10px] font-black text-white bg-[#A87B62] px-1.5 py-0.5 rounded uppercase tracking-wider">
+            <span className="mt-1 text-[10px] font-black text-white bg-[#A97659] px-1.5 py-0.5 rounded uppercase tracking-wider">
               {meta.badge}
             </span>
           ) : null}
+          {!everyday ? (
           <span className={`text-[10px] font-medium ${selectable ? "hidden text-gray-500 md:block" : "text-gray-500"}`}>
             {selectable ? tagline : "Temporarily unavailable"}
           </span>
+          ) : (!selectable ? (
+            <span className="text-[10px] font-medium text-gray-500">Temporarily unavailable</span>
+          ) : null)}
         </div>
         {selectable ? (
           <div
             className={`absolute top-2 right-2 md:static flex-shrink-0 w-4 h-4 md:w-5 md:h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-              selected ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"
+              selected
+                ? everyday
+                  ? "border-[#A97659] bg-[#A97659]"
+                  : "border-[#1a1a1b] bg-[#1a1a1b]"
+                : "border-gray-300"
             }`}
           >
             {selected && <Check size={10} className="text-white md:w-3 md:h-3" strokeWidth={3} />}
@@ -1068,7 +1179,9 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
           !selectable
             ? "border-gray-200 bg-gray-50 cursor-not-allowed"
             : selected
-              ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
+              ? everyday
+                ? "border-[#A97659] shadow-md bg-white scale-[1.01] z-10"
+                : "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
               : "border-gray-200 hover:border-gray-300 bg-white"
         }`}
       >
@@ -1133,7 +1246,7 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
             </>
           )}
         </div>
-        {productType === "portrait" && breakdown.petUpgrade > 0 ? (
+        {productType === "portrait" && !everyday && breakdown.petUpgrade > 0 ? (
           <p className="text-[11px] font-medium text-gray-500 mt-1">
             {formatRupee(breakdown.sizePrice)} size
             {" · "}
@@ -1143,13 +1256,19 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
               : ""}
           </p>
         ) : null}
+        {productType === "portrait" && everyday && ((breakdown.priority || 0) + breakdown.premiumBg > 0) ? (
+          <p className="text-[11px] font-medium text-[#77716C] mt-1">
+            {breakdown.premiumBg > 0 ? `${formatRupee(breakdown.premiumBg)} Limited Edition` : null}
+            {breakdown.premiumBg > 0 && (breakdown.priority || 0) > 0 ? " · " : null}
+            {(breakdown.priority || 0) > 0 ? `${formatRupee(breakdown.priority)} Priority Preview` : null}
+          </p>
+        ) : null}
       </div>
 
       <hr className="hidden lg:block border-gray-100 my-2" />
 
-      {/* Mobile-Only Trust Section */}
+      {!everyday ? (
       <div className="lg:hidden space-y-4 mb-6 mt-2">
-        {/* Review Card */}
         <div className="bg-[#1a1a1b] text-white p-4 rounded-3xl flex items-center gap-4 shadow-lg mx-1 transform -translate-y-1.5">
           <div className="relative w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 border border-white/10">
             <Image 
@@ -1173,36 +1292,41 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
           </div>
         </div>
 
-        {/* Preview Info Text */}
         <div className="flex items-start gap-3 px-2">
           <Package size={18} className="text-[#A87B62] opacity-70 mt-0.5" />
           <p className="text-[12px] text-gray-500 font-medium leading-tight">
-            You’ll receive your design preview first. Once approved, we print, pack & ship! ✅
+            You&apos;ll receive your design preview first. Once approved, we print, pack & ship! ✅
           </p>
         </div>
       </div>
+      ) : null}
 
-      {/* Step Navigator */}
       <div className="mb-6 lg:mb-8">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-            Step {currentStepSafe} of 3 · {currentStepSafe === 1 ? "Choose Portrait" : currentStepSafe === 2 ? "Customize" : "Your Details"}
-          </span>
-          <span className="text-[10px] font-bold text-primary uppercase tracking-widest">
-            {Math.round((currentStepSafe / 3) * 100)}% Complete
-          </span>
-        </div>
-        <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden">
-          <motion.div 
-            className="h-full bg-primary"
-            initial={{ width: 0 }}
-            animate={{ width: `${(currentStepSafe / 3) * 100}%` }}
-            transition={{ duration: 0.5, ease: "circOut" }}
-          />
-        </div>
+        {everyday ? (
+          <ConfiguratorProgress currentStep={currentStepSafe} />
+        ) : (
+          <>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                Step {currentStepSafe} of 3 · {currentStepSafe === 1 ? "Choose Portrait" : currentStepSafe === 2 ? "Customize" : "Your Details"}
+              </span>
+              <span className="text-[10px] font-bold text-primary uppercase tracking-widest">
+                {Math.round((currentStepSafe / 3) * 100)}% Complete
+              </span>
+            </div>
+            <div className="h-1 w-full bg-gray-100 rounded-full overflow-hidden">
+              <motion.div 
+                className="h-full bg-primary"
+                initial={{ width: 0 }}
+                animate={{ width: `${(currentStepSafe / 3) * 100}%` }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+              />
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Selectors with Transitions */}
+      {/* Selectors with Transitions */}      {/* Selectors with Transitions */}
       <div className="relative min-h-[250px] md:min-h-[240px] overflow-visible">
         <AnimatePresence mode="wait">
           {currentStepSafe === 1 && (
@@ -1217,8 +1341,8 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
                 {/* 1. Portrait Style */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
-                    <label className="block text-base font-bold text-[#1a1a1b] font-inter">
-                      1. Choose Your Portrait Style
+                    <label className="block text-base font-semibold text-[#292522] font-inter">
+                      {everyday ? "Choose Your Portrait Style" : "1. Choose Your Portrait Style"}
                     </label>
                     <button
                       type="button"
@@ -1239,8 +1363,8 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
 
                 {/* 2. Choose Your Size */}
                 <div className="space-y-3">
-                  <label className="block text-base font-bold text-[#1a1a1b] font-inter">
-                    2. Choose Your Size
+                  <label className="block text-base font-semibold text-[#292522] font-inter">
+                    {everyday ? "Choose Your Size" : "2. Choose Your Size"}
                   </label>
                   <div className="flex flex-col gap-3">
                     {portraitStyle === "framed"
@@ -1263,7 +1387,7 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
                   </div>
                 </div>
 
-                {/* 3. Number of Pets */}
+{!everyday ? (
                 <div className="space-y-3">
                   <label className="block text-base font-bold text-[#1a1a1b] font-inter">
                     3. Number of Pets
@@ -1337,12 +1461,14 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
                   </div>
                 </div>
 
+) : null}
+
               <button 
                 type="button"
                 onClick={handleContinueFromStep1}
-                className="w-full py-4 bg-[#1a1a1b] text-white rounded-xl font-bold uppercase tracking-widest text-sm mt-4 hover:bg-[#2F2F2F] transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
+                className={`w-full h-[52px] py-4 text-white rounded-[9px] font-bold uppercase tracking-widest text-sm mt-4 transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2 ${everyday ? "bg-[#A97659] hover:bg-[#966c55]" : "bg-[#1a1a1b] hover:bg-[#2F2F2F] rounded-xl"}`}
               >
-                Continue <ArrowRight size={18} />
+                {everyday ? "CONTINUE" : "Continue"} <ArrowRight size={18} />
               </button>
               <DeliveryEstimate />
               </div>
@@ -1357,6 +1483,44 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
+              {everyday ? (
+                <EverydayPersonalizeStep
+                  portraitStyle={portraitStyle}
+                  selectedFrame={selectedFrame}
+                  onFrame={(frame) => {
+                    setSelectedFrame(frame);
+                    window.dispatchEvent(new CustomEvent("frameSelectionChanged", { detail: frame }));
+                  }}
+                  backgrounds={everydayBackgrounds}
+                  selectedBg={selectedBg}
+                  onBg={(name) => {
+                    setSelectedBg(name);
+                    window.dispatchEvent(new CustomEvent("backgroundSelectionChanged", { detail: name }));
+                  }}
+                  catalog={catalog}
+                  includePetName={includePetName}
+                  onIncludePetName={setIncludePetName}
+                  petName={petName}
+                  onPetName={(v) => {
+                    setPetName(v);
+                    clearFieldError("petName");
+                  }}
+                  includeSubtitle={includeSubtitle}
+                  onIncludeSubtitle={setIncludeSubtitle}
+                  subtitle={subtitle}
+                  onSubtitle={(v) => {
+                    setSubtitle(v);
+                    clearFieldError("subtitle");
+                  }}
+                  subtitleMax={SUBTITLE_MAX}
+                  priorityPreview={priorityPreview}
+                  onPriorityPreview={setPriorityPreview}
+                  fieldErrors={fieldErrors}
+                  onBack={prevStep}
+                  onContinue={() => void handleContinueFromStep2()}
+                />
+              ) : (
+              <>
               <div className="flex justify-between items-center mb-2">
                 <button type="button" onClick={prevStep} className="flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-black transition-colors uppercase">
                   <ArrowLeft size={14} /> Back
@@ -1365,7 +1529,6 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
                   Customize Your Portrait
                 </label>
               </div>
-
               {productType === "portrait" && (
                 <>
                   {portraitStyle === "framed" && (
@@ -1489,32 +1652,6 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
                     </div>
                   </div>
 
-                  <div className="space-y-3">
-                    <label className="block text-base font-bold text-[#1a1a1b] font-inter">
-                      4. Gift Wrap
-                    </label>
-                    <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Gift size={20} className="text-primary" />
-                        <div>
-                          <p className="text-xs font-bold text-[#1a1a1b] uppercase">Premium Gift Wrap (+Rs. {catalog.giftWrap})</p>
-                          <p className="text-[10px] text-gray-500">Ready to give portrait</p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setGiftWrap(!giftWrap)}
-                        className={`relative inline-flex h-5 w-10 cursor-pointer rounded-full transition-colors ${giftWrap ? 'bg-primary' : 'bg-gray-300'}`}
-                      >
-                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 ${giftWrap ? 'translate-x-5' : 'translate-x-1'} mt-0.5`} />
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {(productType === "portrait" || productType === "digital_download") && (
-                <>
                   <div className="space-y-4">
                     <div>
                       <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
@@ -1647,6 +1784,8 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
                   Order today, receive it by: <strong className="text-[#1a1a1b] font-black">{deliveryDates}</strong>
                 </span>
               </div>
+              </>
+              )}
             </motion.div>
           )}
 
@@ -1658,6 +1797,66 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
+              {everyday ? (
+                <EverydayUploadStep
+                  showPhotoGuide={() => setShowPhotoGuide(true)}
+                  selectedFile={selectedFile}
+                  photoPreviewUrl={photoPreviewUrl}
+                  photoStatus={photoStatus}
+                  photoProgress={photoProgress}
+                  photoError={photoError}
+                  onPickFile={(file) => {
+                    if (previewObjectUrl.current) URL.revokeObjectURL(previewObjectUrl.current);
+                    const url = URL.createObjectURL(file);
+                    previewObjectUrl.current = url;
+                    setPhotoPreviewUrl(url);
+                    setSelectedFile(file);
+                    clearFieldError("photo");
+                    void startPhotoUpload(file).catch(() => undefined);
+                  }}
+                  onReplaceClick={() => {
+                    document.getElementById("everyday-pet-photo-upload")?.click();
+                  }}
+                  onRemovePhoto={() => {
+                    photoUploadGeneration.current += 1;
+                    uploadPromiseRef.current = null;
+                    uploadedPhotoUrlRef.current = "";
+                    if (previewObjectUrl.current) {
+                      URL.revokeObjectURL(previewObjectUrl.current);
+                      previewObjectUrl.current = null;
+                    }
+                    setSelectedFile(null);
+                    setPhotoPreviewUrl("/feature-detail.png");
+                    setPhotoStatus("idle");
+                    setPhotoProgress(0);
+                    setPhotoError("");
+                    clearFieldError("photo");
+                  }}
+                  onRetryUpload={() => {
+                    if (!selectedFile) return;
+                    void startPhotoUpload(selectedFile).catch(() => undefined);
+                  }}
+                  fieldErrors={fieldErrors}
+                  customerName={customerName}
+                  onCustomerName={(v) => {
+                    setCustomerName(v);
+                    clearFieldError("customerName");
+                  }}
+                  customerPhone={customerPhone}
+                  onCustomerPhone={(v) => {
+                    setCustomerPhone(v);
+                    clearFieldError("customerPhone");
+                  }}
+                  customerEmail={customerEmail}
+                  onCustomerEmail={(v) => {
+                    setCustomerEmail(v);
+                    clearFieldError("customerEmail");
+                  }}
+                  onBack={prevStep}
+                  onAddToCart={() => void handleAddToCart()}
+                />
+              ) : (
+              <>
               <div className="flex justify-between items-center mb-2">
                 <button type="button" onClick={prevStep} className="flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-black transition-colors uppercase">
                   <ArrowLeft size={14} /> Back
@@ -1735,6 +1934,8 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
                   Order today, receive it by: <strong className="text-[#1a1a1b] font-black">{deliveryDates}</strong>
                 </span>
               </div>
+              </>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
@@ -2023,9 +2224,14 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
                         <div className="flex-1 min-w-0">
                           <h3 className="font-extrabold text-sm text-[#1a1a1b] font-inter leading-tight">
                             {productType === "portrait"
-                              ? PORTRAIT_STYLE_LABELS[portraitStyle]
+                              ? (everyday ? "Everyday Pet Portrait" : PORTRAIT_STYLE_LABELS[portraitStyle])
                               : PRODUCT_LABELS[productType]}
                           </h3>
+                          {productType === "portrait" && everyday ? (
+                            <p className="text-[12px] font-semibold text-[#77716C] mt-0.5">
+                              {PORTRAIT_STYLE_LABELS[portraitStyle]} · {displaySizeLabel(selectedSize)}
+                            </p>
+                          ) : null}
                           <p className="text-[11px] font-bold text-[#A87B62] mt-1">
                             {formatRs(portraitBaseAmount)}
                           </p>
@@ -2035,15 +2241,35 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
                       <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-[11px] text-[#1a1a1b] border-t border-gray-50 pt-3">
                         {productType === "portrait" ? (
                           <>
-                            <p><span className="text-gray-400 block">Portrait style</span><span className="font-bold">{PORTRAIT_STYLE_LABELS[portraitStyle]}</span></p>
-                            <p><span className="text-gray-400 block">Size</span><span className="font-bold">{selectedSize}</span></p>
-                            <p><span className="text-gray-400 block">Number of pets</span><span className="font-bold">{PET_COUNT_LABELS[selectedPets]}</span></p>
-                            <p><span className="text-gray-400 block">Frame color</span><span className="font-bold">{frameColorLabel(selectedFrame, portraitStyle)}</span></p>
-                            <p><span className="text-gray-400 block">Background</span><span className="font-bold">{selectedBg}</span></p>
-                            <p><span className="text-gray-400 block">Add-on illustration</span><span className="font-bold">{selectedAddOn === "halo_effect" ? `Halo Effect · ${formatRs(catalog.halo)}` : "None"}</span></p>
-                            <p><span className="text-gray-400 block">Gift wrap</span><span className="font-bold">{giftWrap ? `Yes · ${formatRs(catalog.giftWrap)}` : "No"}</span></p>
-                            <p><span className="text-gray-400 block">Pet name</span><span className="font-bold">{petName || "—"}</span></p>
-                            <p className="col-span-2"><span className="text-gray-400 block">Memorial text</span><span className="font-bold">{memorialText || "—"}</span></p>
+                            {!everyday ? (
+                              <>
+                                <p><span className="text-gray-400 block">Portrait style</span><span className="font-bold">{PORTRAIT_STYLE_LABELS[portraitStyle]}</span></p>
+                                <p><span className="text-gray-400 block">Size</span><span className="font-bold">{selectedSize}</span></p>
+                                <p><span className="text-gray-400 block">Number of pets</span><span className="font-bold">{PET_COUNT_LABELS[selectedPets]}</span></p>
+                              </>
+                            ) : null}
+                            <p><span className="text-gray-400 block">Frame / finish</span><span className="font-bold">{frameColorLabel(selectedFrame, portraitStyle)}</span></p>
+                            <p><span className="text-gray-400 block">Background</span><span className="font-bold">{
+                              everyday
+                                ? (LIMITED_BACKGROUNDS.find((b) => b.name === selectedBg)?.label || selectedBg)
+                                : selectedBg
+                            }</span></p>
+                            {!everyday ? (
+                              <p><span className="text-gray-400 block">Add-on illustration</span><span className="font-bold">{selectedAddOn === "halo_effect" ? `Halo Effect · ${formatRs(catalog.halo)}` : "None"}</span></p>
+                            ) : null}
+                            {everyday && priorityPreview ? (
+                              <p><span className="text-gray-400 block">Priority Preview</span><span className="font-bold">{formatRs(catalog.priorityPreview)}</span></p>
+                            ) : null}
+                            {(everyday ? effectivePetName : petName) ? (
+                              <p><span className="text-gray-400 block">Pet name</span><span className="font-bold">{everyday ? effectivePetName : petName}</span></p>
+                            ) : null}
+                            {everyday ? (
+                              effectiveSubtitle ? (
+                                <p className="col-span-2"><span className="text-gray-400 block">Subtitle</span><span className="font-bold">{effectiveSubtitle}</span></p>
+                              ) : null
+                            ) : (
+                              <p className="col-span-2"><span className="text-gray-400 block">Memorial text</span><span className="font-bold">{memorialText || "—"}</span></p>
+                            )}
                             <p className="col-span-2 truncate"><span className="text-gray-400 block">Uploaded photo</span><span className="font-bold">{selectedFile ? selectedFile.name : "—"}</span></p>
                           </>
                         ) : (
@@ -2101,6 +2327,38 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
                     </div>
 
                     {extraProductsPicker("Additional Products")}
+
+                    {productType === "portrait" ? (
+                      <div className="rounded-[10px] border border-[#E3DDD7] bg-white p-4 space-y-3">
+                        <h4 className="text-center font-semibold uppercase tracking-[0.18em] text-[10px] text-[#77716C]">
+                          Gift Wrapping
+                        </h4>
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[8px] bg-[#FBF4EA] text-[#A97659]">
+                            <Gift size={22} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-[#292522]">Make it gift-ready</p>
+                            <p className="text-[11px] leading-snug text-[#77716C] mt-0.5">
+                              We&apos;ll beautifully wrap your portrait, ready to gift to someone special.
+                            </p>
+                            <p className="text-[12px] font-bold text-[#A97659] mt-1">{formatRs(catalog.giftWrap)}</p>
+                          </div>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={giftWrap}
+                            aria-label="Gift wrapping"
+                            onClick={() => setGiftWrap(!giftWrap)}
+                            className="relative inline-flex h-7 w-12 min-h-[44px] min-w-[44px] items-center justify-center"
+                          >
+                            <span className={`relative block h-7 w-12 rounded-full ${giftWrap ? "bg-[#A97659]" : "bg-[#E3DDD7]"}`}>
+                              <span className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-transform ${giftWrap ? "translate-x-5" : "translate-x-0"}`} />
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
 
                     <div className="space-y-2">
                       <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest">
@@ -2179,9 +2437,9 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
                     <button
                       type="button"
                       onClick={handleInitiateCheckout}
-                      className="w-full py-4 bg-[#A87B62] hover:bg-[#966c55] text-white rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-3"
+                      className="w-full py-4 bg-[#A97659] hover:bg-[#966c55] text-white rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-3"
                     >
-                      Initiate Checkout
+                      Proceed to Checkout →
                     </button>
                   </div>
                 </div>
