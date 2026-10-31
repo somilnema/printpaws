@@ -70,7 +70,7 @@ function meta(status: OptionStatus = "available", badge = ""): OptionMeta {
   return { status, badge };
 }
 
-/** Shop defaults: both styles on sale; 18×24 OOS; canvas 20×30 keeps the value badge. */
+/** Shop defaults: both styles and all framed sizes on sale; canvas 20×30 keeps the value badge. */
 export const DEFAULT_OPTION_CONFIG: OptionConfig = {
   styles: {
     canvas: meta("available"),
@@ -79,7 +79,7 @@ export const DEFAULT_OPTION_CONFIG: OptionConfig = {
   framedSizes: {
     '8"x10"': meta("available"),
     '12"x16"': meta("available", "⭐ Most Popular"),
-    '18"x24"': meta("out_of_stock"),
+    '18"x24"': meta("available"),
   },
   canvasSizes: {
     '8"x12"': meta("available"),

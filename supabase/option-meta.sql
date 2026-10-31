@@ -18,7 +18,7 @@ insert into public.option_meta (key, status, badge) values
   ('style_framed', 'available', ''),
   ('framed_8x10', 'available', ''),
   ('framed_12x16', 'available', '⭐ Most Popular'),
-  ('framed_18x24', 'out_of_stock', ''),
+  ('framed_18x24', 'available', ''),
   ('canvas_8x12', 'available', ''),
   ('canvas_16x20', 'available', ''),
   ('canvas_20x30', 'available', '💰 Value for Money'),

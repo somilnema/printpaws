@@ -1133,6 +1133,16 @@ export function ProductInfo({ title = "Custom Pet Portrait", presetPets }: Produ
             </>
           )}
         </div>
+        {productType === "portrait" && breakdown.petUpgrade > 0 ? (
+          <p className="text-[11px] font-medium text-gray-500 mt-1">
+            {formatRupee(breakdown.sizePrice)} size
+            {" · "}
+            {formatRupee(breakdown.petUpgrade)} {PET_COUNT_LABELS[selectedPets] || "pets"} upgrade
+            {breakdown.halo + breakdown.wrap + breakdown.premiumBg > 0
+              ? ` · ${formatRupee(breakdown.halo + breakdown.wrap + breakdown.premiumBg)} extras`
+              : ""}
+          </p>
+        ) : null}
       </div>
 
       <hr className="hidden lg:block border-gray-100 my-2" />
