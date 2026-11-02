@@ -1466,7 +1466,7 @@ export function ProductInfo({
               <button 
                 type="button"
                 onClick={handleContinueFromStep1}
-                className={`w-full h-[52px] py-4 text-white rounded-[9px] font-bold uppercase tracking-widest text-sm mt-4 transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-2 ${everyday ? "bg-[#A97659] hover:bg-[#966c55]" : "bg-[#1a1a1b] hover:bg-[#2F2F2F] rounded-xl"}`}
+                className={`mt-4 flex h-[52px] w-full items-center justify-center gap-2 uppercase text-white transition-all active:scale-[0.98] ${everyday ? "rounded-[10px] bg-[#A97659] text-base font-semibold hover:bg-[#966c55]" : "rounded-xl bg-[#1a1a1b] text-sm font-bold tracking-widest shadow-md hover:bg-[#2F2F2F]"}`}
               >
                 {everyday ? "CONTINUE" : "Continue"} <ArrowRight size={18} />
               </button>
@@ -2437,7 +2437,7 @@ export function ProductInfo({
                     <button
                       type="button"
                       onClick={handleInitiateCheckout}
-                      className="w-full py-4 bg-[#A97659] hover:bg-[#966c55] text-white rounded-2xl font-black uppercase tracking-widest text-sm transition-all shadow-md active:scale-[0.98] flex items-center justify-center gap-3"
+                      className="flex h-[52px] w-full items-center justify-center gap-2 rounded-[10px] bg-[#A97659] text-base font-semibold uppercase text-white transition-all hover:bg-[#966c55] active:scale-[0.98]"
                     >
                       Proceed to Checkout →
                     </button>

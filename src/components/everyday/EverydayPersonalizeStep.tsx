@@ -291,7 +291,7 @@ export function EverydayPersonalizeStep({
       <button
         type="button"
         onClick={onContinue}
-        className="mt-2 flex h-[52px] w-full items-center justify-center gap-2 rounded-[9px] bg-[#A97659] text-sm font-bold uppercase tracking-widest text-white shadow-md transition-all hover:bg-[#966c55] active:scale-[0.98]"
+        className="mt-2 flex h-[52px] w-full items-center justify-center gap-2 rounded-[10px] bg-[#A97659] text-base font-semibold uppercase text-white transition-all hover:bg-[#966c55] active:scale-[0.98]"
       >
         CONTINUE <ArrowRight size={18} />
       </button>
