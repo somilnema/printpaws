@@ -24,7 +24,15 @@ import {
   IndianRupee,
   Tag,
   User,
-  Eye
+  Eye,
+  Trash2,
+  Paintbrush,
+  Droplet,
+  Type,
+  FileText,
+  Maximize2,
+  Square,
+  Image as ImageIconLucide,
 } from "lucide-react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
@@ -1101,6 +1109,66 @@ export function ProductInfo({
     if (!isOptionVisible(meta)) return null;
     const selectable = isOptionSelectable(meta);
     const selected = portraitStyle === style;
+
+    if (everyday) {
+      return (
+        <div
+          key={style}
+          className={`relative flex flex-col overflow-hidden rounded-[12px] bg-white transition-all ${
+            !selectable
+              ? "cursor-not-allowed border border-[#E3DDD7] bg-[#FAF7F2] opacity-70"
+              : selected
+                ? "border-2 border-[#A97659] shadow-sm z-10"
+                : "border border-[#E8D6C8] hover:border-[#C9B9A8]"
+          }`}
+        >
+          <button
+            type="button"
+            disabled={!selectable}
+            aria-disabled={!selectable}
+            aria-pressed={selected}
+            onClick={() => choosePortraitStyle(style)}
+            className="flex w-full flex-col text-left"
+          >
+            <div className="relative aspect-[5/4] w-full overflow-hidden bg-[#F1E7DC]">
+              <Image src={image} alt={PORTRAIT_STYLE_LABELS[style]} fill sizes="175px" className="object-cover" />
+              {selectable && selected ? (
+                <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-[#A97659] shadow-sm">
+                  <Check size={11} className="text-white" strokeWidth={3} />
+                </span>
+              ) : null}
+            </div>
+            <div className="flex flex-1 flex-col gap-1 px-3 pb-2 pt-2.5">
+              <span className={`block text-base font-semibold leading-tight ${selectable ? "text-[#2D2D2D]" : "text-gray-400"}`}>
+                {PORTRAIT_STYLE_LABELS[style]}
+              </span>
+              {meta.badge ? (
+                <span className="w-fit rounded bg-[#A97659] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
+                  {meta.badge}
+                </span>
+              ) : null}
+              <span className="text-[13px] font-normal leading-snug text-[#6B5E53]">
+                {selectable ? tagline : "Temporarily unavailable"}
+              </span>
+            </div>
+          </button>
+          <div className="px-3 pb-3">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowStylePreview(true);
+              }}
+              className="flex h-9 w-full items-center justify-center gap-1.5 rounded-[8px] border border-[#E8D6C8] bg-white text-[14px] font-medium text-[#2D2D2D] transition-colors hover:bg-[#FAF7F2]"
+            >
+              <Eye size={14} strokeWidth={2.25} />
+              Preview
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <button
         key={style}
@@ -1112,20 +1180,18 @@ export function ProductInfo({
           !selectable
             ? "cursor-not-allowed border-gray-200 bg-gray-50"
             : selected
-              ? everyday
-                ? "border-[#A97659] shadow-md bg-white scale-[1.01] z-10"
-                : "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
+              ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
               : "border-gray-200 hover:border-gray-300 bg-white"
         }`}
       >
         <div
-          className={`relative ${everyday ? "w-full aspect-[4/5] md:w-24 md:h-auto md:aspect-[4/5]" : "w-16 h-16"} flex-shrink-0 bg-white rounded-[10px] border border-gray-100 overflow-hidden shadow-sm ${
+          className={`relative w-16 h-16 flex-shrink-0 bg-white rounded-[10px] border border-gray-100 overflow-hidden shadow-sm ${
             selectable ? "" : "opacity-50"
           }`}
         >
           <Image src={image} alt={PORTRAIT_STYLE_LABELS[style]} fill sizes="160px" className="object-cover" />
         </div>
-        <div className={`flex-1 flex flex-col ${everyday ? "items-center" : "items-center md:items-start"} w-full`}>
+        <div className="flex-1 flex flex-col items-center md:items-start w-full">
           <span className={`block font-black text-[11px] md:text-sm ${selectable ? "text-[#292522]" : "text-gray-400"}`}>
             {PORTRAIT_STYLE_LABELS[style]}
           </span>
@@ -1134,22 +1200,14 @@ export function ProductInfo({
               {meta.badge}
             </span>
           ) : null}
-          {!everyday ? (
           <span className={`text-[10px] font-medium ${selectable ? "hidden text-gray-500 md:block" : "text-gray-500"}`}>
             {selectable ? tagline : "Temporarily unavailable"}
           </span>
-          ) : (!selectable ? (
-            <span className="text-[10px] font-medium text-gray-500">Temporarily unavailable</span>
-          ) : null)}
         </div>
         {selectable ? (
           <div
             className={`absolute top-2 right-2 md:static flex-shrink-0 w-4 h-4 md:w-5 md:h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-              selected
-                ? everyday
-                  ? "border-[#A97659] bg-[#A97659]"
-                  : "border-[#1a1a1b] bg-[#1a1a1b]"
-                : "border-gray-300"
+              selected ? "border-[#1a1a1b] bg-[#1a1a1b]" : "border-gray-300"
             }`}
           >
             {selected && <Check size={10} className="text-white md:w-3 md:h-3" strokeWidth={3} />}
@@ -1164,6 +1222,63 @@ export function ProductInfo({
     const selectable = isOptionSelectable(meta);
     const selected = selectedSize === size;
     const eventDetail = style === "framed" ? "framed_size" : "canvas_size";
+
+    if (everyday) {
+      const sizeIconRatio =
+        size.includes("8") && size.includes("10")
+          ? "w-8 h-10"
+          : size.includes("12") && size.includes("16")
+            ? "w-9 h-11"
+            : "w-10 h-12";
+      return (
+        <button
+          key={size}
+          type="button"
+          disabled={!selectable}
+          aria-disabled={!selectable}
+          aria-pressed={selected}
+          onClick={() => {
+            if (!selectable) return;
+            setSelectedSize(size);
+            window.dispatchEvent(new CustomEvent("sizeSelectionChanged", { detail: eventDetail }));
+          }}
+          className={`group relative flex min-h-[120px] flex-col items-center justify-center gap-1.5 rounded-[10px] px-2 py-3 text-center transition-all ${
+            !selectable
+              ? "cursor-not-allowed border border-[#E3DDD7] bg-[#FAF7F2] opacity-70"
+              : selected
+                ? "border-2 border-[#A97659] bg-white shadow-sm z-10"
+                : "border border-[#E8D6C8] bg-white hover:border-[#C9B9A8]"
+          }`}
+        >
+          {selectable && selected ? (
+            <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#A97659]">
+              <Check size={9} className="text-white" strokeWidth={3} />
+            </span>
+          ) : null}
+          <span
+            aria-hidden
+            className={`${sizeIconRatio} rounded-[3px] border-2 ${
+              selected ? "border-[#A97659] bg-[#F1E7DC]" : "border-[#D9CDB8] bg-[#FAF7F2]"
+            }`}
+          />
+          <span className={`text-[15px] font-semibold leading-tight ${selectable ? "text-[#2D2D2D]" : "text-gray-400"}`}>
+            {displaySizeLabel(size)}
+          </span>
+          {meta.badge ? (
+            <span className="rounded bg-[#A97659] px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-white">
+              {meta.badge}
+            </span>
+          ) : null}
+          <span className={`text-base font-bold ${selectable ? "text-[#A97659]" : "text-gray-400"}`}>
+            {formatRupee(price)}
+          </span>
+          {!selectable ? (
+            <span className="text-[9px] font-bold uppercase tracking-wider text-gray-500">Out of Stock</span>
+          ) : null}
+        </button>
+      );
+    }
+
     return (
       <button
         key={size}
@@ -1179,9 +1294,7 @@ export function ProductInfo({
           !selectable
             ? "border-gray-200 bg-gray-50 cursor-not-allowed"
             : selected
-              ? everyday
-                ? "border-[#A97659] shadow-md bg-white scale-[1.01] z-10"
-                : "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
+              ? "border-[#1a1a1b] shadow-md bg-[#fafafa] scale-[1.01] z-10"
               : "border-gray-200 hover:border-gray-300 bg-white"
         }`}
       >
@@ -1338,20 +1451,31 @@ export function ProductInfo({
               className="space-y-6"
             >
               <div className="space-y-6">
+                {everyday ? (
+                  <div className="space-y-2">
+                    <h2 className="text-2xl font-bold text-[#2D2D2D] leading-tight">Choose Your Portrait</h2>
+                    <p className="text-sm leading-relaxed text-[#6B5E53]">
+                      Select your preferred portrait style and size. We&apos;ll create a beautiful, hand-drawn portrait of your pet.
+                    </p>
+                  </div>
+                ) : null}
+
                 {/* 1. Portrait Style */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
-                    <label className="block text-base font-semibold text-[#292522] font-inter">
-                      {everyday ? "Choose Your Portrait Style" : "1. Choose Your Portrait Style"}
+                    <label className="block text-lg font-semibold text-[#2D2D2D] font-inter">
+                      {everyday ? "1. Select Portrait Style" : "1. Choose Your Portrait Style"}
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => setShowStylePreview(true)}
-                      className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-[#1a1a1b] px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[#1a1a1b] transition-colors hover:bg-[#1a1a1b] hover:text-white"
-                    >
-                      <Eye size={13} strokeWidth={2.5} />
-                      Preview
-                    </button>
+                    {!everyday ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowStylePreview(true)}
+                        className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-[#1a1a1b] px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[#1a1a1b] transition-colors hover:bg-[#1a1a1b] hover:text-white"
+                      >
+                        <Eye size={13} strokeWidth={2.5} />
+                        Preview
+                      </button>
+                    ) : null}
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     {styleCard("framed", "/framestyle/black-frame.png", "Ready to Hang • Classic Look")}
@@ -1363,10 +1487,10 @@ export function ProductInfo({
 
                 {/* 2. Choose Your Size */}
                 <div className="space-y-3">
-                  <label className="block text-base font-semibold text-[#292522] font-inter">
-                    {everyday ? "Choose Your Size" : "2. Choose Your Size"}
+                  <label className="block text-lg font-semibold text-[#2D2D2D] font-inter">
+                    {everyday ? "2. Choose Your Size" : "2. Choose Your Size"}
                   </label>
-                  <div className="flex flex-col gap-3">
+                  <div className={everyday ? "grid grid-cols-3 gap-3" : "flex flex-col gap-3"}>
                     {portraitStyle === "framed"
                       ? FRAMED_SIZES.map((size) =>
                           sizeCard(
@@ -1470,6 +1594,22 @@ export function ProductInfo({
               >
                 {everyday ? "CONTINUE" : "Continue"} <ArrowRight size={18} />
               </button>
+              {everyday ? (
+                <div className="mt-2 grid grid-cols-3 gap-2 px-1">
+                  {[
+                    { icon: <Paintbrush size={18} />, label: "Hand-drawn with love" },
+                    { icon: <Truck size={18} />, label: "Free shipping across India" },
+                    { icon: <Eye size={18} />, label: "Preview before printing" },
+                  ].map((item) => (
+                    <div key={item.label} className="flex flex-col items-center gap-1.5 text-center">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full border border-[#E8D6C8] text-[#A97659]">
+                        {item.icon}
+                      </span>
+                      <span className="text-[11px] font-medium leading-tight text-[#6B5E53]">{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
               <DeliveryEstimate />
               </div>
             </motion.div>
@@ -2213,13 +2353,13 @@ export function ProductInfo({
                   </div>
                 ) : (
                   <>
-                    <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+                    <div className={`bg-white p-4 space-y-4 ${everyday ? "rounded-[12px] border-2 border-[#EBD6C8]" : "rounded-2xl border border-gray-100 shadow-sm"}`}>
                       <div className="flex gap-4">
                         <PreviewImage
                           src={photoPreviewUrl}
                           alt="Custom Pet Portrait"
                           busy={photoStatus === "uploading"}
-                          className="h-24 w-24 flex-shrink-0 rounded-xl border border-gray-100"
+                          className={`h-24 w-24 flex-shrink-0 rounded-xl ${everyday ? "border border-[#EBD6C8]" : "border border-gray-100"}`}
                         />
                         <div className="flex-1 min-w-0">
                           <h3 className="font-extrabold text-sm text-[#1a1a1b] font-inter leading-tight">
@@ -2228,55 +2368,106 @@ export function ProductInfo({
                               : PRODUCT_LABELS[productType]}
                           </h3>
                           {productType === "portrait" && everyday ? (
-                            <p className="text-[12px] font-semibold text-[#77716C] mt-0.5">
+                            <p className="text-[12px] font-semibold text-[#6B5E53] mt-0.5">
                               {PORTRAIT_STYLE_LABELS[portraitStyle]} · {displaySizeLabel(selectedSize)}
                             </p>
                           ) : null}
-                          <p className="text-[11px] font-bold text-[#A87B62] mt-1">
+                          <p className={`text-[11px] font-bold mt-1 ${everyday ? "text-[#A97659]" : "text-[#A87B62]"}`}>
                             {formatRs(portraitBaseAmount)}
                           </p>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-[11px] text-[#1a1a1b] border-t border-gray-50 pt-3">
-                        {productType === "portrait" ? (
-                          <>
-                            {!everyday ? (
-                              <>
-                                <p><span className="text-gray-400 block">Portrait style</span><span className="font-bold">{PORTRAIT_STYLE_LABELS[portraitStyle]}</span></p>
-                                <p><span className="text-gray-400 block">Size</span><span className="font-bold">{selectedSize}</span></p>
-                                <p><span className="text-gray-400 block">Number of pets</span><span className="font-bold">{PET_COUNT_LABELS[selectedPets]}</span></p>
-                              </>
+                      <div className={`border-t pt-3 ${everyday ? "border-[#EBD6C8]" : "border-gray-50"}`}>
+                        {productType === "portrait" && everyday ? (
+                          <div className="grid grid-cols-2 gap-x-3 gap-y-3 text-[11px] text-[#2D2D2D]">
+                            {[
+                              {
+                                icon: <ImageIconLucide size={14} className="text-[#A97659]" />,
+                                label: "Portrait style",
+                                value: PORTRAIT_STYLE_LABELS[portraitStyle],
+                              },
+                              {
+                                icon: <Maximize2 size={14} className="text-[#A97659]" />,
+                                label: "Size",
+                                value: displaySizeLabel(selectedSize),
+                              },
+                              {
+                                icon: <Droplet size={14} className="text-[#A97659]" />,
+                                label: "Background",
+                                value: LIMITED_BACKGROUNDS.find((b) => b.name === selectedBg)?.label || selectedBg,
+                              },
+                              {
+                                icon: <Square size={14} className="text-[#A97659]" />,
+                                label: "Frame color",
+                                value: frameColorLabel(selectedFrame, portraitStyle),
+                              },
+                              {
+                                icon: <Type size={14} className="text-[#A97659]" />,
+                                label: "Pet name",
+                                value: effectivePetName || "Not added",
+                              },
+                              {
+                                icon: <FileText size={14} className="text-[#A97659]" />,
+                                label: "Subtitle",
+                                value: effectiveSubtitle || "Not added",
+                              },
+                            ].map((row) => (
+                              <div key={row.label} className="flex items-start gap-2 min-w-0">
+                                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#F9EFE4]">
+                                  {row.icon}
+                                </span>
+                                <p className="min-w-0">
+                                  <span className="block text-[#6B5E53]">{row.label}</span>
+                                  <span className="font-bold truncate block">{row.value}</span>
+                                </p>
+                              </div>
+                            ))}
+                            <div className="col-span-2 flex items-start gap-2 min-w-0">
+                              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[#F9EFE4]">
+                                {photoPreviewUrl ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={photoPreviewUrl} alt="" className="h-full w-full object-cover" />
+                                ) : (
+                                  <Eye size={14} className="text-[#A97659]" />
+                                )}
+                              </span>
+                              <p className="min-w-0">
+                                <span className="block text-[#6B5E53]">Uploaded photo</span>
+                                <span className="font-bold truncate block">{selectedFile ? selectedFile.name : "—"}</span>
+                              </p>
+                            </div>
+                            {priorityPreview ? (
+                              <div className="col-span-2 flex items-start gap-2">
+                                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#F9EFE4] text-[#A97659]">
+                                  <Paintbrush size={14} />
+                                </span>
+                                <p>
+                                  <span className="block text-[#6B5E53]">Priority Preview</span>
+                                  <span className="font-bold">{formatRs(catalog.priorityPreview)}</span>
+                                </p>
+                              </div>
                             ) : null}
+                          </div>
+                        ) : productType === "portrait" ? (
+                          <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-[11px] text-[#1a1a1b]">
+                            <p><span className="text-gray-400 block">Portrait style</span><span className="font-bold">{PORTRAIT_STYLE_LABELS[portraitStyle]}</span></p>
+                            <p><span className="text-gray-400 block">Size</span><span className="font-bold">{selectedSize}</span></p>
+                            <p><span className="text-gray-400 block">Number of pets</span><span className="font-bold">{PET_COUNT_LABELS[selectedPets]}</span></p>
                             <p><span className="text-gray-400 block">Frame / finish</span><span className="font-bold">{frameColorLabel(selectedFrame, portraitStyle)}</span></p>
-                            <p><span className="text-gray-400 block">Background</span><span className="font-bold">{
-                              everyday
-                                ? (LIMITED_BACKGROUNDS.find((b) => b.name === selectedBg)?.label || selectedBg)
-                                : selectedBg
-                            }</span></p>
-                            {!everyday ? (
-                              <p><span className="text-gray-400 block">Add-on illustration</span><span className="font-bold">{selectedAddOn === "halo_effect" ? `Halo Effect · ${formatRs(catalog.halo)}` : "None"}</span></p>
+                            <p><span className="text-gray-400 block">Background</span><span className="font-bold">{selectedBg}</span></p>
+                            <p><span className="text-gray-400 block">Add-on illustration</span><span className="font-bold">{selectedAddOn === "halo_effect" ? `Halo Effect · ${formatRs(catalog.halo)}` : "None"}</span></p>
+                            {petName ? (
+                              <p><span className="text-gray-400 block">Pet name</span><span className="font-bold">{petName}</span></p>
                             ) : null}
-                            {everyday && priorityPreview ? (
-                              <p><span className="text-gray-400 block">Priority Preview</span><span className="font-bold">{formatRs(catalog.priorityPreview)}</span></p>
-                            ) : null}
-                            {(everyday ? effectivePetName : petName) ? (
-                              <p><span className="text-gray-400 block">Pet name</span><span className="font-bold">{everyday ? effectivePetName : petName}</span></p>
-                            ) : null}
-                            {everyday ? (
-                              effectiveSubtitle ? (
-                                <p className="col-span-2"><span className="text-gray-400 block">Subtitle</span><span className="font-bold">{effectiveSubtitle}</span></p>
-                              ) : null
-                            ) : (
-                              <p className="col-span-2"><span className="text-gray-400 block">Memorial text</span><span className="font-bold">{memorialText || "—"}</span></p>
-                            )}
+                            <p className="col-span-2"><span className="text-gray-400 block">Memorial text</span><span className="font-bold">{memorialText || "—"}</span></p>
                             <p className="col-span-2 truncate"><span className="text-gray-400 block">Uploaded photo</span><span className="font-bold">{selectedFile ? selectedFile.name : "—"}</span></p>
-                          </>
+                          </div>
                         ) : (
-                          <>
+                          <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-[11px] text-[#1a1a1b]">
                             <p className="col-span-2"><span className="text-gray-400 block">Service</span><span className="font-bold">{PRODUCT_LABELS[productType]}</span></p>
                             {petName && <p className="col-span-2"><span className="text-gray-400 block">Pet name</span><span className="font-bold">{petName}</span></p>}
-                          </>
+                          </div>
                         )}
                       </div>
 
@@ -2319,8 +2510,9 @@ export function ProductInfo({
                             setAddedToCart(false);
                             setShowCart(false);
                           }}
-                          className="ml-auto text-[11px] font-bold uppercase tracking-wider text-gray-400 hover:text-red-500"
+                          className={`ml-auto inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider ${everyday ? "text-[#6B5E53] hover:text-red-500" : "text-gray-400 hover:text-red-500"}`}
                         >
+                          {everyday ? <Trash2 size={13} /> : null}
                           Remove
                         </button>
                       </div>
@@ -2329,17 +2521,22 @@ export function ProductInfo({
                     {extraProductsPicker("Additional Products")}
 
                     {productType === "portrait" ? (
-                      <div className="rounded-[10px] border border-[#E3DDD7] bg-white p-4 space-y-3">
-                        <h4 className="text-center font-semibold uppercase tracking-[0.18em] text-[10px] text-[#77716C]">
-                          Gift Wrapping
-                        </h4>
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[8px] bg-[#FBF4EA] text-[#A97659]">
+                      <div className="rounded-[12px] border-2 border-[#A97659]/35 bg-[#FAF7F2] p-4 space-y-3">
+                        <div className="flex items-center justify-center gap-2">
+                          <h4 className="text-center font-semibold uppercase tracking-[0.18em] text-[10px] text-[#6B5E53]">
+                            Gift Wrapping
+                          </h4>
+                          <span className="rounded-full bg-[#F1E7DC] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[#A97659]">
+                            Optional
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 rounded-[10px] border-2 border-[#EBD6C8] bg-white p-3.5">
+                          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[8px] bg-[#F9EFE4] text-[#A97659]">
                             <Gift size={22} />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold text-[#292522]">Make it gift-ready</p>
-                            <p className="text-[11px] leading-snug text-[#77716C] mt-0.5">
+                            <p className="text-sm font-semibold text-[#2D2D2D]">Make it gift-ready</p>
+                            <p className="text-[11px] leading-snug text-[#6B5E53] mt-0.5">
                               We&apos;ll beautifully wrap your portrait, ready to gift to someone special.
                             </p>
                             <p className="text-[12px] font-bold text-[#A97659] mt-1">{formatRs(catalog.giftWrap)}</p>
@@ -2350,10 +2547,10 @@ export function ProductInfo({
                             aria-checked={giftWrap}
                             aria-label="Gift wrapping"
                             onClick={() => setGiftWrap(!giftWrap)}
-                            className="relative inline-flex h-7 w-12 min-h-[44px] min-w-[44px] items-center justify-center"
+                            className="relative inline-flex h-6 w-11 min-h-[44px] min-w-[44px] items-center justify-center"
                           >
-                            <span className={`relative block h-7 w-12 rounded-full ${giftWrap ? "bg-[#A97659]" : "bg-[#E3DDD7]"}`}>
-                              <span className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-transform ${giftWrap ? "translate-x-5" : "translate-x-0"}`} />
+                            <span className={`relative block h-6 w-11 rounded-full ${giftWrap ? "bg-[#A97659]" : "bg-[#D9CDB8]"}`}>
+                              <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${giftWrap ? "translate-x-5" : "translate-x-0"}`} />
                             </span>
                           </button>
                         </div>

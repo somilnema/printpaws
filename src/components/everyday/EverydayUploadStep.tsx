@@ -1,6 +1,6 @@
 "use client";
 
-import { Upload, ArrowRight, ArrowLeft, Check, Trash2, RefreshCw } from "lucide-react";
+import { Upload, ArrowRight, ArrowLeft, Check, Trash2, RefreshCw, ImageIcon, ShieldCheck, Paintbrush, Truck, Eye } from "lucide-react";
 import { PhotoUploadBar, PreviewImage } from "@/components/PreviewImage";
 
 type Props = {
@@ -54,114 +54,138 @@ export function EverydayUploadStep({
         <button
           type="button"
           onClick={onBack}
-          className="flex min-h-[44px] items-center gap-1 text-xs font-bold text-[#77716C] hover:text-[#292522] transition-colors uppercase"
+          className="flex min-h-[44px] items-center gap-1 text-xs font-bold text-[#6B5E53] hover:text-[#2D2D2D] transition-colors uppercase"
         >
           <ArrowLeft size={14} /> Back
         </button>
+        <span className="text-base font-semibold text-[#2D2D2D]">Upload Your Photo</span>
       </div>
 
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={showPhotoGuide}
-          className="min-h-[44px] rounded-full bg-[#A97659]/10 px-3 text-[11px] font-bold uppercase tracking-wider text-[#A97659]"
-        >
-          Photo Guide
-        </button>
-      </div>
+      <p className="text-sm leading-relaxed text-[#6B5E53]">
+        Choose a clear photo of your furry friend. We&apos;ll turn it into a beautiful, hand-drawn portrait you&apos;ll love.
+      </p>
 
-      <div
-        className={`rounded-[10px] border-[1.5px] border-dashed p-4 ${
-          fieldErrors.photo ? "border-red-400 bg-red-50/40" : "border-[#E3DDD7] bg-[#FBF4EA]/40"
-        }`}
+      <button
+        type="button"
+        onClick={showPhotoGuide}
+        className="flex min-h-[72px] w-full items-center gap-3 rounded-[10px] border border-[#EBD6C8] bg-[#F9EFE4] px-4 text-left transition-colors hover:bg-[#F1E7DC]"
       >
-        <input
-          type="file"
-          id={fileInputId}
-          className="hidden"
-          accept="image/*"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            e.target.value = "";
-            if (file) onPickFile(file);
-          }}
-        />
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-white text-[#A97659]">
+          <ImageIcon size={22} />
+        </span>
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-[#2D2D2D]">Photo Guide</span>
+          <span className="mt-0.5 block text-[12px] leading-[17px] text-[#6B5E53]">
+            See example photos and tips for the best results
+          </span>
+        </span>
+      </button>
 
-        {!selectedFile ? (
-          <label
-            htmlFor={fileInputId}
-            className="flex min-h-[120px] w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-[8px] border-[1.5px] border-[#E3DDD7] bg-white px-4 py-6 text-sm font-bold text-[#292522] shadow-sm"
-          >
-            <Upload size={22} className="text-[#A97659]" />
-            Upload your pet photo
-            <span className="text-[12px] font-medium text-[#77716C]">JPG, PNG or WebP</span>
-          </label>
-        ) : (
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <PreviewImage
-                src={photoPreviewUrl}
-                alt="Uploaded pet"
-                busy={photoStatus === "uploading"}
-                className="h-[72px] w-[72px] rounded-[8px] border border-[#E3DDD7]"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[12px] font-medium text-[#77716C]">{selectedFile.name}</p>
-                {photoStatus === "saved" ? (
-                  <p className="mt-1 flex items-center gap-1 text-[12px] font-semibold text-green-700">
-                    <Check size={14} strokeWidth={3} /> Photo uploaded successfully!
+      <div className="space-y-3">
+        <label className="block text-base font-semibold text-[#2D2D2D]">1. Upload a Photo</label>
+        <div
+          className={`rounded-[12px] border-[1.5px] border-dashed p-4 ${
+            fieldErrors.photo
+              ? "border-red-400 bg-red-50/40"
+              : "border-[#C9B9A8] bg-[#FFFDF9]"
+          }`}
+        >
+          <input
+            type="file"
+            id={fileInputId}
+            className="hidden"
+            accept="image/*,.heic,.heif"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (file) onPickFile(file);
+            }}
+          />
+
+          {!selectedFile ? (
+            <label
+              htmlFor={fileInputId}
+              className="flex min-h-[120px] w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-[10px] px-4 py-6 text-center"
+            >
+              <Upload size={28} className="text-[#A97659]" />
+              <span className="text-sm font-bold text-[#2D2D2D]">Choose Image</span>
+              <span className="text-[12px] font-medium text-[#6B5E53]">
+                JPG, PNG, or HEIC · Max 10MB
+              </span>
+            </label>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 rounded-[10px] border border-[#EBD6C8] bg-white p-3">
+                <div className="relative">
+                  <PreviewImage
+                    src={photoPreviewUrl}
+                    alt="Uploaded pet"
+                    busy={photoStatus === "uploading"}
+                    className="h-[72px] w-[72px] rounded-[8px] border border-[#EBD6C8]"
+                  />
+                  {photoStatus === "saved" ? (
+                    <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-green-600 shadow-sm">
+                      <Check size={11} className="text-white" strokeWidth={3} />
+                    </span>
+                  ) : null}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-[#2D2D2D]">{selectedFile.name}</p>
+                  <p className="mt-0.5 text-[12px] text-[#6B5E53]">
+                    {(selectedFile.size / (1024 * 1024)).toFixed(1)} MB
                   </p>
-                ) : null}
-                {photoStatus === "error" ? (
+                  {photoStatus === "saved" ? (
+                    <p className="mt-1 text-[12px] font-semibold text-green-700">Photo uploaded successfully</p>
+                  ) : null}
+                  {photoStatus === "error" ? (
+                    <button
+                      type="button"
+                      onClick={onRetryUpload}
+                      className="mt-1 text-left text-[11px] font-bold text-red-600"
+                    >
+                      {photoError || "Upload failed."} Tap to retry.
+                    </button>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  onClick={onRemovePhoto}
+                  className="inline-flex min-h-[44px] items-center gap-1.5 rounded-[8px] px-2 text-[12px] font-bold text-red-600"
+                >
+                  <Trash2 size={16} />
+                  Remove
+                </button>
+              </div>
+              {photoStatus === "uploading" ? <PhotoUploadBar percent={photoProgress} /> : null}
+              {photoStatus === "saved" ? (
+                <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={onRetryUpload}
-                    className="mt-1 text-left text-[11px] font-bold text-red-600"
+                    onClick={onReplaceClick}
+                    className="inline-flex min-h-[44px] items-center gap-1.5 rounded-[8px] border border-[#EBD6C8] bg-white px-3 text-[12px] font-bold text-[#2D2D2D]"
                   >
-                    {photoError || "Upload failed."} Tap to retry.
+                    <RefreshCw size={14} /> Replace Photo
                   </button>
-                ) : null}
-              </div>
+                </div>
+              ) : null}
             </div>
-            {photoStatus === "uploading" ? <PhotoUploadBar percent={photoProgress} /> : null}
-            {photoStatus === "saved" ? (
-              <p className="text-[12px] leading-[17px] text-[#77716C]">
-                Your photo has been received. Our team will use it to create your personalized portrait.
-              </p>
-            ) : null}
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={onReplaceClick}
-                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-[8px] border border-[#E3DDD7] bg-white px-3 text-[12px] font-bold text-[#292522]"
-              >
-                <RefreshCw size={14} /> Replace Photo
-              </button>
-              <button
-                type="button"
-                onClick={onRemovePhoto}
-                className="inline-flex min-h-[44px] items-center gap-1.5 rounded-[8px] border border-[#E3DDD7] bg-white px-3 text-[12px] font-bold text-red-600"
-              >
-                <Trash2 size={14} /> Remove
-              </button>
-            </div>
-          </div>
-        )}
-        {fieldErrors.photo ? (
-          <p className="mt-2 text-[11px] font-bold text-red-500">{fieldErrors.photo}</p>
-        ) : null}
+          )}
+          {fieldErrors.photo ? (
+            <p className="mt-2 text-[11px] font-bold text-red-500">{fieldErrors.photo}</p>
+          ) : null}
+        </div>
       </div>
 
       <div className="space-y-4">
         <div>
-          <h3 className="text-base font-semibold text-[#292522]">Your Details</h3>
-          <p className="mt-1 text-[12px] leading-[17px] text-[#77716C]">
+          <h3 className="text-base font-semibold text-[#2D2D2D]">2. Your Details</h3>
+          <p className="mt-1 text-[12px] leading-[17px] text-[#6B5E53]">
             Where can we reach you with updates about your portrait?
           </p>
         </div>
 
         <div>
-          <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-[#77716C]">
+          <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-[#6B5E53]">
             Full Name <span className="text-red-500">*</span>
           </label>
           <input
@@ -169,8 +193,8 @@ export function EverydayUploadStep({
             value={customerName}
             onChange={(e) => onCustomerName(e.target.value)}
             placeholder="Your full name"
-            className={`w-full rounded-[8px] border-[1.5px] px-4 py-3 text-sm outline-none focus:border-[#A97659] ${
-              fieldErrors.customerName ? "border-red-400 bg-red-50/40" : "border-[#E3DDD7]"
+            className={`h-[46px] w-full rounded-[8px] border-[1.5px] px-4 text-sm outline-none focus:border-[#A97659] ${
+              fieldErrors.customerName ? "border-red-400 bg-red-50/40" : "border-[#EBD6C8]"
             }`}
           />
           {fieldErrors.customerName ? (
@@ -179,11 +203,11 @@ export function EverydayUploadStep({
         </div>
 
         <div>
-          <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-[#77716C]">
+          <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-[#6B5E53]">
             Mobile Number <span className="text-red-500">*</span>
           </label>
           <div className="flex gap-2">
-            <span className="flex min-h-[48px] items-center rounded-[8px] border-[1.5px] border-[#E3DDD7] bg-[#FBF4EA] px-3 text-sm font-semibold text-[#292522]">
+            <span className="flex h-[46px] items-center rounded-[8px] border-[1.5px] border-[#EBD6C8] bg-[#F9EFE4] px-3 text-sm font-semibold text-[#2D2D2D]">
               +91
             </span>
             <input
@@ -192,8 +216,8 @@ export function EverydayUploadStep({
               value={customerPhone}
               onChange={(e) => onCustomerPhone(e.target.value.replace(/[^\d+\s-]/g, ""))}
               placeholder="98765 43210"
-              className={`min-w-0 flex-1 rounded-[8px] border-[1.5px] px-4 py-3 text-sm outline-none focus:border-[#A97659] ${
-                fieldErrors.customerPhone ? "border-red-400 bg-red-50/40" : "border-[#E3DDD7]"
+              className={`h-[46px] min-w-0 flex-1 rounded-[8px] border-[1.5px] px-4 text-sm outline-none focus:border-[#A97659] ${
+                fieldErrors.customerPhone ? "border-red-400 bg-red-50/40" : "border-[#EBD6C8]"
               }`}
             />
           </div>
@@ -203,16 +227,16 @@ export function EverydayUploadStep({
         </div>
 
         <div>
-          <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-[#77716C]">
-            Email <span className="font-medium normal-case tracking-normal text-[#77716C]">(optional)</span>
+          <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-[#6B5E53]">
+            Email Address <span className="font-medium normal-case tracking-normal text-[#6B5E53]">(Optional)</span>
           </label>
           <input
             type="email"
             value={customerEmail}
             onChange={(e) => onCustomerEmail(e.target.value)}
             placeholder="you@example.com"
-            className={`w-full rounded-[8px] border-[1.5px] px-4 py-3 text-sm outline-none focus:border-[#A97659] ${
-              fieldErrors.customerEmail ? "border-red-400 bg-red-50/40" : "border-[#E3DDD7]"
+            className={`h-[46px] w-full rounded-[8px] border-[1.5px] px-4 text-sm outline-none focus:border-[#A97659] ${
+              fieldErrors.customerEmail ? "border-red-400 bg-red-50/40" : "border-[#EBD6C8]"
             }`}
           />
           {fieldErrors.customerEmail ? (
@@ -220,9 +244,12 @@ export function EverydayUploadStep({
           ) : null}
         </div>
 
-        <p className="rounded-[8px] bg-[#FBF4EA] px-3 py-2.5 text-[12px] leading-[17px] text-[#77716C]">
-          You’ll receive a preview before printing, with unlimited revisions to get your portrait just right.
-        </p>
+        <div className="flex min-h-[72px] items-start gap-3 rounded-[10px] border border-[#EBD6C8] bg-[#F9EFE4] px-4 py-3">
+          <ShieldCheck size={22} className="mt-0.5 shrink-0 text-[#A97659]" />
+          <p className="text-[12px] leading-[17px] text-[#6B5E53]">
+            You&apos;ll receive a preview before printing, with unlimited revisions to get your portrait just right.
+          </p>
+        </div>
       </div>
 
       <button
@@ -232,6 +259,21 @@ export function EverydayUploadStep({
       >
         ADD TO CART <ArrowRight size={18} />
       </button>
+
+      <div className="grid grid-cols-3 gap-2 px-1">
+        {[
+          { icon: <Eye size={18} />, label: "Preview before printing" },
+          { icon: <Truck size={18} />, label: "Free shipping across India" },
+          { icon: <Paintbrush size={18} />, label: "Hand-drawn with love" },
+        ].map((item) => (
+          <div key={item.label} className="flex flex-col items-center gap-1.5 text-center">
+            <span className="flex h-7 w-7 items-center justify-center rounded-full border border-[#E8D6C8] text-[#A97659]">
+              {item.icon}
+            </span>
+            <span className="text-[11px] font-medium leading-tight text-[#6B5E53]">{item.label}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
