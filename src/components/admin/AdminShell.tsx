@@ -24,6 +24,7 @@ import {
 import { addTeamNote, removeTeamNote, sendToVendor } from "@/app/actions/opsActions";
 import { getSiteMediaAdmin, type SiteMediaAdmin } from "@/app/actions/mediaActions";
 import { getLandingProductsAdmin } from "@/app/actions/landingActions";
+import { getEverydayContentAdmin, type EverydayContentAdmin } from "@/app/actions/contentActions";
 import { getStoreAdmin, type StoreAdmin } from "@/app/actions/storeActions";
 import { MessagesPanel } from "@/components/admin/MessagesPanel";
 import { TeamNotes } from "@/components/TeamNotes";
@@ -35,6 +36,7 @@ import { CouponsPanel } from "@/components/admin/CouponsPanel";
 import { ManualOrderForm } from "@/components/admin/ManualOrderForm";
 import { LandingProductsPanel } from "@/components/admin/LandingProductsPanel";
 import { MediaPanel } from "@/components/admin/MediaPanel";
+import { ConfiguratorPanel } from "@/components/admin/ConfiguratorPanel";
 import type { LandingProduct } from "@/lib/landing-products";
 import { PricingPanel } from "@/components/admin/PricingPanel";
 import { sectionTabClass } from "@/components/admin/DeskSwitch";
@@ -43,7 +45,7 @@ import { orderInRange, rangeBounds, type DateRange } from "@/lib/admin-analytics
 import { adminCanAssign, adminCanCancel, adminCanHold, artworkIsOpen, maximumDueAt, safeTrackingUrl, stageLabel } from "@/lib/fulfillment";
 import { isWatermarkedProof, storedPetPhotoUrl } from "@/lib/pet-photo";
 
-type Section = "overview" | "orders" | "artists" | "shipment" | "pricing" | "coupons" | "media" | "landing" | "messages";
+type Section = "overview" | "orders" | "artists" | "shipment" | "pricing" | "coupons" | "configurator" | "media" | "landing" | "messages";
 
 const NAV: { id: Section; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -52,6 +54,7 @@ const NAV: { id: Section; label: string }[] = [
   { id: "shipment", label: "Shipment" },
   { id: "pricing", label: "Pricing" },
   { id: "coupons", label: "Coupons" },
+  { id: "configurator", label: "Configurator" },
   { id: "media", label: "Media" },
   { id: "landing", label: "Landing" },
   { id: "messages", label: "Messages" },
@@ -97,6 +100,25 @@ export function AdminShell({
   const [landingReady, setLandingReady] = useState(false);
   const [landingError, setLandingError] = useState<string | undefined>();
   const [landingState, setLandingState] = useState<"idle" | "loading" | "ready" | "signed-out">("idle");
+  const [configurator, setConfigurator] = useState<EverydayContentAdmin | null>(null);
+  const [configuratorState, setConfiguratorState] = useState<"idle" | "loading" | "ready" | "signed-out">("idle");
+
+  async function loadConfigurator(quiet = false) {
+    if (!quiet) setConfiguratorState("loading");
+    const data = await getEverydayContentAdmin();
+    if (!data) {
+      setConfiguratorState("signed-out");
+      return;
+    }
+    setConfigurator(data);
+    setConfiguratorState("ready");
+  }
+
+  useEffect(() => {
+    if (section === "configurator" && configuratorState === "idle") {
+      loadConfigurator();
+    }
+  }, [section, configuratorState]);
 
   async function loadStore() {
     setStoreState("loading");
@@ -210,6 +232,15 @@ export function AdminShell({
           {section === "artists" ? <ArtistsPanel artists={dashboard.artists} onCreated={onRefresh} /> : null}
           {section === "shipment" ? <ShippersPanel shippers={dashboard.shippers} onCreated={onRefresh} /> : null}
           {section === "messages" ? <MessagesPanel /> : null}
+          {section === "configurator" ? (
+            configuratorState === "signed-out" ? (
+              <p className="text-sm text-[#6b7280]">Sign in again to edit the configurator.</p>
+            ) : configuratorState !== "ready" || !configurator ? (
+              <p className="text-sm text-[#6b7280]">Loading…</p>
+            ) : (
+              <ConfiguratorPanel initial={configurator} onSaved={() => loadConfigurator(true)} />
+            )
+          ) : null}
           {section === "media" ? (
             mediaState === "signed-out" ? (
               <p className="text-sm text-[#6b7280]">Sign in again to change photos and videos.</p>

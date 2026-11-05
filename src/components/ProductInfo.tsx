@@ -25,14 +25,6 @@ import {
   Tag,
   User,
   Eye,
-  Trash2,
-  Paintbrush,
-  Droplet,
-  Type,
-  FileText,
-  Maximize2,
-  Square,
-  Image as ImageIconLucide,
 } from "lucide-react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
@@ -70,7 +62,11 @@ import {
 } from "@/lib/pricing";
 import { trackPixel } from "@/lib/pixel";
 import { ExtraProducts } from "@/components/ExtraProducts";
-import { ConfiguratorProgress } from "@/components/ConfiguratorProgress";
+import { EverydayChooseStep } from "@/components/everyday/EverydayChooseStep";
+import { EverydayCart } from "@/components/everyday/EverydayCart";
+import { EverydayProgress } from "@/components/everyday/ui";
+import { BACKGROUNDS, backgroundById } from "@/lib/backgrounds";
+import { compareAtPrice, DEFAULT_EVERYDAY_CONTENT, fill, type EverydayContent, type ExtraId } from "@/lib/everyday-content";
 import { EverydayPersonalizeStep } from "@/components/everyday/EverydayPersonalizeStep";
 import { EverydayUploadStep } from "@/components/everyday/EverydayUploadStep";
 import { SaveOfferModal } from "@/components/SaveOfferModal";
@@ -88,30 +84,6 @@ const PET_OPTIONS = [
 ];
 
 
-type BackgroundType = {
-  name: string;
-  value: string;
-  textColor: string;
-  isImage?: boolean;
-  limited?: boolean;
-  label?: string;
-};
-const BACKGROUNDS: BackgroundType[] = [
-  { name: "Pearl", value: "#f9f9f7", textColor: "#d1d1cf" },
-  { name: "Almond", value: "#f3e4d4", textColor: "#c4a484" },
-  { name: "Serenity", value: "#f0e9f9", textColor: "#c4b5d4" },
-  { name: "Celadon", value: "#b8cfc1", textColor: "#ffffff" },
-  { name: "Tea Rosé", value: "#f3ccc6", textColor: "#ffffff" },
-  { name: "Black", value: "#000000", textColor: "#ffffff" },
-];
-
-const LIMITED_BACKGROUNDS: BackgroundType[] = [
-  { name: "bg7", label: "Aurora", value: "/bg7.png", textColor: "#ffffff", isImage: true, limited: true },
-  { name: "bg8", label: "Meadow", value: "/bg8.png", textColor: "#ffffff", isImage: true, limited: true },
-  { name: "bg9", label: "Dusk", value: "/bg9.png", textColor: "#ffffff", isImage: true, limited: true },
-];
-
-const SUBTITLE_MAX = 30;
 
 function isValidIndianMobile(phone: string) {
   const digits = phone.replace(/\D/g, "");
@@ -141,14 +113,18 @@ type ProductInfoProps = {
   presetPets?: string;
   /** Everyday Pet Portrait three-step configurator (PDF handoff). */
   flow?: "everyday" | "standard";
+  /** Admin → Configurator copy for the Everyday flow. Defaults when omitted. */
+  everydayContent?: EverydayContent;
 };
 
 export function ProductInfo({
   title = "Custom Pet Portrait",
   presetPets,
   flow = "standard",
+  everydayContent,
 }: ProductInfoProps = {}) {
   const everyday = flow === "everyday";
+  const content = everydayContent ?? DEFAULT_EVERYDAY_CONTENT;
   const media = useMedia();
   const [currentStep, setCurrentStepRaw] = useState(1);
   const currentStepSafe = Math.min(Math.max(currentStep, 1), 3);
@@ -497,7 +473,46 @@ export function ProductInfo({
 
   const effectivePetName = everyday ? (includePetName ? petName.trim() : "") : petName;
   const effectiveSubtitle = everyday ? (includeSubtitle ? subtitle.trim() : "") : memorialText;
-  const everydayBackgrounds = [...BACKGROUNDS, ...LIMITED_BACKGROUNDS];
+  // Everyday tiles: admin order, labels and visibility; ids stay the order / pricing keys.
+  const everydayBackgrounds = content.backgrounds
+    .filter((entry) => entry.visible)
+    .map((entry) => {
+      const bg = backgroundById(entry.id);
+      return bg
+        ? { id: bg.name, label: entry.label || bg.label || bg.name, value: bg.value, isImage: bg.isImage, limited: bg.limited }
+        : null;
+    })
+    .filter((bg): bg is NonNullable<typeof bg> => bg !== null);
+  const everydayBgIds = everydayBackgrounds.map((bg) => bg.id).join("|");
+
+  // A background the admin has hidden falls back to the first one still on show.
+  useEffect(() => {
+    if (!everyday || addedToCart) return;
+    const ids = everydayBgIds.split("|").filter(Boolean);
+    if (ids.length && !ids.includes(selectedBg)) setSelectedBg(ids[0]);
+  }, [everyday, everydayBgIds, selectedBg, addedToCart]);
+
+  // Never charge for an add-on the admin has taken off the page (it may still be in a saved cart).
+  useEffect(() => {
+    if (!everyday) return;
+    if (!content.extras.mug.visible) setAddMug(false);
+    if (!content.extras.magnet.visible) setAddMagnet(false);
+    if (!content.extras.digital.visible) setAddDigitalDownload(false);
+    if (!content.extras.desk.visible) setAddDesk(false);
+    if (!content.cart.showGift) setGiftWrap(false);
+    if (!content.step2.showPriority) setPriorityPreview(false);
+  }, [
+    everyday,
+    content.extras.mug.visible,
+    content.extras.magnet.visible,
+    content.extras.digital.visible,
+    content.extras.desk.visible,
+    content.cart.showGift,
+    content.step2.showPriority,
+  ]);
+
+  const backgroundLabel = (id: string) =>
+    content.backgrounds.find((bg) => bg.id === id)?.label || backgroundById(id)?.label || id;
 
   let quote;
   try {
@@ -1110,65 +1125,6 @@ export function ProductInfo({
     const selectable = isOptionSelectable(meta);
     const selected = portraitStyle === style;
 
-    if (everyday) {
-      return (
-        <div
-          key={style}
-          className={`relative flex flex-col overflow-hidden rounded-[12px] bg-white transition-all ${
-            !selectable
-              ? "cursor-not-allowed border border-[#E3DDD7] bg-[#FAF7F2] opacity-70"
-              : selected
-                ? "border-2 border-[#A97659] shadow-sm z-10"
-                : "border border-[#E8D6C8] hover:border-[#C9B9A8]"
-          }`}
-        >
-          <button
-            type="button"
-            disabled={!selectable}
-            aria-disabled={!selectable}
-            aria-pressed={selected}
-            onClick={() => choosePortraitStyle(style)}
-            className="flex w-full flex-col text-left"
-          >
-            <div className="relative aspect-[5/4] w-full overflow-hidden bg-[#F1E7DC]">
-              <Image src={image} alt={PORTRAIT_STYLE_LABELS[style]} fill sizes="175px" className="object-cover" />
-              {selectable && selected ? (
-                <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-[#A97659] shadow-sm">
-                  <Check size={11} className="text-white" strokeWidth={3} />
-                </span>
-              ) : null}
-            </div>
-            <div className="flex flex-1 flex-col gap-1 px-3 pb-2 pt-2.5">
-              <span className={`block text-base font-semibold leading-tight ${selectable ? "text-[#2D2D2D]" : "text-gray-400"}`}>
-                {PORTRAIT_STYLE_LABELS[style]}
-              </span>
-              {meta.badge ? (
-                <span className="w-fit rounded bg-[#A97659] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
-                  {meta.badge}
-                </span>
-              ) : null}
-              <span className="text-[13px] font-normal leading-snug text-[#6B5E53]">
-                {selectable ? tagline : "Temporarily unavailable"}
-              </span>
-            </div>
-          </button>
-          <div className="px-3 pb-3">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowStylePreview(true);
-              }}
-              className="flex h-9 w-full items-center justify-center gap-1.5 rounded-[8px] border border-[#E8D6C8] bg-white text-[14px] font-medium text-[#2D2D2D] transition-colors hover:bg-[#FAF7F2]"
-            >
-              <Eye size={14} strokeWidth={2.25} />
-              Preview
-            </button>
-          </div>
-        </div>
-      );
-    }
-
     return (
       <button
         key={style}
@@ -1222,62 +1178,6 @@ export function ProductInfo({
     const selectable = isOptionSelectable(meta);
     const selected = selectedSize === size;
     const eventDetail = style === "framed" ? "framed_size" : "canvas_size";
-
-    if (everyday) {
-      const sizeIconRatio =
-        size.includes("8") && size.includes("10")
-          ? "w-8 h-10"
-          : size.includes("12") && size.includes("16")
-            ? "w-9 h-11"
-            : "w-10 h-12";
-      return (
-        <button
-          key={size}
-          type="button"
-          disabled={!selectable}
-          aria-disabled={!selectable}
-          aria-pressed={selected}
-          onClick={() => {
-            if (!selectable) return;
-            setSelectedSize(size);
-            window.dispatchEvent(new CustomEvent("sizeSelectionChanged", { detail: eventDetail }));
-          }}
-          className={`group relative flex min-h-[120px] flex-col items-center justify-center gap-1.5 rounded-[10px] px-2 py-3 text-center transition-all ${
-            !selectable
-              ? "cursor-not-allowed border border-[#E3DDD7] bg-[#FAF7F2] opacity-70"
-              : selected
-                ? "border-2 border-[#A97659] bg-white shadow-sm z-10"
-                : "border border-[#E8D6C8] bg-white hover:border-[#C9B9A8]"
-          }`}
-        >
-          {selectable && selected ? (
-            <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#A97659]">
-              <Check size={9} className="text-white" strokeWidth={3} />
-            </span>
-          ) : null}
-          <span
-            aria-hidden
-            className={`${sizeIconRatio} rounded-[3px] border-2 ${
-              selected ? "border-[#A97659] bg-[#F1E7DC]" : "border-[#D9CDB8] bg-[#FAF7F2]"
-            }`}
-          />
-          <span className={`text-[15px] font-semibold leading-tight ${selectable ? "text-[#2D2D2D]" : "text-gray-400"}`}>
-            {displaySizeLabel(size)}
-          </span>
-          {meta.badge ? (
-            <span className="rounded bg-[#A97659] px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-white">
-              {meta.badge}
-            </span>
-          ) : null}
-          <span className={`text-base font-bold ${selectable ? "text-[#A97659]" : "text-gray-400"}`}>
-            {formatRupee(price)}
-          </span>
-          {!selectable ? (
-            <span className="text-[9px] font-bold uppercase tracking-wider text-gray-500">Out of Stock</span>
-          ) : null}
-        </button>
-      );
-    }
 
     return (
       <button
@@ -1348,6 +1248,23 @@ export function ProductInfo({
           {title}
         </h1>
     
+        {everyday ? (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span className="font-inter text-[18px] font-semibold text-[#2D2D2D]">Rs. {totalPrice}.00</span>
+            {productType === "portrait" && content.header.discountPercent > 0 ? (
+              <>
+                <span className="font-inter text-[14px] text-[#9B8B7D] line-through">
+                  Rs. {compareAtPrice(totalPrice, content.header.discountPercent)}.00
+                </span>
+                {content.header.discountBadge ? (
+                  <span className="inline-flex h-6 items-center rounded-[12px] bg-[#F28B82] px-3 text-[12px] font-bold uppercase text-white">
+                    {fill(content.header.discountBadge, { percent: content.header.discountPercent })}
+                  </span>
+                ) : null}
+              </>
+            ) : null}
+          </div>
+        ) : (
         <div className="flex items-center gap-4">
           <span className="text-xl font-medium text-[#1a1a1b] font-inter">Rs. {totalPrice}.00</span>
           {productType === "portrait" && (
@@ -1359,6 +1276,7 @@ export function ProductInfo({
             </>
           )}
         </div>
+        )}
         {productType === "portrait" && !everyday && breakdown.petUpgrade > 0 ? (
           <p className="text-[11px] font-medium text-gray-500 mt-1">
             {formatRupee(breakdown.sizePrice)} size
@@ -1370,10 +1288,10 @@ export function ProductInfo({
           </p>
         ) : null}
         {productType === "portrait" && everyday && ((breakdown.priority || 0) + breakdown.premiumBg > 0) ? (
-          <p className="text-[11px] font-medium text-[#77716C] mt-1">
-            {breakdown.premiumBg > 0 ? `${formatRupee(breakdown.premiumBg)} Limited Edition` : null}
+          <p className="mt-1 text-[12px] font-medium text-[#8B7B6B]">
+            {breakdown.premiumBg > 0 ? `${formatRupee(breakdown.premiumBg)} ${content.step2.limitedHeading}` : null}
             {breakdown.premiumBg > 0 && (breakdown.priority || 0) > 0 ? " · " : null}
-            {(breakdown.priority || 0) > 0 ? `${formatRupee(breakdown.priority)} Priority Preview` : null}
+            {(breakdown.priority || 0) > 0 ? `${formatRupee(breakdown.priority)} ${content.step2.priorityTitle}` : null}
           </p>
         ) : null}
       </div>
@@ -1414,9 +1332,20 @@ export function ProductInfo({
       </div>
       ) : null}
 
-      <div className="mb-6 lg:mb-8">
+      <div className={everyday ? "mb-3 mt-4 lg:mb-5" : "mb-6 lg:mb-8"}>
         {everyday ? (
-          <ConfiguratorProgress currentStep={currentStepSafe} />
+          <EverydayProgress
+            content={content}
+            step={currentStepSafe}
+            onBack={() => {
+              if (currentStepSafe > 1) {
+                prevStep();
+                return;
+              }
+              if (window.history.length > 1) window.history.back();
+              else window.location.assign("/");
+            }}
+          />
         ) : (
           <>
             <div className="flex items-center justify-between mb-2">
@@ -1450,32 +1379,43 @@ export function ProductInfo({
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
+              {everyday ? (
+                <EverydayChooseStep
+                  content={content}
+                  catalog={catalog}
+                  petsExtra={catalog.pets[selectedPets] ?? 0}
+                  portraitStyle={portraitStyle}
+                  onStyle={choosePortraitStyle}
+                  selectedSize={selectedSize}
+                  onSize={(size) => {
+                    setSelectedSize(size);
+                    window.dispatchEvent(
+                      new CustomEvent("sizeSelectionChanged", {
+                        detail: portraitStyle === "framed" ? "framed_size" : "canvas_size",
+                      })
+                    );
+                  }}
+                  onPreview={() => setShowStylePreview(true)}
+                  onContinue={handleContinueFromStep1}
+                  footer={content.step1.showDeliveryEstimate ? <DeliveryEstimate /> : null}
+                />
+              ) : (
               <div className="space-y-6">
-                {everyday ? (
-                  <div className="space-y-2">
-                    <h2 className="text-2xl font-bold text-[#2D2D2D] leading-tight">Choose Your Portrait</h2>
-                    <p className="text-sm leading-relaxed text-[#6B5E53]">
-                      Select your preferred portrait style and size. We&apos;ll create a beautiful, hand-drawn portrait of your pet.
-                    </p>
-                  </div>
-                ) : null}
 
                 {/* 1. Portrait Style */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
                     <label className="block text-lg font-semibold text-[#2D2D2D] font-inter">
-                      {everyday ? "1. Select Portrait Style" : "1. Choose Your Portrait Style"}
+                      1. Choose Your Portrait Style
                     </label>
-                    {!everyday ? (
-                      <button
-                        type="button"
-                        onClick={() => setShowStylePreview(true)}
-                        className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-[#1a1a1b] px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[#1a1a1b] transition-colors hover:bg-[#1a1a1b] hover:text-white"
-                      >
-                        <Eye size={13} strokeWidth={2.5} />
-                        Preview
-                      </button>
-                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => setShowStylePreview(true)}
+                      className="flex flex-shrink-0 items-center gap-1.5 rounded-full border border-[#1a1a1b] px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[#1a1a1b] transition-colors hover:bg-[#1a1a1b] hover:text-white"
+                    >
+                      <Eye size={13} strokeWidth={2.5} />
+                      Preview
+                    </button>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     {styleCard("framed", "/framestyle/black-frame.png", "Ready to Hang • Classic Look")}
@@ -1488,9 +1428,9 @@ export function ProductInfo({
                 {/* 2. Choose Your Size */}
                 <div className="space-y-3">
                   <label className="block text-lg font-semibold text-[#2D2D2D] font-inter">
-                    {everyday ? "2. Choose Your Size" : "2. Choose Your Size"}
+                    2. Choose Your Size
                   </label>
-                  <div className={everyday ? "grid grid-cols-3 gap-3" : "flex flex-col gap-3"}>
+                  <div className="flex flex-col gap-3">
                     {portraitStyle === "framed"
                       ? FRAMED_SIZES.map((size) =>
                           sizeCard(
@@ -1511,7 +1451,6 @@ export function ProductInfo({
                   </div>
                 </div>
 
-{!everyday ? (
                 <div className="space-y-3">
                   <label className="block text-base font-bold text-[#1a1a1b] font-inter">
                     3. Number of Pets
@@ -1585,33 +1524,16 @@ export function ProductInfo({
                   </div>
                 </div>
 
-) : null}
-
-              <button 
+              <button
                 type="button"
                 onClick={handleContinueFromStep1}
-                className={`mt-4 flex h-[52px] w-full items-center justify-center gap-2 uppercase text-white transition-all active:scale-[0.98] ${everyday ? "rounded-[10px] bg-[#A97659] text-base font-semibold hover:bg-[#966c55]" : "rounded-xl bg-[#1a1a1b] text-sm font-bold tracking-widest shadow-md hover:bg-[#2F2F2F]"}`}
+                className="mt-4 flex h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-[#1a1a1b] text-sm font-bold uppercase tracking-widest text-white shadow-md transition-all hover:bg-[#2F2F2F] active:scale-[0.98]"
               >
-                {everyday ? "CONTINUE" : "Continue"} <ArrowRight size={18} />
+                Continue <ArrowRight size={18} />
               </button>
-              {everyday ? (
-                <div className="mt-2 grid grid-cols-3 gap-2 px-1">
-                  {[
-                    { icon: <Paintbrush size={18} />, label: "Hand-drawn with love" },
-                    { icon: <Truck size={18} />, label: "Free shipping across India" },
-                    { icon: <Eye size={18} />, label: "Preview before printing" },
-                  ].map((item) => (
-                    <div key={item.label} className="flex flex-col items-center gap-1.5 text-center">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full border border-[#E8D6C8] text-[#A97659]">
-                        {item.icon}
-                      </span>
-                      <span className="text-[11px] font-medium leading-tight text-[#6B5E53]">{item.label}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
               <DeliveryEstimate />
               </div>
+              )}
             </motion.div>
           )}
 
@@ -1625,6 +1547,7 @@ export function ProductInfo({
             >
               {everyday ? (
                 <EverydayPersonalizeStep
+                  content={content}
                   portraitStyle={portraitStyle}
                   selectedFrame={selectedFrame}
                   onFrame={(frame) => {
@@ -1652,11 +1575,9 @@ export function ProductInfo({
                     setSubtitle(v);
                     clearFieldError("subtitle");
                   }}
-                  subtitleMax={SUBTITLE_MAX}
                   priorityPreview={priorityPreview}
                   onPriorityPreview={setPriorityPreview}
                   fieldErrors={fieldErrors}
-                  onBack={prevStep}
                   onContinue={() => void handleContinueFromStep2()}
                 />
               ) : (
@@ -1939,6 +1860,7 @@ export function ProductInfo({
             >
               {everyday ? (
                 <EverydayUploadStep
+                  content={content}
                   showPhotoGuide={() => setShowPhotoGuide(true)}
                   selectedFile={selectedFile}
                   photoPreviewUrl={photoPreviewUrl}
@@ -1953,9 +1875,6 @@ export function ProductInfo({
                     setSelectedFile(file);
                     clearFieldError("photo");
                     void startPhotoUpload(file).catch(() => undefined);
-                  }}
-                  onReplaceClick={() => {
-                    document.getElementById("everyday-pet-photo-upload")?.click();
                   }}
                   onRemovePhoto={() => {
                     photoUploadGeneration.current += 1;
@@ -1992,7 +1911,6 @@ export function ProductInfo({
                     setCustomerEmail(v);
                     clearFieldError("customerEmail");
                   }}
-                  onBack={prevStep}
                   onAddToCart={() => void handleAddToCart()}
                 />
               ) : (
@@ -2087,7 +2005,8 @@ export function ProductInfo({
         )}
       </div>
 
-      {/* Trust & Features Icons */}
+      {/* Trust & Features Icons (the Everyday flow shows its own strip inside each step) */}
+      {!everyday ? (
       <div className="grid grid-cols-3 gap-6 pt-5 pb-5 border-t border-gray-100">
         <div className="flex flex-col items-center text-center space-y-3">
           <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center">
@@ -2114,6 +2033,7 @@ export function ProductInfo({
           </span>
         </div>
       </div>
+      ) : null}
 
       {/* Testimonial Card */}
       <div className="bg-[#fcf8f5] rounded-2xl p-8 border border-[#f0e4db] relative overflow-hidden mt-4 min-h-[190px] sm:min-h-[160px] transform -translate-y-2">
@@ -2309,8 +2229,65 @@ export function ProductInfo({
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="w-full max-w-[450px] bg-[#fdfdfb] h-full flex flex-col shadow-2xl relative z-10 overflow-hidden"
+              className={`w-full max-w-[450px] h-full flex flex-col shadow-2xl relative z-10 overflow-hidden ${everyday ? "bg-[#FAF7F2]" : "bg-[#fdfdfb]"}`}
             >
+              {everyday ? (
+                <EverydayCart
+                  content={content}
+                  catalog={catalog}
+                  hasItem={hasCustomizedItem}
+                  onClose={() => setShowCart(false)}
+                  photoUrl={photoPreviewUrl}
+                  photoBusy={photoStatus === "uploading"}
+                  fileName={selectedFile?.name || ""}
+                  styleLabel={portraitStyle === "framed" ? content.step1.framedTitle : content.step1.canvasTitle}
+                  sizeLabel={selectedSize.replace(/\s*x\s*/i, " × ")}
+                  backgroundLabel={backgroundLabel(selectedBg)}
+                  frameLabel={
+                    portraitStyle === "canvas"
+                      ? frameColorLabel(selectedFrame, portraitStyle)
+                      : selectedFrame === "white"
+                        ? content.step2.whiteFrameLabel
+                        : content.step2.blackFrameLabel
+                  }
+                  petName={effectivePetName}
+                  subtitle={effectiveSubtitle}
+                  priority={priorityPreview}
+                  itemPrice={Math.max(0, portraitBaseAmount - breakdown.wrap)}
+                  qty={cartQty}
+                  onQty={setCartQty}
+                  onRemove={() => {
+                    setAddedToCart(false);
+                    setShowCart(false);
+                  }}
+                  extras={{ mug: addMug, magnet: addMagnet, digital: addDigitalDownload, desk: addDesk }}
+                  onToggleExtra={(id: ExtraId) => {
+                    if (id === "mug") setAddMug((v) => !v);
+                    else if (id === "magnet") setAddMagnet((v) => !v);
+                    else if (id === "digital") setAddDigitalDownload((v) => !v);
+                    else setAddDesk((v) => !v);
+                  }}
+                  giftWrap={giftWrap}
+                  onGiftWrap={setGiftWrap}
+                  couponInput={couponInput}
+                  onCouponInput={(value) => {
+                    setCouponInput(value.toUpperCase());
+                    setCouponError(null);
+                  }}
+                  couponApplied={Boolean(appliedCoupon)}
+                  couponBusy={isApplyingCoupon}
+                  couponError={couponError}
+                  couponMessage={couponMessage}
+                  onApplyCoupon={applyCoupon}
+                  onRemoveCoupon={removeCoupon}
+                  itemCount={cartQty + extraLines.length}
+                  subtotal={quote.originalAmount}
+                  discount={displayQuote.couponDiscount}
+                  total={cartTotal}
+                  onCheckout={handleInitiateCheckout}
+                />
+              ) : (
+              <>
               {/* Promo Banner at top */}
               <div className="bg-[#A87B62] text-white text-center py-2.5 text-xs font-black uppercase tracking-wider relative">
                 Your Selection
@@ -2353,103 +2330,28 @@ export function ProductInfo({
                   </div>
                 ) : (
                   <>
-                    <div className={`bg-white p-4 space-y-4 ${everyday ? "rounded-[12px] border-2 border-[#EBD6C8]" : "rounded-2xl border border-gray-100 shadow-sm"}`}>
+                    <div className="bg-white p-4 space-y-4 rounded-2xl border border-gray-100 shadow-sm">
                       <div className="flex gap-4">
                         <PreviewImage
                           src={photoPreviewUrl}
                           alt="Custom Pet Portrait"
                           busy={photoStatus === "uploading"}
-                          className={`h-24 w-24 flex-shrink-0 rounded-xl ${everyday ? "border border-[#EBD6C8]" : "border border-gray-100"}`}
+                          className="h-24 w-24 flex-shrink-0 rounded-xl border border-gray-100"
                         />
                         <div className="flex-1 min-w-0">
                           <h3 className="font-extrabold text-sm text-[#1a1a1b] font-inter leading-tight">
                             {productType === "portrait"
-                              ? (everyday ? "Everyday Pet Portrait" : PORTRAIT_STYLE_LABELS[portraitStyle])
+                              ? PORTRAIT_STYLE_LABELS[portraitStyle]
                               : PRODUCT_LABELS[productType]}
                           </h3>
-                          {productType === "portrait" && everyday ? (
-                            <p className="text-[12px] font-semibold text-[#6B5E53] mt-0.5">
-                              {PORTRAIT_STYLE_LABELS[portraitStyle]} · {displaySizeLabel(selectedSize)}
-                            </p>
-                          ) : null}
-                          <p className={`text-[11px] font-bold mt-1 ${everyday ? "text-[#A97659]" : "text-[#A87B62]"}`}>
+                          <p className="text-[11px] font-bold mt-1 text-[#A87B62]">
                             {formatRs(portraitBaseAmount)}
                           </p>
                         </div>
                       </div>
 
-                      <div className={`border-t pt-3 ${everyday ? "border-[#EBD6C8]" : "border-gray-50"}`}>
-                        {productType === "portrait" && everyday ? (
-                          <div className="grid grid-cols-2 gap-x-3 gap-y-3 text-[11px] text-[#2D2D2D]">
-                            {[
-                              {
-                                icon: <ImageIconLucide size={14} className="text-[#A97659]" />,
-                                label: "Portrait style",
-                                value: PORTRAIT_STYLE_LABELS[portraitStyle],
-                              },
-                              {
-                                icon: <Maximize2 size={14} className="text-[#A97659]" />,
-                                label: "Size",
-                                value: displaySizeLabel(selectedSize),
-                              },
-                              {
-                                icon: <Droplet size={14} className="text-[#A97659]" />,
-                                label: "Background",
-                                value: LIMITED_BACKGROUNDS.find((b) => b.name === selectedBg)?.label || selectedBg,
-                              },
-                              {
-                                icon: <Square size={14} className="text-[#A97659]" />,
-                                label: "Frame color",
-                                value: frameColorLabel(selectedFrame, portraitStyle),
-                              },
-                              {
-                                icon: <Type size={14} className="text-[#A97659]" />,
-                                label: "Pet name",
-                                value: effectivePetName || "Not added",
-                              },
-                              {
-                                icon: <FileText size={14} className="text-[#A97659]" />,
-                                label: "Subtitle",
-                                value: effectiveSubtitle || "Not added",
-                              },
-                            ].map((row) => (
-                              <div key={row.label} className="flex items-start gap-2 min-w-0">
-                                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#F9EFE4]">
-                                  {row.icon}
-                                </span>
-                                <p className="min-w-0">
-                                  <span className="block text-[#6B5E53]">{row.label}</span>
-                                  <span className="font-bold truncate block">{row.value}</span>
-                                </p>
-                              </div>
-                            ))}
-                            <div className="col-span-2 flex items-start gap-2 min-w-0">
-                              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[#F9EFE4]">
-                                {photoPreviewUrl ? (
-                                  // eslint-disable-next-line @next/next/no-img-element
-                                  <img src={photoPreviewUrl} alt="" className="h-full w-full object-cover" />
-                                ) : (
-                                  <Eye size={14} className="text-[#A97659]" />
-                                )}
-                              </span>
-                              <p className="min-w-0">
-                                <span className="block text-[#6B5E53]">Uploaded photo</span>
-                                <span className="font-bold truncate block">{selectedFile ? selectedFile.name : "—"}</span>
-                              </p>
-                            </div>
-                            {priorityPreview ? (
-                              <div className="col-span-2 flex items-start gap-2">
-                                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[#F9EFE4] text-[#A97659]">
-                                  <Paintbrush size={14} />
-                                </span>
-                                <p>
-                                  <span className="block text-[#6B5E53]">Priority Preview</span>
-                                  <span className="font-bold">{formatRs(catalog.priorityPreview)}</span>
-                                </p>
-                              </div>
-                            ) : null}
-                          </div>
-                        ) : productType === "portrait" ? (
+                      <div className="border-t pt-3 border-gray-50">
+                        {productType === "portrait" ? (
                           <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-[11px] text-[#1a1a1b]">
                             <p><span className="text-gray-400 block">Portrait style</span><span className="font-bold">{PORTRAIT_STYLE_LABELS[portraitStyle]}</span></p>
                             <p><span className="text-gray-400 block">Size</span><span className="font-bold">{selectedSize}</span></p>
@@ -2510,9 +2412,8 @@ export function ProductInfo({
                             setAddedToCart(false);
                             setShowCart(false);
                           }}
-                          className={`ml-auto inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider ${everyday ? "text-[#6B5E53] hover:text-red-500" : "text-gray-400 hover:text-red-500"}`}
+                          className="ml-auto inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-gray-400 hover:text-red-500"
                         >
-                          {everyday ? <Trash2 size={13} /> : null}
                           Remove
                         </button>
                       </div>
@@ -2640,6 +2541,8 @@ export function ProductInfo({
                     </button>
                   </div>
                 </div>
+              )}
+              </>
               )}
             </motion.div>
           </div>

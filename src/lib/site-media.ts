@@ -175,7 +175,7 @@ export async function loadSiteMedia() {
   return withTimeout(loadCachedOverrides(), 8000, {});
 }
 
-async function ensureBucket() {
+export async function ensureSiteMediaBucket() {
   if (!bucketReady) {
     bucketReady = (async () => {
       const { data, error } = await supabaseAdmin.storage.listBuckets();
@@ -213,7 +213,7 @@ function viewsFrom(manifest: Manifest): SiteMediaSlotView[] {
 
 export async function describeSiteMedia(): Promise<SiteMediaAdmin> {
   try {
-    await ensureBucket();
+    await ensureSiteMediaBucket();
   } catch (error) {
     return {
       ready: false,
@@ -361,7 +361,7 @@ export async function saveSiteMedia(slotId: string, bytes: Buffer) {
 
   return withWriteLock(async () => {
     try {
-      await ensureBucket();
+      await ensureSiteMediaBucket();
     } catch {
       return {
         ok: false as const,
@@ -391,7 +391,7 @@ export async function beginSiteMediaVideoUpload(slotId: string, size: number, co
   }
 
   try {
-    await ensureBucket();
+    await ensureSiteMediaBucket();
   } catch {
     return {
       ok: false as const,

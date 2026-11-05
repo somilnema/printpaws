@@ -24,6 +24,7 @@ import { getLandingProduct, productIsPurchasable } from "@/lib/landing-products"
 import { calculateQuote, formatRupee } from "@/lib/pricing";
 import { SELLABLE_PORTRAITS, portraitBySlug } from "@/lib/portraits";
 import { loadSiteMedia } from "@/lib/site-media";
+import { loadEverydayContent } from "@/lib/site-content";
 import { loadPriceCatalog } from "@/lib/store-config";
 
 type PortraitPageProps = { params: Promise<{ slug: string }> };
@@ -82,7 +83,11 @@ export default async function PortraitPage({ params }: PortraitPageProps) {
 
   const portrait = stored?.kind === "portrait" && stored.pets ? stored : portraitBySlug(slug);
   if (!portrait?.pets || (stored && !productIsPurchasable(stored))) notFound();
-  const media = await loadSiteMedia();
+  const everyday = portrait.slug === "everyday-pet-portrait";
+  const [media, everydayContent] = await Promise.all([
+    loadSiteMedia(),
+    everyday ? loadEverydayContent() : Promise.resolve(undefined),
+  ]);
 
   return (
     <SiteMediaProvider overrides={media}>
@@ -116,7 +121,8 @@ export default async function PortraitPage({ params }: PortraitPageProps) {
             <ProductInfo
               title={portrait.name}
               presetPets={portrait.pets}
-              flow={portrait.slug === "everyday-pet-portrait" ? "everyday" : "standard"}
+              flow={everyday ? "everyday" : "standard"}
+              everydayContent={everydayContent}
             />
           </div>
 

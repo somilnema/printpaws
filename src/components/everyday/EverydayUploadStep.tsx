@@ -1,9 +1,13 @@
 "use client";
 
-import { Upload, ArrowRight, ArrowLeft, Check, Trash2, RefreshCw, ImageIcon, ShieldCheck, Paintbrush, Truck, Eye } from "lucide-react";
+import type { ReactNode } from "react";
+import { Check, ChevronRight, CloudUpload, ImageIcon, Mail, Phone, ShieldCheck, Trash2, User } from "lucide-react";
 import { PhotoUploadBar, PreviewImage } from "@/components/PreviewImage";
+import type { EverydayContent } from "@/lib/everyday-content";
+import { PrimaryButton, SectionHeading, StepIntro, TrustStrip } from "@/components/everyday/ui";
 
 type Props = {
+  content: EverydayContent;
   showPhotoGuide: () => void;
   selectedFile: File | null;
   photoPreviewUrl: string;
@@ -11,7 +15,6 @@ type Props = {
   photoProgress: number;
   photoError: string;
   onPickFile: (file: File) => void;
-  onReplaceClick: () => void;
   onRemovePhoto: () => void;
   onRetryUpload: () => void;
   fieldErrors: Record<string, string>;
@@ -21,12 +24,60 @@ type Props = {
   onCustomerPhone: (v: string) => void;
   customerEmail: string;
   onCustomerEmail: (v: string) => void;
-  onBack: () => void;
   onAddToCart: () => void;
   fileInputId?: string;
 };
 
+function formatBytes(bytes: number) {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+/** Field with the icon on the left and the label sitting inside the box, above the value. */
+function DetailField({
+  id,
+  icon,
+  label,
+  required,
+  optionalLabel,
+  error,
+  children,
+}: {
+  id: string;
+  icon: ReactNode;
+  label: string;
+  required?: boolean;
+  optionalLabel?: string;
+  error?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div>
+      <div
+        className={`flex min-h-[58px] items-center gap-3 rounded-[10px] border bg-white px-4 transition-colors focus-within:border-[#A97659] ${
+          error ? "border-red-400 bg-red-50/40" : "border-[#EBD6C8]"
+        }`}
+      >
+        <span className="shrink-0 text-[#A97659]">{icon}</span>
+        <div className="min-w-0 flex-1 py-1.5">
+          <label htmlFor={id} className="block text-[13px] font-medium leading-tight text-[#6B5E53]">
+            {label}
+            {required ? <span className="text-red-500"> *</span> : null}
+            {optionalLabel ? <span className="font-normal"> {optionalLabel}</span> : null}
+          </label>
+          {children}
+        </div>
+      </div>
+      {error ? <p className="mt-1.5 text-[12px] font-semibold text-red-500">{error}</p> : null}
+    </div>
+  );
+}
+
+const inputClass =
+  "mt-0.5 block w-full bg-transparent text-[16px] leading-6 text-[#2D2D2D] outline-none placeholder:text-[#B0A29A]";
+
 export function EverydayUploadStep({
+  content,
   showPhotoGuide,
   selectedFile,
   photoPreviewUrl,
@@ -34,7 +85,6 @@ export function EverydayUploadStep({
   photoProgress,
   photoError,
   onPickFile,
-  onReplaceClick,
   onRemovePhoto,
   onRetryUpload,
   fieldErrors,
@@ -44,236 +94,164 @@ export function EverydayUploadStep({
   onCustomerPhone,
   customerEmail,
   onCustomerEmail,
-  onBack,
   onAddToCart,
   fileInputId = "everyday-pet-photo-upload",
 }: Props) {
+  const copy = content.step3;
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center mb-2">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex min-h-[44px] items-center gap-1 text-xs font-bold text-[#6B5E53] hover:text-[#2D2D2D] transition-colors uppercase"
-        >
-          <ArrowLeft size={14} /> Back
-        </button>
-        <span className="text-base font-semibold text-[#2D2D2D]">Upload Your Photo</span>
-      </div>
-
-      <p className="text-sm leading-relaxed text-[#6B5E53]">
-        Choose a clear photo of your furry friend. We&apos;ll turn it into a beautiful, hand-drawn portrait you&apos;ll love.
-      </p>
+      <StepIntro title={copy.title} description={copy.description} />
 
       <button
         type="button"
         onClick={showPhotoGuide}
-        className="flex min-h-[72px] w-full items-center gap-3 rounded-[10px] border border-[#EBD6C8] bg-[#F9EFE4] px-4 text-left transition-colors hover:bg-[#F1E7DC]"
+        className="flex min-h-[72px] w-full items-center gap-3 rounded-[10px] bg-[#F9EFE4] px-4 py-3 text-left transition-colors hover:bg-[#F4E6D8]"
       >
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-white text-[#A97659]">
-          <ImageIcon size={22} />
+        <ImageIcon size={24} strokeWidth={1.75} className="shrink-0 text-[#A97659]" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-[16px] font-semibold leading-tight text-[#A97659]">{copy.guideTitle}</span>
+          {copy.guideDescription ? (
+            <span className="mt-0.5 block text-[14px] leading-snug text-[#6B5E53]">{copy.guideDescription}</span>
+          ) : null}
         </span>
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold text-[#2D2D2D]">Photo Guide</span>
-          <span className="mt-0.5 block text-[12px] leading-[17px] text-[#6B5E53]">
-            See example photos and tips for the best results
-          </span>
-        </span>
+        <ChevronRight size={20} className="shrink-0 text-[#6B5E53]" />
       </button>
 
       <div className="space-y-3">
-        <label className="block text-base font-semibold text-[#2D2D2D]">1. Upload a Photo</label>
-        <div
-          className={`rounded-[12px] border-[1.5px] border-dashed p-4 ${
-            fieldErrors.photo
-              ? "border-red-400 bg-red-50/40"
-              : "border-[#C9B9A8] bg-[#FFFDF9]"
+        <SectionHeading>{copy.uploadHeading}</SectionHeading>
+        <input
+          type="file"
+          id={fileInputId}
+          className="hidden"
+          accept="image/*,.heic,.heif"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) onPickFile(file);
+          }}
+        />
+        <label
+          htmlFor={fileInputId}
+          className={`flex min-h-[120px] w-full cursor-pointer flex-col items-center justify-center gap-1 rounded-[12px] border-2 border-dashed px-4 py-5 text-center transition-colors ${
+            fieldErrors.photo ? "border-red-400 bg-red-50/40" : "border-[#C9B9A8] bg-[#FFFDF9] hover:bg-[#FBF5EE]"
           }`}
         >
-          <input
-            type="file"
-            id={fileInputId}
-            className="hidden"
-            accept="image/*,.heic,.heif"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              e.target.value = "";
-              if (file) onPickFile(file);
-            }}
-          />
+          <CloudUpload size={32} strokeWidth={1.5} className="text-[#2D2D2D]" />
+          <span className="mt-1 text-[16px] font-semibold text-[#2D2D2D]">{copy.uploadTitle}</span>
+          <span className="text-[14px] text-[#6B5E53]">{copy.uploadHint}</span>
+        </label>
+        {fieldErrors.photo ? <p className="text-[12px] font-semibold text-red-500">{fieldErrors.photo}</p> : null}
 
-          {!selectedFile ? (
-            <label
-              htmlFor={fileInputId}
-              className="flex min-h-[120px] w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-[10px] px-4 py-6 text-center"
-            >
-              <Upload size={28} className="text-[#A97659]" />
-              <span className="text-sm font-bold text-[#2D2D2D]">Choose Image</span>
-              <span className="text-[12px] font-medium text-[#6B5E53]">
-                JPG, PNG, or HEIC · Max 10MB
-              </span>
-            </label>
-          ) : (
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 rounded-[10px] border border-[#EBD6C8] bg-white p-3">
-                <div className="relative">
-                  <PreviewImage
-                    src={photoPreviewUrl}
-                    alt="Uploaded pet"
-                    busy={photoStatus === "uploading"}
-                    className="h-[72px] w-[72px] rounded-[8px] border border-[#EBD6C8]"
-                  />
-                  {photoStatus === "saved" ? (
-                    <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-green-600 shadow-sm">
-                      <Check size={11} className="text-white" strokeWidth={3} />
-                    </span>
-                  ) : null}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-[#2D2D2D]">{selectedFile.name}</p>
-                  <p className="mt-0.5 text-[12px] text-[#6B5E53]">
-                    {(selectedFile.size / (1024 * 1024)).toFixed(1)} MB
-                  </p>
-                  {photoStatus === "saved" ? (
-                    <p className="mt-1 text-[12px] font-semibold text-green-700">Photo uploaded successfully</p>
-                  ) : null}
-                  {photoStatus === "error" ? (
-                    <button
-                      type="button"
-                      onClick={onRetryUpload}
-                      className="mt-1 text-left text-[11px] font-bold text-red-600"
-                    >
-                      {photoError || "Upload failed."} Tap to retry.
-                    </button>
-                  ) : null}
-                </div>
-                <button
-                  type="button"
-                  onClick={onRemovePhoto}
-                  className="inline-flex min-h-[44px] items-center gap-1.5 rounded-[8px] px-2 text-[12px] font-bold text-red-600"
-                >
-                  <Trash2 size={16} />
-                  Remove
-                </button>
+        {selectedFile ? (
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center gap-4">
+              <div className="relative shrink-0">
+                <PreviewImage
+                  src={photoPreviewUrl}
+                  alt="Uploaded pet"
+                  busy={photoStatus === "uploading"}
+                  className="h-[72px] w-[72px] rounded-[10px]"
+                />
+                {photoStatus === "saved" ? (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#2E7D32] ring-2 ring-white">
+                    <Check size={12} strokeWidth={3} className="text-white" />
+                  </span>
+                ) : null}
               </div>
-              {photoStatus === "uploading" ? <PhotoUploadBar percent={photoProgress} /> : null}
-              {photoStatus === "saved" ? (
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={onReplaceClick}
-                    className="inline-flex min-h-[44px] items-center gap-1.5 rounded-[8px] border border-[#EBD6C8] bg-white px-3 text-[12px] font-bold text-[#2D2D2D]"
-                  >
-                    <RefreshCw size={14} /> Replace Photo
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[14px] font-medium text-[#2D2D2D]">{selectedFile.name}</p>
+                <p className="mt-0.5 text-[12px] text-[#6B5E53]">
+                  {photoStatus === "uploading" ? copy.uploadingLabel : formatBytes(selectedFile.size)}
+                </p>
+                {photoStatus === "error" ? (
+                  <button type="button" onClick={onRetryUpload} className="mt-1 text-left text-[12px] font-semibold text-red-600">
+                    {photoError || "Upload failed."} Tap to retry.
                   </button>
-                </div>
-              ) : null}
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={onRemovePhoto}
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-[8px] bg-[#F9EFE4] px-3 text-[14px] font-medium text-[#8C5A3F] transition-colors hover:bg-[#F3E3D3]"
+              >
+                <Trash2 size={16} />
+                {copy.removeLabel}
+              </button>
             </div>
-          )}
-          {fieldErrors.photo ? (
-            <p className="mt-2 text-[11px] font-bold text-red-500">{fieldErrors.photo}</p>
-          ) : null}
-        </div>
+            {photoStatus === "uploading" ? <PhotoUploadBar percent={photoProgress} /> : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="space-y-4">
-        <div>
-          <h3 className="text-base font-semibold text-[#2D2D2D]">2. Your Details</h3>
-          <p className="mt-1 text-[12px] leading-[17px] text-[#6B5E53]">
-            Where can we reach you with updates about your portrait?
-          </p>
+        <div className="space-y-1">
+          <SectionHeading>{copy.detailsHeading}</SectionHeading>
+          {copy.detailsDescription ? (
+            <p className="text-[14px] leading-snug text-[#6B5E53]">{copy.detailsDescription}</p>
+          ) : null}
         </div>
 
-        <div>
-          <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-[#6B5E53]">
-            Full Name <span className="text-red-500">*</span>
-          </label>
+        <DetailField id="everyday-name" icon={<User size={20} />} label={copy.nameLabel} required error={fieldErrors.customerName}>
           <input
+            id="everyday-name"
             type="text"
+            autoComplete="name"
             value={customerName}
             onChange={(e) => onCustomerName(e.target.value)}
-            placeholder="Your full name"
-            className={`h-[46px] w-full rounded-[8px] border-[1.5px] px-4 text-sm outline-none focus:border-[#A97659] ${
-              fieldErrors.customerName ? "border-red-400 bg-red-50/40" : "border-[#EBD6C8]"
-            }`}
+            placeholder={copy.namePlaceholder}
+            className={inputClass}
           />
-          {fieldErrors.customerName ? (
-            <p className="mt-1.5 text-[11px] font-bold text-red-500">{fieldErrors.customerName}</p>
-          ) : null}
-        </div>
+        </DetailField>
 
-        <div>
-          <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-[#6B5E53]">
-            Mobile Number <span className="text-red-500">*</span>
-          </label>
-          <div className="flex gap-2">
-            <span className="flex h-[46px] items-center rounded-[8px] border-[1.5px] border-[#EBD6C8] bg-[#F9EFE4] px-3 text-sm font-semibold text-[#2D2D2D]">
-              +91
-            </span>
+        <DetailField id="everyday-phone" icon={<Phone size={20} />} label={copy.phoneLabel} required error={fieldErrors.customerPhone}>
+          <div className="mt-0.5 flex items-center gap-3">
+            <span className="shrink-0 text-[16px] text-[#2D2D2D]">+91</span>
+            <span aria-hidden className="h-5 w-px shrink-0 bg-[#EBD6C8]" />
             <input
+              id="everyday-phone"
               type="tel"
               inputMode="numeric"
+              autoComplete="tel-national"
               value={customerPhone}
               onChange={(e) => onCustomerPhone(e.target.value.replace(/[^\d+\s-]/g, ""))}
-              placeholder="98765 43210"
-              className={`h-[46px] min-w-0 flex-1 rounded-[8px] border-[1.5px] px-4 text-sm outline-none focus:border-[#A97659] ${
-                fieldErrors.customerPhone ? "border-red-400 bg-red-50/40" : "border-[#EBD6C8]"
-              }`}
+              placeholder={copy.phonePlaceholder}
+              className="block min-w-0 flex-1 bg-transparent text-[16px] leading-6 text-[#2D2D2D] outline-none placeholder:text-[#B0A29A]"
             />
           </div>
-          {fieldErrors.customerPhone ? (
-            <p className="mt-1.5 text-[11px] font-bold text-red-500">{fieldErrors.customerPhone}</p>
-          ) : null}
-        </div>
+        </DetailField>
 
-        <div>
-          <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-[#6B5E53]">
-            Email Address <span className="font-medium normal-case tracking-normal text-[#6B5E53]">(Optional)</span>
-          </label>
+        <DetailField
+          id="everyday-email"
+          icon={<Mail size={20} />}
+          label={copy.emailLabel}
+          optionalLabel={copy.optionalLabel}
+          error={fieldErrors.customerEmail}
+        >
           <input
+            id="everyday-email"
             type="email"
+            autoComplete="email"
             value={customerEmail}
             onChange={(e) => onCustomerEmail(e.target.value)}
-            placeholder="you@example.com"
-            className={`h-[46px] w-full rounded-[8px] border-[1.5px] px-4 text-sm outline-none focus:border-[#A97659] ${
-              fieldErrors.customerEmail ? "border-red-400 bg-red-50/40" : "border-[#EBD6C8]"
-            }`}
+            placeholder={copy.emailPlaceholder}
+            className={inputClass}
           />
-          {fieldErrors.customerEmail ? (
-            <p className="mt-1.5 text-[11px] font-bold text-red-500">{fieldErrors.customerEmail}</p>
-          ) : null}
-        </div>
+        </DetailField>
 
-        <div className="flex min-h-[72px] items-start gap-3 rounded-[10px] border border-[#EBD6C8] bg-[#F9EFE4] px-4 py-3">
-          <ShieldCheck size={22} className="mt-0.5 shrink-0 text-[#A97659]" />
-          <p className="text-[12px] leading-[17px] text-[#6B5E53]">
-            You&apos;ll receive a preview before printing, with unlimited revisions to get your portrait just right.
-          </p>
-        </div>
-      </div>
-
-      <button
-        type="button"
-        onClick={onAddToCart}
-        className="flex h-[52px] w-full items-center justify-center gap-2 rounded-[10px] bg-[#A97659] text-base font-semibold uppercase text-white transition-all hover:bg-[#966c55] active:scale-[0.98]"
-      >
-        ADD TO CART <ArrowRight size={18} />
-      </button>
-
-      <div className="grid grid-cols-3 gap-2 px-1">
-        {[
-          { icon: <Eye size={18} />, label: "Preview before printing" },
-          { icon: <Truck size={18} />, label: "Free shipping across India" },
-          { icon: <Paintbrush size={18} />, label: "Hand-drawn with love" },
-        ].map((item) => (
-          <div key={item.label} className="flex flex-col items-center gap-1.5 text-center">
-            <span className="flex h-7 w-7 items-center justify-center rounded-full border border-[#E8D6C8] text-[#A97659]">
-              {item.icon}
+        {copy.reassurance ? (
+          <div className="flex min-h-[72px] items-center gap-3 rounded-[10px] bg-[#F9EFE4] px-4 py-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F1E2D3] text-[#A97659]">
+              <ShieldCheck size={24} strokeWidth={1.75} />
             </span>
-            <span className="text-[11px] font-medium leading-tight text-[#6B5E53]">{item.label}</span>
+            <p className="text-[14px] leading-snug text-[#6B5E53]">{copy.reassurance}</p>
           </div>
-        ))}
+        ) : null}
       </div>
+
+      <PrimaryButton label={copy.addToCartLabel} onClick={onAddToCart} />
+
+      {copy.showTrust ? <TrustStrip items={content.trust} /> : null}
     </div>
   );
 }
