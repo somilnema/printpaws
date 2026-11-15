@@ -100,7 +100,7 @@ export function startingPrice(catalog: PriceCatalog, pets: PetPreset, hidden?: (
 export type CardPhotoSource = "upload" | "media" | "shop" | "none";
 
 /**
- * Landing card photo: the one uploaded in Admin → Landing products, else the card's Media → Landing page
+ * Landing card photo: the one uploaded in Admin → Landing & home → Products, else the card's Media → Landing page
  * photo, else a shop photo. "" shows a paw.
  */
 export function cardPhoto(slug: string, uploaded: string, media: Record<string, string>): { url: string; source: CardPhotoSource } {

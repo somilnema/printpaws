@@ -8,7 +8,7 @@ import { DEFAULT_LANDING_CONTENT, fillPercent } from "@/lib/landing-content";
 type AnnouncementBarProps = {
   /** Fixed messages, already checked by the server. Leave out for the shop's default rotation. */
   messages?: string[];
-  /** The shop's rotation from Admin → Landing & home → Home page. "{percent}" is the prepaid discount from Pricing. */
+  /** The shop's rotation from Admin → Landing & home → Page text → Home page. "{percent}" is the prepaid discount from Pricing. */
   rotation?: string[];
   colorClass?: string;
 };

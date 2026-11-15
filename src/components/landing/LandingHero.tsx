@@ -38,7 +38,7 @@ type LandingHeroProps = {
   video: string;
   /** Portrait shown on the right until a hero photo is uploaded. */
   fallbackPhoto: string;
-  /** Admin → Landing & home → Hero. */
+  /** Admin → Landing & home → Page text → Hero. */
   copy: LandingContent["hero"];
   benefits: LandingBenefit[];
 };

@@ -50,7 +50,7 @@ function RatingStars({ rating }: { rating: number }) {
 
 export default async function Page() {
   const [media, catalog, copy] = await Promise.all([loadSiteMedia(), loadShopCatalog(), loadLandingContent()]);
-  // Admin → Landing & home → Home page.
+  // Admin → Landing & home → Page text → Home page.
   const home = copy.home;
 
   return (

@@ -173,7 +173,7 @@ export async function resetEverydayContent() {
   return resetProductContent("everyday");
 }
 
-// Landing page and home page copy (Admin → Landing & home): the same bucket, its own file and cache tag.
+// Landing page and home page copy (Admin → Landing & home → Page text): the same bucket, its own file and cache tag.
 const LANDING_FILE = "content/landing.json";
 const LANDING_TAG = "landing-content";
 
