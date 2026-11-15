@@ -16,6 +16,7 @@ import {
   FINAL_CTA_FALLBACK_IMAGE,
   HERO_FALLBACK_IMAGE,
   fillPrice,
+  seoMetadata,
   slotUrl,
   type LandingAnnouncement,
 } from "@/lib/landing-content";
@@ -33,8 +34,7 @@ export const revalidate = 60;
 export async function generateMetadata(): Promise<Metadata> {
   const { seo } = await loadLandingContent();
   return {
-    title: seo.title || DEFAULT_LANDING_CONTENT.seo.title,
-    description: seo.description || DEFAULT_LANDING_CONTENT.seo.description,
+    ...seoMetadata(seo, DEFAULT_LANDING_CONTENT.seo),
     // Preview for approval. Moves to the home page at launch.
     robots: { index: false, follow: false },
   };

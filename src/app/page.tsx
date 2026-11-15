@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { AnnouncementBar } from "@/components/AnnouncementBar";
 import { Navbar } from "@/components/Navbar";
 import { ProductGallery } from "@/components/ProductGallery";
@@ -17,9 +18,15 @@ import { Footer } from "@/components/Footer";
 import { RotatingHeadline } from "@/components/RotatingHeadline";
 import { SiteMediaProvider } from "@/components/SiteMedia";
 import { Star } from "lucide-react";
+import { DEFAULT_LANDING_CONTENT, seoMetadata } from "@/lib/landing-content";
 import { loadLandingContent } from "@/lib/site-content";
 import { loadSiteMedia } from "@/lib/site-media";
 import { loadShopCatalog } from "@/lib/store-config";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { homeSeo } = await loadLandingContent();
+  return seoMetadata(homeSeo, DEFAULT_LANDING_CONTENT.homeSeo);
+}
 
 /** Trustpilot-style boxes: full, half (grey right half) and empty stars for a 0–5 rating in halves. */
 function RatingStars({ rating }: { rating: number }) {

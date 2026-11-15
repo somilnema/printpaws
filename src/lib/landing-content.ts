@@ -23,9 +23,11 @@ export type LandingClip = { slot: string; caption: string };
 /** A review card. `photo` is a Media image slot ("" shows no photo). */
 export type LandingReview = { name: string; text: string; rating: number; verified: boolean; photo: string };
 
+/** Browser tab and search result (title, description) and link preview on WhatsApp or Facebook (share*). */
+export type PageSeo = { title: string; description: string; shareTitle: string; shareDescription: string };
+
 export type LandingContent = {
-  /** Browser tab and search result for /landing. */
-  seo: { title: string; description: string };
+  seo: PageSeo;
   announcements: LandingAnnouncement[];
   hero: { headline: string; headlineAccent: string; text: string; imageAlt: string; cta: string };
   benefits: LandingBenefit[];
@@ -39,6 +41,7 @@ export type LandingContent = {
   home: { breadcrumbHome: string; breadcrumbProduct: string; subtitle: string; showRating: boolean; rating: number; ratingLabel: string };
   /** Home page announcement bar. "{percent}" is the prepaid discount from Pricing; that message hides while it is 0. */
   homeAnnouncements: string[];
+  homeSeo: PageSeo;
 };
 
 /** Longest lists the admin can build. */
@@ -61,9 +64,12 @@ export function builtInReviews(): LandingReview[] {
 }
 
 export const DEFAULT_LANDING_CONTENT: LandingContent = {
+  // Link previews show the site default from src/app/layout.tsx until changed here.
   seo: {
     title: "Custom Pet Portraits | Peternity",
     description: "Turn your favourite pet photo into a personalized portrait made just for you.",
+    shareTitle: "Custom Pet Portrait | Peternity",
+    shareDescription: "Personalized Pet Art - Peternity",
   },
   announcements: [
     { text: "Free Shipping Across India", couponCode: "" },
@@ -122,6 +128,13 @@ export const DEFAULT_LANDING_CONTENT: LandingContent = {
     ratingLabel: "Trustpilot",
   },
   homeAnnouncements: ["Forever Starts Here", "Refined Until Perfect", "{percent}% Off (Prepaid Orders)"],
+  // The site default from src/app/layout.tsx.
+  homeSeo: {
+    title: "Custom Pet Portrait | Peternity",
+    description: "Personalized Pet Art - Peternity",
+    shareTitle: "Custom Pet Portrait | Peternity",
+    shareDescription: "Personalized Pet Art - Peternity",
+  },
 };
 
 /** Shown under the final call to action until a closing photo is uploaded. */
@@ -226,6 +239,17 @@ export function mergeLandingContent(raw: unknown): LandingContent {
           .filter(Boolean)
           .slice(0, LANDING_LIMITS.homeAnnouncements)
       : [...d.homeAnnouncements],
+    homeSeo: mergeFlat(d.homeSeo, source.homeSeo, "homeSeo"),
+  };
+}
+
+/** Page metadata from saved SEO text; anything left empty uses the default. */
+export function seoMetadata(seo: PageSeo, fallback: PageSeo) {
+  const pick = (key: keyof PageSeo) => seo[key].trim() || fallback[key];
+  return {
+    title: pick("title"),
+    description: pick("description"),
+    openGraph: { title: pick("shareTitle"), description: pick("shareDescription"), type: "website" as const },
   };
 }
 

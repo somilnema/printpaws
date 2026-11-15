@@ -29,11 +29,18 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "seo", label: "Search & sharing" },
 ];
 
-type FlatSection = "seo" | "hero" | "portraits" | "video" | "reviews" | "finalCta" | "home";
+type FlatSection = "seo" | "homeSeo" | "hero" | "portraits" | "video" | "reviews" | "finalCta" | "home";
 type FieldDef = { key: string; label: string; hint?: string; long?: boolean };
 type Flat = Record<string, string | number | boolean>;
 
 const EMPTY_HIDES = "Leave empty to hide it.";
+
+const SEO_FIELDS: FieldDef[] = [
+  { key: "title", label: "Browser tab title" },
+  { key: "description", label: "Search result description", long: true },
+  { key: "shareTitle", label: "Link preview title", hint: "Shown when the link is shared on WhatsApp, Facebook or Instagram." },
+  { key: "shareDescription", label: "Link preview text", long: true },
+];
 
 const FIELDS: Record<FlatSection, FieldDef[]> = {
   hero: [
@@ -74,10 +81,8 @@ const FIELDS: Record<FlatSection, FieldDef[]> = {
     { key: "rating", label: "Stars shown" },
     { key: "ratingLabel", label: "Name beside the stars", hint: "Leave empty to show only the stars." },
   ],
-  seo: [
-    { key: "title", label: "Browser tab title" },
-    { key: "description", label: "Search result description", long: true },
-  ],
+  seo: SEO_FIELDS,
+  homeSeo: SEO_FIELDS,
 };
 
 const ICON_LABELS: Record<BenefitIcon, string> = {
@@ -662,9 +667,14 @@ export function LandingContentPanel({
       ) : null}
 
       {tab === "seo" ? (
-        <div className="space-y-4">
-          <Note>What /landing shows in the browser tab and in search results (the page is hidden from search until launch).</Note>
+        <div className="space-y-5">
+          <Note>What each page shows in the browser tab, in search results and in link previews. Empty fields use the original text.</Note>
+          <p className="text-sm font-semibold text-[#1a1a1b]">
+            /landing <span className="font-normal text-[#6b7280]">· hidden from search until launch</span>
+          </p>
           <FlatFields section="seo" value={draft.seo as unknown as Flat} onChange={editFlat("seo")} />
+          <p className="text-sm font-semibold text-[#1a1a1b]">Home page</p>
+          <FlatFields section="homeSeo" value={draft.homeSeo as unknown as Flat} onChange={editFlat("homeSeo")} />
         </div>
       ) : null}
 
