@@ -75,6 +75,22 @@ export function DeskSwitch({
   );
 }
 
+/** Top navigation of the admin desk. Configurator has its own route; the rest live on /admin. */
+export const ADMIN_SECTIONS = [
+  { id: "overview", label: "Overview" },
+  { id: "orders", label: "Orders" },
+  { id: "artists", label: "Artists" },
+  { id: "shipment", label: "Shipment" },
+  { id: "pricing", label: "Pricing" },
+  { id: "coupons", label: "Coupons" },
+  { id: "configurator", label: "Configurator" },
+  { id: "media", label: "Media" },
+  { id: "landing", label: "Landing & home" },
+  { id: "messages", label: "Messages" },
+] as const;
+
+export const CONFIGURATOR_PATH = "/admin/configurator";
+
 export function sectionTabClass(active: boolean) {
   return `shrink-0 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-widest transition-colors ${
     active ? "bg-primary text-white shadow-sm" : "bg-white text-[#4b5563] ring-1 ring-[#e5e7eb] hover:text-primary hover:ring-primary"

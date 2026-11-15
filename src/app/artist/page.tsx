@@ -24,6 +24,7 @@ import { sectionTabClass } from "@/components/admin/DeskSwitch";
 import { buttonClass, dangerButtonClass, DeskLogo, errorClass, ghostButtonClass, inputClass, warnClass } from "@/components/admin/ui";
 import { artistCanStartRevision, artistCanUpload, isOverdue, stageLabel } from "@/lib/fulfillment";
 import { storedPetPhotoUrl } from "@/lib/pet-photo";
+import { OrderConfiguration } from "@/components/OrderConfiguration";
 
 type Section = "overview" | "orders";
 
@@ -714,7 +715,8 @@ function ArtistOrderCard({
             )}
             <div className="min-w-0 space-y-2 text-sm">
               {specs ? <p className="break-words text-[#6b7280]">{specs}</p> : null}
-              {order.memorial_text ? <p className="break-words">Memorial text: {order.memorial_text}</p> : null}
+              {order.memorial_text && !order.configuration ? <p className="break-words">Memorial text: {order.memorial_text}</p> : null}
+              <OrderConfiguration details={order.configuration} compact />
               <p className="text-[#6b7280]">
                 Revisions: {order.revision_count ?? 0} of 2
                 {order.due_at ? ` · Due ${formatDate(order.due_at)}` : ""}

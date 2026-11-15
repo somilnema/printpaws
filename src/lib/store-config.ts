@@ -1,21 +1,26 @@
+import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { saveOfferRule } from "@/lib/save-offer";
+import { limitedBackgroundIds } from "@/lib/everyday-content";
+import { loadEverydayContent } from "@/lib/site-content";
 import {
-  CANVAS_SIZES,
   cloneCatalog,
   cloneOptionConfig,
   COUPON_SCOPES,
   DEFAULT_CATALOG,
   DEFAULT_OPTION_CONFIG,
-  FRAMED_SIZES,
   getCoupon,
+  makeSize,
   normalizeCouponCode,
   OPTION_STATUSES,
+  parseSize,
+  sizesForStyle,
   type CouponRule,
   type CouponScope,
   type OptionConfig,
   type OptionMeta,
   type OptionStatus,
+  type PortraitStyle,
   type PriceCatalog,
 } from "@/lib/pricing";
 
@@ -48,15 +53,23 @@ const OPTION_SETUP_HINT =
 type PriceRow = { key: string; amount: number; compare_at: number | null };
 type OptionRow = { key: string; status: string; badge: string | null };
 
+/** Sizes are stored as framed_12x16 / canvas_16x20, so Pricing can add new ones without a schema change. */
+const SIZE_KEY = /^(framed|canvas)_(\d{1,3})x(\d{1,3})$/;
+
+function sizeFromKey(key: string): { style: PortraitStyle; size: string } | null {
+  const match = SIZE_KEY.exec(key);
+  if (!match) return null;
+  return { style: match[1] as PortraitStyle, size: makeSize(Number(match[2]), Number(match[3])) };
+}
+
+function keyForSize(style: PortraitStyle, size: string) {
+  const parsed = parseSize(size);
+  return parsed ? `${style}_${parsed.w}x${parsed.h}` : null;
+}
+
 const OPTION_KEYS = {
   style_canvas: { kind: "style" as const, id: "canvas" as const },
   style_framed: { kind: "style" as const, id: "framed" as const },
-  framed_8x10: { kind: "framedSize" as const, id: '8"x10"' },
-  framed_12x16: { kind: "framedSize" as const, id: '12"x16"' },
-  framed_18x24: { kind: "framedSize" as const, id: '18"x24"' },
-  canvas_8x12: { kind: "canvasSize" as const, id: '8"x12"' },
-  canvas_16x20: { kind: "canvasSize" as const, id: '16"x20"' },
-  canvas_20x30: { kind: "canvasSize" as const, id: '20"x30"' },
   pets_one: { kind: "pets" as const, id: "one" },
   pets_two: { kind: "pets" as const, id: "two" },
   pets_three: { kind: "pets" as const, id: "three" },
@@ -71,36 +84,35 @@ function asStatus(value: string | null | undefined): OptionStatus | null {
 export function optionConfigFromRows(rows: OptionRow[]): OptionConfig {
   const options = cloneOptionConfig(DEFAULT_OPTION_CONFIG);
   for (const row of rows) {
-    const map = OPTION_KEYS[row.key as keyof typeof OPTION_KEYS];
-    if (!map) continue;
     const status = asStatus(row.status);
     if (!status) continue;
     const meta: OptionMeta = { status, badge: (row.badge || "").trim() };
+    const sized = sizeFromKey(row.key);
+    if (sized) {
+      (sized.style === "framed" ? options.framedSizes : options.canvasSizes)[sized.size] = meta;
+      continue;
+    }
+    const map = OPTION_KEYS[row.key as keyof typeof OPTION_KEYS];
+    if (!map) continue;
     if (map.kind === "style") options.styles[map.id] = meta;
-    else if (map.kind === "framedSize") options.framedSizes[map.id] = meta;
-    else if (map.kind === "canvasSize") options.canvasSizes[map.id] = meta;
     else options.pets[map.id] = meta;
   }
   return options;
 }
 
-const FRAMED_OPTION_KEYS = ["framed_8x10", "framed_12x16", "framed_18x24"] as const;
-const CANVAS_OPTION_KEYS = ["canvas_8x12", "canvas_16x20", "canvas_20x30"] as const;
+function sizeOptionRows(style: PortraitStyle, sizes: Record<string, OptionMeta>): OptionRow[] {
+  return Object.entries(sizes).flatMap(([size, meta]) => {
+    const key = keyForSize(style, size);
+    return key ? [{ key, status: meta?.status || "available", badge: meta?.badge || "" }] : [];
+  });
+}
 
 export function rowsFromOptionConfig(options: OptionConfig): OptionRow[] {
   return [
     { key: "style_canvas", status: options.styles.canvas.status, badge: options.styles.canvas.badge },
     { key: "style_framed", status: options.styles.framed.status, badge: options.styles.framed.badge },
-    ...FRAMED_SIZES.map((size, index) => ({
-      key: FRAMED_OPTION_KEYS[index],
-      status: options.framedSizes[size]?.status || "available",
-      badge: options.framedSizes[size]?.badge || "",
-    })),
-    ...CANVAS_SIZES.map((size, index) => ({
-      key: CANVAS_OPTION_KEYS[index],
-      status: options.canvasSizes[size]?.status || "available",
-      badge: options.canvasSizes[size]?.badge || "",
-    })),
+    ...sizeOptionRows("framed", options.framedSizes),
+    ...sizeOptionRows("canvas", options.canvasSizes),
     ...(["one", "two", "three", "four", "human"] as const).map((id) => ({
       key: `pets_${id}`,
       status: options.pets[id]?.status || "available",
@@ -108,15 +120,6 @@ export function rowsFromOptionConfig(options: OptionConfig): OptionRow[] {
     })),
   ];
 }
-
-const SIZE_KEYS: Record<string, { style: "framed" | "canvas"; size: string }> = {
-  framed_8x10: { style: "framed", size: '8"x10"' },
-  framed_12x16: { style: "framed", size: '12"x16"' },
-  framed_18x24: { style: "framed", size: '18"x24"' },
-  canvas_8x12: { style: "canvas", size: '8"x12"' },
-  canvas_16x20: { style: "canvas", size: '16"x20"' },
-  canvas_20x30: { style: "canvas", size: '20"x30"' },
-};
 
 export function isMissingTable(error: { message?: string; code?: string } | null) {
   if (!error) return false;
@@ -127,9 +130,9 @@ export function catalogFromRows(rows: PriceRow[]): PriceCatalog {
   const catalog = cloneCatalog();
   const byKey = new Map(rows.map((row) => [row.key, row]));
 
-  for (const [key, meta] of Object.entries(SIZE_KEYS)) {
-    const row = byKey.get(key);
-    if (row) catalog[meta.style][meta.size] = row.amount;
+  for (const row of rows) {
+    const sized = sizeFromKey(row.key);
+    if (sized) catalog[sized.style][sized.size] = row.amount;
   }
 
   const petsTwo = byKey.get("pets_two");
@@ -149,6 +152,10 @@ export function catalogFromRows(rows: PriceRow[]): PriceCatalog {
   if (wrap) catalog.giftWrap = wrap.amount;
   if (bg) catalog.premiumBackground = bg.amount;
   if (priority) catalog.priorityPreview = priority.amount;
+  const family = byKey.get("yyp_family_upgrade");
+  const tribute = byKey.get("mp_halo");
+  if (family) catalog.familyUpgrade = family.amount;
+  if (tribute) catalog.multiPetHalo = tribute.amount;
 
   const mug = byKey.get("extra_mug");
   const magnet = byKey.get("extra_magnet");
@@ -176,14 +183,17 @@ export function catalogFromRows(rows: PriceRow[]): PriceCatalog {
   return catalog;
 }
 
+function sizePriceRows(style: PortraitStyle, catalog: PriceCatalog): PriceRow[] {
+  return sizesForStyle(style, catalog).flatMap((size) => {
+    const key = keyForSize(style, size);
+    return key ? [{ key, amount: catalog[style][size], compare_at: null }] : [];
+  });
+}
+
 export function rowsFromCatalog(catalog: PriceCatalog): PriceRow[] {
   return [
-    { key: "framed_8x10", amount: catalog.framed['8"x10"'], compare_at: null },
-    { key: "framed_12x16", amount: catalog.framed['12"x16"'], compare_at: null },
-    { key: "framed_18x24", amount: catalog.framed['18"x24"'], compare_at: null },
-    { key: "canvas_8x12", amount: catalog.canvas['8"x12"'], compare_at: null },
-    { key: "canvas_16x20", amount: catalog.canvas['16"x20"'], compare_at: null },
-    { key: "canvas_20x30", amount: catalog.canvas['20"x30"'], compare_at: null },
+    ...sizePriceRows("framed", catalog),
+    ...sizePriceRows("canvas", catalog),
     { key: "pets_two", amount: catalog.pets.two, compare_at: null },
     { key: "pets_three", amount: catalog.pets.three, compare_at: null },
     { key: "pets_four", amount: catalog.pets.four, compare_at: null },
@@ -192,6 +202,8 @@ export function rowsFromCatalog(catalog: PriceCatalog): PriceRow[] {
     { key: "addon_gift_wrap", amount: catalog.giftWrap, compare_at: null },
     { key: "addon_premium_bg", amount: catalog.premiumBackground, compare_at: null },
     { key: "addon_priority_preview", amount: catalog.priorityPreview, compare_at: null },
+    { key: "yyp_family_upgrade", amount: catalog.familyUpgrade, compare_at: null },
+    { key: "mp_halo", amount: catalog.multiPetHalo, compare_at: null },
     { key: "extra_mug", amount: catalog.mug.price, compare_at: catalog.mug.compareAt },
     { key: "extra_magnet", amount: catalog.magnet.price, compare_at: catalog.magnet.compareAt },
     { key: "extra_digital", amount: catalog.digital.price, compare_at: catalog.digital.compareAt },
@@ -206,7 +218,24 @@ export function rowsFromCatalog(catalog: PriceCatalog): PriceRow[] {
   ];
 }
 
+/** Live catalog, including which backgrounds the configurator marks as Limited Edition. */
 export async function loadPriceCatalog(): Promise<CatalogLoad> {
+  const [loaded, content] = await Promise.all([readPriceTables(), loadEverydayContent()]);
+  loaded.catalog.limitedBackgrounds = limitedBackgroundIds(content);
+  return loaded;
+}
+
+/** Catalog for the first paint of a shop page. Null lets the browser fetch it instead of waiting. */
+export async function loadShopCatalog(): Promise<PriceCatalog | null> {
+  const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000));
+  try {
+    return await Promise.race([loadPriceCatalog().then((loaded) => loaded.catalog), timeout]);
+  } catch {
+    return null;
+  }
+}
+
+async function readPriceTables(): Promise<CatalogLoad> {
   const { data, error } = await supabaseAdmin.from("price_items").select("key, amount, compare_at");
   if (error) {
     if (isMissingTable(error)) {
@@ -232,8 +261,20 @@ export async function loadPriceCatalog(): Promise<CatalogLoad> {
   return { catalog, ready: true };
 }
 
+/** Drops size rows Pricing no longer lists. Nothing but sizes is ever removed here. */
+async function removeDeletedSizes(table: "price_items" | "option_meta", keep: string[]) {
+  const { data, error } = await supabaseAdmin.from(table).select("key");
+  if (error) return error.message;
+  const kept = new Set(keep);
+  const stale = (data || []).map((row) => String(row.key)).filter((key) => sizeFromKey(key) && !kept.has(key));
+  if (!stale.length) return "";
+  const { error: deleteError } = await supabaseAdmin.from(table).delete().in("key", stale);
+  return deleteError ? deleteError.message : "";
+}
+
 export async function savePriceCatalog(catalog: PriceCatalog) {
-  const rows = rowsFromCatalog(catalog).map((row) => ({
+  const priceRows = rowsFromCatalog(catalog);
+  const rows = priceRows.map((row) => ({
     ...row,
     updated_at: new Date().toISOString(),
   }));
@@ -243,7 +284,8 @@ export async function savePriceCatalog(catalog: PriceCatalog) {
     return { ok: false as const, error: error.message };
   }
 
-  const optionRows = rowsFromOptionConfig(catalog.options || DEFAULT_OPTION_CONFIG).map((row) => ({
+  const options = rowsFromOptionConfig(catalog.options || DEFAULT_OPTION_CONFIG);
+  const optionRows = options.map((row) => ({
     ...row,
     updated_at: new Date().toISOString(),
   }));
@@ -253,6 +295,14 @@ export async function savePriceCatalog(catalog: PriceCatalog) {
     return { ok: false as const, error: optionError.message };
   }
 
+  const removeProblem =
+    (await removeDeletedSizes("price_items", priceRows.map((row) => row.key))) ||
+    (await removeDeletedSizes("option_meta", options.map((row) => row.key)));
+  if (removeProblem) return { ok: false as const, error: removeProblem };
+
+  // Shop pages paint with these prices before the browser asks for fresh ones.
+  revalidatePath("/");
+  revalidatePath("/portraits/[slug]", "page");
   return { ok: true as const };
 }
 

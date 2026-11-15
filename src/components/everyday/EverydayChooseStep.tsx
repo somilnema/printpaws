@@ -4,16 +4,17 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import { Eye } from "lucide-react";
 import {
-  CANVAS_SIZES,
-  FRAMED_SIZES,
   formatRupee,
   isOptionSelectable,
   isOptionVisible,
+  parseSize,
+  sizeOptionMeta,
+  sizesForStyle,
   type PriceCatalog,
   type PortraitStyle,
 } from "@/lib/pricing";
 import type { EverydayContent } from "@/lib/everyday-content";
-import { useMedia } from "@/components/SiteMedia";
+import { useMedia, useUploadedMedia } from "@/components/SiteMedia";
 import { CornerMark, PrimaryButton, SectionHeading, StepIntro, TrustStrip } from "@/components/everyday/ui";
 
 type Props = {
@@ -28,6 +29,14 @@ type Props = {
   onPreview: () => void;
   onContinue: () => void;
   footer?: ReactNode;
+  /** Media slot prefix for the style card photos ("multi-pet", "you-pet"). Everyday when omitted. */
+  mediaPrefix?: string;
+  /** Section shown above the style cards (You & Your Pet composition). */
+  beforeStyle?: ReactNode;
+  /** Section shown between the style cards and the sizes (Multi-Pet pet count). */
+  afterStyle?: ReactNode;
+  /** False hides a size, e.g. one Multi-Pet keeps off sale for this many pets. */
+  isSizeOffered?: (size: string) => boolean;
 };
 
 const STYLE_IMAGE: Record<PortraitStyle, string> = {
@@ -41,11 +50,7 @@ function sizeLabel(size: string) {
 }
 
 function sizeDims(size: string) {
-  const [w, h] = size
-    .replace(/"/g, "")
-    .split(/x/i)
-    .map((part) => Number(part.trim()));
-  return { w: w || 4, h: h || 5 };
+  return parseSize(size) || { w: 4, h: 5 };
 }
 
 export function EverydayChooseStep({
@@ -59,19 +64,27 @@ export function EverydayChooseStep({
   onPreview,
   onContinue,
   footer,
+  mediaPrefix = "everyday",
+  beforeStyle,
+  afterStyle,
+  isSizeOffered,
 }: Props) {
   const media = useMedia();
   const copy = content.step1;
+  // The product's own card photo wins; otherwise the Everyday photo (or its admin replacement).
+  const framedPhoto = useUploadedMedia(`${mediaPrefix}-style-framed`);
+  const canvasPhoto = useUploadedMedia(`${mediaPrefix}-style-canvas`);
+  const styleImage = (style: PortraitStyle) => (style === "framed" ? framedPhoto : canvasPhoto) || media(STYLE_IMAGE[style]);
 
   const styles = (["framed", "canvas"] as const).filter((style) => isOptionVisible(catalog.options.styles[style]));
-  const sizeList = portraitStyle === "framed" ? FRAMED_SIZES : CANVAS_SIZES;
-  const sizes = sizeList
+  const sizes = sizesForStyle(portraitStyle, catalog)
     .map((size) => ({
       size,
-      meta: portraitStyle === "framed" ? catalog.options.framedSizes[size] : catalog.options.canvasSizes[size],
+      meta: sizeOptionMeta(catalog, portraitStyle, size),
       price: (portraitStyle === "framed" ? catalog.framed[size] : catalog.canvas[size]) ?? 0,
     }))
-    .filter((row) => isOptionVisible(row.meta));
+    .filter((row) => isOptionVisible(row.meta) && (!isSizeOffered || isSizeOffered(row.size)));
+  const anyBadge = sizes.some((row) => row.meta?.badge);
 
   // Outline icon grows with the real print size (40 × 50 for the largest).
   const tallest = Math.max(...sizes.map((row) => sizeDims(row.size).h), 1);
@@ -79,6 +92,8 @@ export function EverydayChooseStep({
   return (
     <div className="space-y-6">
       <StepIntro title={copy.title} description={copy.description} />
+
+      {beforeStyle}
 
       <div className="space-y-3">
         <SectionHeading>{copy.styleHeading}</SectionHeading>
@@ -109,7 +124,7 @@ export function EverydayChooseStep({
                 >
                   <span className="relative block aspect-[2/3] w-full overflow-hidden rounded-[10px] bg-[#F1E7DC]">
                     <Image
-                      src={media(STYLE_IMAGE[style])}
+                      src={styleImage(style)}
                       alt={title}
                       fill
                       sizes="(max-width: 640px) 50vw, 300px"
@@ -147,13 +162,15 @@ export function EverydayChooseStep({
         </div>
       </div>
 
+      {afterStyle}
+
       <div className="space-y-3">
         <div className="space-y-1">
           <SectionHeading>{copy.sizeHeading}</SectionHeading>
           {copy.sizeDescription ? <p className="text-[14px] text-[#6B5E53]">{copy.sizeDescription}</p> : null}
         </div>
         <div
-          className="grid gap-3 pt-1"
+          className={`grid gap-3 ${anyBadge ? "pt-3" : "pt-1"}`}
           style={{ gridTemplateColumns: `repeat(${Math.max(sizes.length, 1)}, minmax(0, 1fr))` }}
         >
           {sizes.map(({ size, meta, price }) => {
@@ -177,9 +194,12 @@ export function EverydayChooseStep({
                       : "border border-[#E8D6C8] hover:border-[#C9B9A8]"
                 }`}
               >
-                {selectable ? <CornerMark selected={selected} size={20} className="absolute right-1.5 top-1.5" /> : null}
-                {meta.badge ? (
-                  <span className="absolute -top-2.5 left-1/2 max-w-[92%] -translate-x-1/2 truncate whitespace-nowrap rounded-full bg-[#A97659] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
+                {selectable ? (
+                  <CornerMark selected={selected} size={20} className={`absolute right-1.5 ${anyBadge ? "top-5" : "top-1.5"}`} />
+                ) : null}
+                {meta?.badge ? (
+                  // Admin text of any length stays readable: it wraps instead of being cut off.
+                  <span className="absolute left-1/2 top-0 w-max max-w-[calc(100%+6px)] -translate-x-1/2 -translate-y-1/2 rounded-[10px] bg-[#A97659] px-2 py-0.5 text-center text-[9px] font-bold uppercase leading-[1.25] tracking-wide text-white">
                     {meta.badge}
                   </span>
                 ) : null}
@@ -201,7 +221,7 @@ export function EverydayChooseStep({
 
       <PrimaryButton label={copy.continueLabel} onClick={onContinue} />
 
-      {copy.showTrust ? <TrustStrip items={content.trust} /> : null}
+      {copy.showTrust ? <TrustStrip items={content.trustStep1} /> : null}
       {footer}
     </div>
   );

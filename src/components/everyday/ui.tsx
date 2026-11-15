@@ -91,12 +91,14 @@ export function SectionHeading({ children, aside }: { children: ReactNode; aside
   );
 }
 
-export function PrimaryButton({ label, onClick }: { label: string; onClick: () => void }) {
+export function PrimaryButton({ label, onClick, disabled = false }: { label: string; onClick: () => void; disabled?: boolean }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex h-[52px] w-full items-center justify-center gap-2 rounded-[10px] bg-[#A97659] text-[16px] font-semibold uppercase tracking-[0.04em] text-white transition-all hover:bg-[#966C55] active:scale-[0.98]"
+      disabled={disabled}
+      aria-disabled={disabled}
+      className="flex h-[52px] w-full items-center justify-center gap-2 rounded-[10px] bg-[#A97659] text-[16px] font-semibold uppercase tracking-[0.04em] text-white transition-all hover:bg-[#966C55] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-[#A97659] disabled:active:scale-100"
     >
       {label} <ArrowRight size={18} strokeWidth={2.25} />
     </button>
@@ -115,6 +117,51 @@ const TRUST_ICON: Record<TrustIcon, typeof Heart> = {
   clock: Clock,
   paw: PawPrint,
 };
+
+export function TrustGlyph({ icon, size = 18 }: { icon: TrustIcon; size?: number }) {
+  const Icon = TRUST_ICON[icon] || Heart;
+  return <Icon size={size} />;
+}
+
+function inlineText(text: string): ReactNode[] {
+  return text.split(/(\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|\*[^*]+\*)/g).map((part, index) => {
+    if (/^\*\*\*.+\*\*\*$/.test(part)) {
+      return (
+        <strong key={index} className="font-bold italic">
+          {part.slice(3, -3)}
+        </strong>
+      );
+    }
+    if (/^\*\*.+\*\*$/.test(part)) return <strong key={index}>{part.slice(2, -2)}</strong>;
+    if (/^\*.+\*$/.test(part)) return <em key={index}>{part.slice(1, -1)}</em>;
+    return part;
+  });
+}
+
+/** Admin text: blank line = new paragraph, "- " lines = bullets, **bold**, *italic*. */
+export function RichText({ text }: { text: string }) {
+  const blocks = text
+    .split(/\n\s*\n/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+  return (
+    <div className="space-y-4 font-inter text-sm leading-relaxed text-gray-600">
+      {blocks.map((block, index) => {
+        const lines = block.split("\n").map((line) => line.trim());
+        if (lines.every((line) => line.startsWith("- "))) {
+          return (
+            <ul key={index} className="mt-2 list-disc space-y-1 pl-5">
+              {lines.map((line, lineIndex) => (
+                <li key={lineIndex}>{inlineText(line.slice(2))}</li>
+              ))}
+            </ul>
+          );
+        }
+        return <p key={index}>{inlineText(block)}</p>;
+      })}
+    </div>
+  );
+}
 
 export function TrustStrip({ items }: { items: TrustItem[] }) {
   const shown = items.filter((item) => item.label.trim());

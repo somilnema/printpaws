@@ -24,7 +24,7 @@ import {
 import { addTeamNote, removeTeamNote, sendToVendor } from "@/app/actions/opsActions";
 import { getSiteMediaAdmin, type SiteMediaAdmin } from "@/app/actions/mediaActions";
 import { getLandingProductsAdmin } from "@/app/actions/landingActions";
-import { getEverydayContentAdmin, type EverydayContentAdmin } from "@/app/actions/contentActions";
+import { getLandingContentAdmin, type LandingContentAdmin } from "@/app/actions/landingContentActions";
 import { getStoreAdmin, type StoreAdmin } from "@/app/actions/storeActions";
 import { MessagesPanel } from "@/components/admin/MessagesPanel";
 import { TeamNotes } from "@/components/TeamNotes";
@@ -34,31 +34,32 @@ import { PasswordInput } from "@/components/PasswordInput";
 import { AnalyticsOverview, DateRangeBar, defaultRange } from "@/components/admin/AnalyticsOverview";
 import { CouponsPanel } from "@/components/admin/CouponsPanel";
 import { ManualOrderForm } from "@/components/admin/ManualOrderForm";
+import { LandingContentPanel } from "@/components/admin/LandingContentPanel";
 import { LandingProductsPanel } from "@/components/admin/LandingProductsPanel";
 import { MediaPanel } from "@/components/admin/MediaPanel";
-import { ConfiguratorPanel } from "@/components/admin/ConfiguratorPanel";
 import type { LandingProduct } from "@/lib/landing-products";
 import { PricingPanel } from "@/components/admin/PricingPanel";
-import { sectionTabClass } from "@/components/admin/DeskSwitch";
+import { OrderConfiguration } from "@/components/OrderConfiguration";
+import { ADMIN_SECTIONS, CONFIGURATOR_PATH, sectionTabClass } from "@/components/admin/DeskSwitch";
 import { buttonClass, dangerButtonClass, DeskLogo, errorClass, ghostButtonClass, inputClass, okClass, Panel, warnClass } from "@/components/admin/ui";
 import { orderInRange, rangeBounds, type DateRange } from "@/lib/admin-analytics";
 import { adminCanAssign, adminCanCancel, adminCanHold, artworkIsOpen, maximumDueAt, safeTrackingUrl, stageLabel } from "@/lib/fulfillment";
 import { isWatermarkedProof, storedPetPhotoUrl } from "@/lib/pet-photo";
 
-type Section = "overview" | "orders" | "artists" | "shipment" | "pricing" | "coupons" | "configurator" | "media" | "landing" | "messages";
+type Section = Exclude<(typeof ADMIN_SECTIONS)[number]["id"], "configurator">;
 
-const NAV: { id: Section; label: string }[] = [
-  { id: "overview", label: "Overview" },
-  { id: "orders", label: "Orders" },
-  { id: "artists", label: "Artists" },
-  { id: "shipment", label: "Shipment" },
-  { id: "pricing", label: "Pricing" },
-  { id: "coupons", label: "Coupons" },
-  { id: "configurator", label: "Configurator" },
-  { id: "media", label: "Media" },
-  { id: "landing", label: "Landing" },
-  { id: "messages", label: "Messages" },
+const SECTION_IDS = ADMIN_SECTIONS.map((item) => item.id).filter((id): id is Section => id !== "configurator");
+
+type LandingView = "products" | "text" | "photos";
+
+const LANDING_VIEWS: { id: LandingView; label: string }[] = [
+  { id: "products", label: "Products" },
+  { id: "text", label: "Page text" },
+  { id: "photos", label: "Photos" },
 ];
+
+/** The landing page's own photos. Its videos and review photos are shared with the home page, so they stay in Media. */
+const LANDING_MEDIA_GROUPS = ["Landing page"];
 
 function rupee(value: number) {
   return `₹${Math.round(value).toLocaleString("en-IN")}`;
@@ -100,25 +101,21 @@ export function AdminShell({
   const [landingReady, setLandingReady] = useState(false);
   const [landingError, setLandingError] = useState<string | undefined>();
   const [landingState, setLandingState] = useState<"idle" | "loading" | "ready" | "signed-out">("idle");
-  const [configurator, setConfigurator] = useState<EverydayContentAdmin | null>(null);
-  const [configuratorState, setConfiguratorState] = useState<"idle" | "loading" | "ready" | "signed-out">("idle");
+  const [landingView, setLandingView] = useState<LandingView>("products");
+  const [landingCopy, setLandingCopy] = useState<LandingContentAdmin | null>(null);
+  const [landingCopyState, setLandingCopyState] = useState<"idle" | "loading" | "ready" | "signed-out">("idle");
 
-  async function loadConfigurator(quiet = false) {
-    if (!quiet) setConfiguratorState("loading");
-    const data = await getEverydayContentAdmin();
-    if (!data) {
-      setConfiguratorState("signed-out");
-      return;
-    }
-    setConfigurator(data);
-    setConfiguratorState("ready");
-  }
+  // Admin uploads by slot id, for the landing card and review photo previews.
+  const mediaOverrides = useMemo(
+    () => Object.fromEntries((mediaLibrary?.slots || []).filter((slot) => slot.custom).map((slot) => [slot.id, slot.url])),
+    [mediaLibrary]
+  );
 
+  // /admin?section=pricing opens that section (the configurator route links back here).
   useEffect(() => {
-    if (section === "configurator" && configuratorState === "idle") {
-      loadConfigurator();
-    }
-  }, [section, configuratorState]);
+    const wanted = new URLSearchParams(window.location.search).get("section") as Section | null;
+    if (wanted && SECTION_IDS.includes(wanted)) setSection(wanted);
+  }, []);
 
   async function loadStore() {
     setStoreState("loading");
@@ -161,8 +158,19 @@ export function AdminShell({
     setLandingState("ready");
   }
 
+  async function loadLandingCopy(quiet = false) {
+    if (!quiet) setLandingCopyState("loading");
+    const data = await getLandingContentAdmin();
+    if (!data) {
+      setLandingCopyState("signed-out");
+      return;
+    }
+    setLandingCopy(data);
+    setLandingCopyState("ready");
+  }
+
   useEffect(() => {
-    if (section === "media" && mediaState === "idle") {
+    if ((section === "media" || section === "landing") && mediaState === "idle") {
       loadMedia();
     }
   }, [section, mediaState]);
@@ -173,7 +181,13 @@ export function AdminShell({
     }
   }, [section, landingState]);
 
-  const title = NAV.find((item) => item.id === section)?.label;
+  useEffect(() => {
+    if (section === "landing" && landingCopyState === "idle") {
+      loadLandingCopy();
+    }
+  }, [section, landingCopyState]);
+
+  const title = ADMIN_SECTIONS.find((item) => item.id === section)?.label;
 
   return (
     <div className="peternity-admin min-h-screen bg-[#F9F9F9] text-[#1a1a1b]">
@@ -182,16 +196,22 @@ export function AdminShell({
           <div className="flex items-center gap-3 px-4 py-3 md:px-6">
             <DeskLogo />
             <nav className="flex flex-1 gap-1.5 overflow-x-auto md:justify-center">
-              {NAV.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setSection(item.id)}
-                  className={sectionTabClass(section === item.id)}
-                >
-                  {item.label}
-                </button>
-              ))}
+              {ADMIN_SECTIONS.map((item) =>
+                item.id === "configurator" ? (
+                  <Link key={item.id} href={CONFIGURATOR_PATH} className={sectionTabClass(false)}>
+                    {item.label}
+                  </Link>
+                ) : (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setSection(item.id)}
+                    className={sectionTabClass(section === item.id)}
+                  >
+                    {item.label}
+                  </button>
+                )
+              )}
             </nav>
             <div className="flex items-center gap-2 shrink-0">
               <button type="button" onClick={onRefresh} disabled={refreshing} className={ghostButtonClass}>
@@ -232,15 +252,6 @@ export function AdminShell({
           {section === "artists" ? <ArtistsPanel artists={dashboard.artists} onCreated={onRefresh} /> : null}
           {section === "shipment" ? <ShippersPanel shippers={dashboard.shippers} onCreated={onRefresh} /> : null}
           {section === "messages" ? <MessagesPanel /> : null}
-          {section === "configurator" ? (
-            configuratorState === "signed-out" ? (
-              <p className="text-sm text-[#6b7280]">Sign in again to edit the configurator.</p>
-            ) : configuratorState !== "ready" || !configurator ? (
-              <p className="text-sm text-[#6b7280]">Loading…</p>
-            ) : (
-              <ConfiguratorPanel initial={configurator} onSaved={() => loadConfigurator(true)} />
-            )
-          ) : null}
           {section === "media" ? (
             mediaState === "signed-out" ? (
               <p className="text-sm text-[#6b7280]">Sign in again to change photos and videos.</p>
@@ -251,18 +262,52 @@ export function AdminShell({
             )
           ) : null}
           {section === "landing" ? (
-            landingState === "signed-out" ? (
-              <p className="text-sm text-[#6b7280]">Sign in again to edit landing products.</p>
-            ) : landingState !== "ready" ? (
-              <p className="text-sm text-[#6b7280]">Loading…</p>
-            ) : (
-              <LandingProductsPanel
-                products={landingProducts}
-                ready={landingReady}
-                setupError={landingError}
-                onChanged={loadLanding}
-              />
-            )
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {LANDING_VIEWS.map((view) => (
+                  <button key={view.id} type="button" onClick={() => setLandingView(view.id)} className={sectionTabClass(landingView === view.id)}>
+                    {view.label}
+                  </button>
+                ))}
+                <a href="/landing" target="_blank" rel="noreferrer" className="ml-auto text-sm font-medium text-primary">
+                  Open /landing
+                </a>
+              </div>
+              {landingView === "products" ? (
+                landingState === "signed-out" ? (
+                  <p className="text-sm text-[#6b7280]">Sign in again to edit landing products.</p>
+                ) : landingState !== "ready" ? (
+                  <p className="text-sm text-[#6b7280]">Loading…</p>
+                ) : (
+                  <LandingProductsPanel
+                    products={landingProducts}
+                    ready={landingReady}
+                    setupError={landingError}
+                    media={mediaOverrides}
+                    onChanged={loadLanding}
+                    onOpenPhotos={() => setLandingView("photos")}
+                  />
+                )
+              ) : null}
+              {landingView === "text" ? (
+                landingCopyState === "signed-out" ? (
+                  <p className="text-sm text-[#6b7280]">Sign in again to edit the landing page text.</p>
+                ) : landingCopyState !== "ready" || !landingCopy ? (
+                  <p className="text-sm text-[#6b7280]">Loading…</p>
+                ) : (
+                  <LandingContentPanel initial={landingCopy} media={mediaOverrides} onSaved={() => loadLandingCopy(true)} />
+                )
+              ) : null}
+              {landingView === "photos" ? (
+                mediaState === "signed-out" ? (
+                  <p className="text-sm text-[#6b7280]">Sign in again to change photos and videos.</p>
+                ) : mediaState !== "ready" || !mediaLibrary ? (
+                  <p className="text-sm text-[#6b7280]">Loading…</p>
+                ) : (
+                  <MediaPanel key="landing" initial={mediaLibrary} onChanged={() => loadMedia(true)} onlyGroups={LANDING_MEDIA_GROUPS} />
+                )
+              ) : null}
+            </div>
           ) : null}
           {section === "pricing" || section === "coupons" ? (
             storeState === "signed-out" ? (
@@ -617,7 +662,8 @@ function OrderDetail({
             {order.gift_wrap ? "Gift wrap" : ""}
           </p>
         )}
-        {order.memorial_text ? <p>Memorial text: {order.memorial_text}</p> : null}
+        {order.memorial_text && !details?.configuration ? <p>Memorial text: {order.memorial_text}</p> : null}
+        <OrderConfiguration details={details?.configuration} />
         {[order.shipping_address, order.shipping_landmark, order.shipping_city, order.shipping_state, order.shipping_pincode].filter(Boolean).length ? (
           <p className="break-words">
             Ship to: {[order.shipping_address, order.shipping_landmark, order.shipping_city, order.shipping_state, order.shipping_pincode].filter(Boolean).join(", ")}

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, PawPrint } from "lucide-react";
-import { PORTRAIT_SECTION } from "@/lib/landing-content";
+import type { LandingContent } from "@/lib/landing-content";
 import { trackCustomPixel } from "@/lib/pixel";
 import { PORTRAITS_ANCHOR } from "./ScrollToPortraits";
 
@@ -12,16 +12,18 @@ export type PortraitCard = {
   name: string;
   description: string;
   image: string;
-  /** Live starting price, or null while the product is not on sale. */
+  /** "From ₹…" with the live starting price, or null while the product is not on sale. */
   price: string | null;
 };
 
-export function PortraitGrid({ cards }: { cards: PortraitCard[] }) {
+type PortraitCopy = Pick<LandingContent["portraits"], "title" | "text" | "comingSoonLabel">;
+
+export function PortraitGrid({ cards, copy }: { cards: PortraitCard[]; copy: PortraitCopy }) {
   return (
     <section id={PORTRAITS_ANCHOR} className="mx-auto w-full max-w-6xl scroll-mt-20 px-4 pt-12 md:px-6 md:pt-20">
       <header className="text-center">
-        <h2 className="font-playfair text-[26px] font-semibold leading-tight text-cocoa md:text-4xl">{PORTRAIT_SECTION.title}</h2>
-        <p className="mt-2 text-sm text-cocoa/75 md:text-base">{PORTRAIT_SECTION.text}</p>
+        <h2 className="font-playfair text-[26px] font-semibold leading-tight text-cocoa md:text-4xl">{copy.title}</h2>
+        {copy.text ? <p className="mt-2 text-sm text-cocoa/75 md:text-base">{copy.text}</p> : null}
       </header>
 
       <ul className="mt-6 grid grid-cols-2 gap-3 md:mt-10 md:grid-cols-3 md:gap-6">
@@ -33,10 +35,10 @@ export function PortraitGrid({ cards }: { cards: PortraitCard[] }) {
                 onClick={() => trackCustomPixel("SelectPortrait", { content_ids: [card.slug], content_name: card.name })}
                 className="group block h-full rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-terracotta"
               >
-                <CardBody card={card} />
+                <CardBody card={card} comingSoon={copy.comingSoonLabel} />
               </Link>
             ) : (
-              <CardBody card={card} />
+              <CardBody card={card} comingSoon={copy.comingSoonLabel} />
             )}
           </li>
         ))}
@@ -45,7 +47,7 @@ export function PortraitGrid({ cards }: { cards: PortraitCard[] }) {
   );
 }
 
-function CardBody({ card }: { card: PortraitCard }) {
+function CardBody({ card, comingSoon }: { card: PortraitCard; comingSoon: string }) {
   return (
     <article className="flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-[0_8px_24px_-14px_rgba(59,37,25,0.45)]">
       <div className="relative aspect-[3/4] bg-cream-deep">
@@ -67,13 +69,13 @@ function CardBody({ card }: { card: PortraitCard }) {
         <div className="mt-auto flex items-center justify-between gap-2 pt-3">
           {card.price ? (
             <>
-              <span className="text-[13px] font-bold text-terracotta md:text-base">From {card.price}</span>
+              <span className="text-[13px] font-bold text-terracotta md:text-base">{card.price}</span>
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-terracotta text-white transition-transform group-hover:translate-x-0.5">
                 <ArrowRight aria-hidden size={16} />
               </span>
             </>
           ) : (
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-cocoa/70">Coming soon</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-cocoa/70">{comingSoon}</span>
           )}
         </div>
       </div>

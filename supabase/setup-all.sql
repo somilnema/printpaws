@@ -401,4 +401,11 @@ values
   ('mini-desk-portrait', 'Mini Desk Portrait', 'Your little companion, always by your side.', 5, true, 'fixed', null, false)
 on conflict (slug) do nothing;
 
+-- ---------------------------------------------------------------------------
+-- Configurator details (configurator-orders.sql): Multi-Pet / You & Your Pet
+-- ---------------------------------------------------------------------------
+
+alter table public.orders
+  add column if not exists order_details jsonb;
+
 notify pgrst, 'reload schema';

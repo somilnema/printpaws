@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { Play, Volume2, VolumeX } from "lucide-react";
 import { useMedia, useUploadedMedia } from "@/components/SiteMedia";
+import { uploadedKey } from "@/lib/site-media-catalog";
 
 type Slide = { kind: "image" | "video"; src: string };
 
@@ -30,9 +31,24 @@ const GALLERY_IMAGES: Record<string, string[]> = {
   black_bg: ["Main Image.png","2nd Image.png","3rd Image.png"],
 };
 
-export function ProductGallery() {
+const CUTOUT = "/dog_portrait_closeup_1773940826280.png";
+
+export function ProductGallery({
+  mediaPrefix,
+  photoCount,
+  showVideo = true,
+}: {
+  /** Configurator product ("everyday", "multi-pet", "you-pet"): its own gallery photos win over the shared ones. */
+  mediaPrefix?: string;
+  /** How many of the photos to show (all when omitted). */
+  photoCount?: number;
+  showVideo?: boolean;
+} = {}) {
   const media = useMedia();
-  const processVideo = useUploadedMedia("gallery-video");
+  const own = (name: string) => (mediaPrefix ? media(uploadedKey(`${mediaPrefix}-${name}`)) : "");
+  const sharedVideo = useUploadedMedia("gallery-video");
+  const processVideo = showVideo ? own("gallery-video") || sharedVideo : "";
+  const shownPhotos = Math.max(1, Math.min(photoCount ?? GALLERY_IMAGES.one.length, GALLERY_IMAGES.one.length));
   const [activeImage, setActiveImage] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState("one");
   const [selectedFrame, setSelectedFrame] = useState("black");
@@ -40,8 +56,11 @@ export function ProductGallery() {
   const [muted, setMuted] = useState(true);
 
   useEffect(() => {
-    // Selections refer to photo positions; the process video sits after photo 1.
-    const showPhoto = (index: number) => setActiveImage(processVideo && index >= 1 ? index + 1 : index);
+    // Selections refer to photo positions; the process video sits after photo 1. A hidden photo shows the first one.
+    const showPhoto = (target: number) => {
+      const index = target < shownPhotos ? target : 0;
+      setActiveImage(processVideo && index >= 1 ? index + 1 : index);
+    };
 
     const handleCategoryChange = (e: any) => {
       setSelectedCategory("one");
@@ -98,10 +117,15 @@ export function ProductGallery() {
       window.removeEventListener('backgroundSelectionChanged', handleBackgroundChange);
       window.removeEventListener('sizeSelectionChanged', handleSizeChange);
     };
-  }, [processVideo]);
+  }, [processVideo, shownPhotos]);
 
-  const currentImages = GALLERY_IMAGES[selectedCategory] || GALLERY_IMAGES.one;
-  const slides: Slide[] = currentImages.map((img) => ({ kind: "image", src: media(img) }));
+  const currentImages = (GALLERY_IMAGES[selectedCategory] || GALLERY_IMAGES.one).slice(0, shownPhotos);
+  // Gallery photo N of this product, else the shared photo N.
+  const photoSrc = (img: string) => {
+    const position = GALLERY_IMAGES.one.indexOf(img) + 1;
+    return (position > 0 && own(`gallery-${position}`)) || media(img);
+  };
+  const slides: Slide[] = currentImages.map((img) => ({ kind: "image", src: photoSrc(img) }));
   if (processVideo) slides.splice(1, 0, { kind: "video", src: processVideo });
   const activeSlide = slides[activeImage] || slides[0];
   const isMultiPet = selectedCategory === "two" || selectedCategory === "three" || selectedCategory === "four";
@@ -181,7 +205,7 @@ export function ProductGallery() {
                   {/* Pet Portrait overlay */}
                   <div className="relative w-full h-full flex items-center justify-center">
                     <Image
-                      src={media("/dog_portrait_closeup_1773940826280.png")}
+                      src={own("gallery-cutout") || media(CUTOUT)}
                       alt="Pet Portrait Overlay"
                       width={320}
                       height={400}

@@ -1,5 +1,7 @@
 "use server";
 
+import { orderDetailsFor } from "@/lib/order-details";
+import type { OrderDetails } from "@/lib/product-order";
 import { randomUUID } from "crypto";
 import { createOriginalUploadUrl, readOriginalArtwork, removeArtworkFiles, saveCustomerProof } from "@/lib/artwork-files";
 import { buildWatermarkedPreview } from "@/lib/artwork-preview";
@@ -40,6 +42,8 @@ export type ArtistOrder = {
   created_at?: string | null;
   updates: OrderUpdate[];
   teamNotes: TeamNote[];
+  /** Multi-Pet / You & Your Pet: every photo with what it shows, names, halo target, artist note. */
+  configuration?: OrderDetails | null;
 };
 
 export type ArtistPortal = {
@@ -83,7 +87,7 @@ export async function getArtistPortal(): Promise<ArtistPortal | null> {
 
   const orders = (data ?? []) as Array<Omit<ArtistOrder, "updates" | "fulfillment_stage" | "due_at" | "revision_count" | "teamNotes"> & { customer_email?: string }>;
   const ids = orders.map((order) => order.id);
-  const [updates, teamNotes] = await Promise.all([updatesFor(ids), notesFor(ids)]);
+  const [updates, teamNotes, configurations] = await Promise.all([updatesFor(ids), notesFor(ids), orderDetailsFor(ids)]);
   const byOrder = new Map<string, OrderUpdate[]>();
   for (const update of updates) {
     const list = byOrder.get(update.order_id) ?? [];
@@ -117,6 +121,7 @@ export async function getArtistPortal(): Promise<ArtistPortal | null> {
         revision_count: workflow?.revision_count ?? 0,
         updates: byOrder.get(order.id) ?? [],
         teamNotes: notesByOrder.get(order.id) ?? [],
+        configuration: configurations.get(order.id) ?? null,
       };
     }),
   };

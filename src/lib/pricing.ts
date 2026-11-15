@@ -49,6 +49,10 @@ export type PriceCatalog = {
   premiumBackground: number;
   /** Priority Preview add-on (Everyday configurator). Suggested ₹199 pending approval. */
   priorityPreview: number;
+  /** You & Your Pet: flat "My Family & Our Pet" upgrade, part of the main product price (handoff: +₹500). */
+  familyUpgrade: number;
+  /** Multi-Pet "A Special Tribute" halo. ₹0 until Peternity approves a surcharge. */
+  multiPetHalo: number;
   mug: { price: number; compareAt: number };
   magnet: { price: number; compareAt: number };
   digital: { price: number; compareAt: number };
@@ -59,13 +63,15 @@ export type PriceCatalog = {
   freshPayment: number;
   digitalDownloads: number[];
   options: OptionConfig;
+  /** Background ids that charge premiumBackground. Filled from the configurator on the server. */
+  limitedBackgrounds: string[];
 };
 
-/** Premium / Limited Edition background ids that charge premiumBackground. */
+/** Built-in Limited Edition backgrounds, used until the configurator list has loaded. */
 export const LIMITED_EDITION_BACKGROUNDS = ["bg7", "bg8", "bg9"] as const;
 
-export function isLimitedEditionBackground(name?: string | null) {
-  return LIMITED_EDITION_BACKGROUNDS.includes((name || "") as (typeof LIMITED_EDITION_BACKGROUNDS)[number]);
+export function isLimitedEditionBackground(name: string | null | undefined, catalog: Pick<PriceCatalog, "limitedBackgrounds">) {
+  return catalog.limitedBackgrounds.includes(name || "");
 }
 
 export const OPTION_STATUSES: OptionStatus[] = ["available", "hidden", "out_of_stock"];
@@ -153,6 +159,12 @@ export type PricingInput = {
   addDesk?: boolean;
   customPaymentAmount?: number;
   digitalDownloadAmount?: number;
+  /** Which three-step configurator built this portrait. Multi-Pet and You & Your Pet add their own rules. */
+  configurator?: "everyday" | "multi_pet" | "you_and_your_pet";
+  /** You & Your Pet composition. "family" adds the flat family upgrade. */
+  composition?: "solo" | "family";
+  /** Multi-Pet halo (A Special Tribute). */
+  tribute?: boolean;
   /** Set on the server from the landing product. The browser amount is ignored. */
   offerId?: string;
   offerAmount?: number;
@@ -184,8 +196,36 @@ export type Quote = {
   allowsCod: boolean;
 };
 
+/** Built-in sizes. Admin can hide these; sizes added in Pricing come from the catalog. */
 export const FRAMED_SIZES = ['8"x10"', '12"x16"', '18"x24"'] as const;
 export const CANVAS_SIZES = ['8"x12"', '16"x20"', '20"x30"'] as const;
+
+export const MAX_SIZE_INCHES = 120;
+
+/** '12"x16"' → { w: 12, h: 16 }. Null when it isn't a size. */
+export function parseSize(size: string) {
+  const match = /^(\d{1,3})"x(\d{1,3})"$/.exec(size);
+  return match ? { w: Number(match[1]), h: Number(match[2]) } : null;
+}
+
+export function makeSize(width: number, height: number) {
+  return `${width}"x${height}"`;
+}
+
+export function isBuiltInSize(style: PortraitStyle, size: string) {
+  return ((style === "framed" ? FRAMED_SIZES : CANVAS_SIZES) as readonly string[]).includes(size);
+}
+
+/** Every size for a style, smallest first, including ones added in Pricing. */
+export function sizesForStyle(style: PortraitStyle, catalog: Pick<PriceCatalog, "framed" | "canvas"> = DEFAULT_CATALOG) {
+  const area = (size: string) => {
+    const parsed = parseSize(size);
+    return parsed ? parsed.w * parsed.h : 0;
+  };
+  return Object.keys(style === "framed" ? catalog.framed : catalog.canvas).sort(
+    (a, b) => area(a) - area(b) || a.localeCompare(b)
+  );
+}
 
 export const DEFAULT_CATALOG: PriceCatalog = {
   framed: {
@@ -209,6 +249,8 @@ export const DEFAULT_CATALOG: PriceCatalog = {
   giftWrap: 199,
   premiumBackground: 199,
   priorityPreview: 199,
+  familyUpgrade: 500,
+  multiPetHalo: 0,
   mug: { price: 600, compareAt: 799 },
   magnet: { price: 200, compareAt: 299 },
   digital: { price: 300, compareAt: 399 },
@@ -219,6 +261,7 @@ export const DEFAULT_CATALOG: PriceCatalog = {
   freshPayment: 200,
   digitalDownloads: [300, 500],
   options: cloneOptionConfig(DEFAULT_OPTION_CONFIG),
+  limitedBackgrounds: [...LIMITED_EDITION_BACKGROUNDS],
 };
 
 /** @deprecated Prefer catalog.options.styles.framed — kept for older imports. */
@@ -270,13 +313,15 @@ export function framedSaleProblem(
   return portraitOptionProblem(input, catalog);
 }
 
-export function sizeOptionMeta(catalog: PriceCatalog, style: PortraitStyle, size: string) {
-  return style === "framed" ? catalog.options.framedSizes[size] : catalog.options.canvasSizes[size];
+/** Shop status of a size. Undefined when the size has no price, so it can't be bought. */
+export function sizeOptionMeta(catalog: PriceCatalog, style: PortraitStyle, size: string): OptionMeta | undefined {
+  const prices = style === "framed" ? catalog.framed : catalog.canvas;
+  if (prices[size] == null) return undefined;
+  return (style === "framed" ? catalog.options.framedSizes[size] : catalog.options.canvasSizes[size]) || meta();
 }
 
 export function firstAvailableSize(style: PortraitStyle, catalog: PriceCatalog = DEFAULT_CATALOG) {
-  const sizes = style === "framed" ? FRAMED_SIZES : CANVAS_SIZES;
-  for (const size of sizes) {
+  for (const size of sizesForStyle(style, catalog)) {
     if (isOptionSelectable(sizeOptionMeta(catalog, style, size))) return size;
   }
   return null;
@@ -394,6 +439,8 @@ export function cloneCatalog(catalog: PriceCatalog = DEFAULT_CATALOG): PriceCata
     giftWrap: catalog.giftWrap,
     premiumBackground: catalog.premiumBackground,
     priorityPreview: catalog.priorityPreview ?? DEFAULT_CATALOG.priorityPreview,
+    familyUpgrade: catalog.familyUpgrade ?? DEFAULT_CATALOG.familyUpgrade,
+    multiPetHalo: catalog.multiPetHalo ?? DEFAULT_CATALOG.multiPetHalo,
     mug: { ...catalog.mug },
     magnet: { ...catalog.magnet },
     digital: { ...catalog.digital },
@@ -404,6 +451,7 @@ export function cloneCatalog(catalog: PriceCatalog = DEFAULT_CATALOG): PriceCata
     freshPayment: catalog.freshPayment,
     digitalDownloads: [...catalog.digitalDownloads],
     options: cloneOptionConfig(catalog.options || DEFAULT_OPTION_CONFIG),
+    limitedBackgrounds: [...(catalog.limitedBackgrounds || LIMITED_EDITION_BACKGROUNDS)],
   };
 }
 
@@ -446,6 +494,45 @@ export function frameColorLabel(frame: string, style: PortraitStyle) {
   return "Black Frame";
 }
 
+/** You & Your Pet family upgrade for this order (0 for every other product). */
+export function familyUpgradeAmount(input: Pick<PricingInput, "configurator" | "composition">, catalog: PriceCatalog = DEFAULT_CATALOG) {
+  return input.configurator === "you_and_your_pet" && input.composition === "family"
+    ? Math.max(0, catalog.familyUpgrade ?? DEFAULT_CATALOG.familyUpgrade)
+    : 0;
+}
+
+/** Multi-Pet halo price for this order (0 unless a halo was chosen and Pricing sets a price). */
+export function tributeAmount(input: Pick<PricingInput, "configurator" | "tribute">, catalog: PriceCatalog = DEFAULT_CATALOG) {
+  return input.configurator === "multi_pet" && input.tribute ? Math.max(0, catalog.multiPetHalo ?? 0) : 0;
+}
+
+/**
+ * The checkout payload's `addon` is also the order's add-on list ("priority_preview, custom_mug").
+ * Only the legacy single add-ons are priced from it; everything listed below has its own field.
+ */
+const LISTED_ADDONS = new Set([
+  "none",
+  "halo_effect",
+  "priority_preview",
+  "custom_mug",
+  "fridge_magnet",
+  "digital_download",
+  "desk_portrait",
+  "halo_tribute",
+]);
+
+function addonTokens(addon?: string) {
+  return (addon || "none")
+    .split(",")
+    .map((token) => token.trim())
+    .filter(Boolean);
+}
+
+/** Add-ons priced from the `addon` text itself: Halo Effect and the legacy ₹100 illustrations. */
+export function pricedAddonTokens(addon?: string) {
+  return addonTokens(addon).filter((token) => token === "halo_effect" || !LISTED_ADDONS.has(token));
+}
+
 export function getPortraitBreakdown(input: PricingInput, catalog: PriceCatalog = DEFAULT_CATALOG) {
   const style: PortraitStyle = input.portraitStyle === "canvas" ? "canvas" : "framed";
   const size = input.size || (style === "canvas" ? '8"x12"' : '8"x10"');
@@ -454,15 +541,18 @@ export function getPortraitBreakdown(input: PricingInput, catalog: PriceCatalog 
       ? (catalog.framed[size] ?? catalog.framed['8"x10"'] ?? 0)
       : (catalog.canvas[size] ?? catalog.canvas['8"x12"'] ?? 0);
   const petUpgrade = catalog.pets[input.numPets || "one"] ?? 0;
-  const halo = input.addon === "halo_effect" ? catalog.halo : 0;
+  const halo = addonTokens(input.addon).includes("halo_effect") ? catalog.halo : 0;
+  const family = familyUpgradeAmount(input, catalog);
+  const tribute = tributeAmount(input, catalog);
   const priority = input.priorityPreview ? (catalog.priorityPreview ?? DEFAULT_CATALOG.priorityPreview) : 0;
   const wrap = input.giftWrap ? catalog.giftWrap : 0;
-  const premiumBg = isLimitedEditionBackground(input.background) ? catalog.premiumBackground : 0;
+  const premiumBg = isLimitedEditionBackground(input.background, catalog) ? catalog.premiumBackground : 0;
   const qty = Math.max(1, input.cartQty || 1);
   const extras = extraProductLines(input, catalog);
 
+  // The family upgrade is part of the main product line, never a separate add-on (You & Your Pet handoff).
   const portraitLines: PriceLine[] = [
-    { id: "size", label: `${PORTRAIT_STYLE_LABELS[style]} · ${size}`, price: sizePrice * qty },
+    { id: "size", label: `${PORTRAIT_STYLE_LABELS[style]} · ${size}`, price: (sizePrice + family) * qty },
   ];
   if (petUpgrade > 0) {
     portraitLines.push({
@@ -472,17 +562,20 @@ export function getPortraitBreakdown(input: PricingInput, catalog: PriceCatalog 
     });
   }
   if (halo > 0) portraitLines.push({ id: "halo", label: "Halo Effect", price: halo * qty });
+  if (tribute > 0) portraitLines.push({ id: "tribute", label: "A Special Tribute (halo)", price: tribute * qty });
   if (priority > 0) portraitLines.push({ id: "priority", label: "Priority Preview", price: priority * qty });
   if (wrap > 0) portraitLines.push({ id: "wrap", label: "Gift Wrap", price: wrap * qty });
   if (premiumBg > 0) portraitLines.push({ id: "bg", label: "Limited Edition background", price: premiumBg * qty });
 
-  const portraitSubtotal = (sizePrice + petUpgrade + halo + priority + wrap + premiumBg) * qty;
+  const portraitSubtotal = (sizePrice + family + petUpgrade + halo + tribute + priority + wrap + premiumBg) * qty;
   return {
     style,
     size,
     sizePrice: sizePrice * qty,
+    family: family * qty,
     petUpgrade: petUpgrade * qty,
     halo: halo * qty,
+    tribute: tribute * qty,
     priority: priority * qty,
     wrap: wrap * qty,
     premiumBg: premiumBg * qty,
@@ -515,14 +608,17 @@ export function calculatePortraitBasePrice(input: PricingInput, catalog: PriceCa
       : (catalog.canvas[size] ?? catalog.canvas['8"x12"'] ?? 0);
 
   price += catalog.pets[input.numPets || "one"] ?? 0;
+  price += familyUpgradeAmount(input, catalog);
+  price += tributeAmount(input, catalog);
 
-  if (isLimitedEditionBackground(input.background)) {
+  if (isLimitedEditionBackground(input.background, catalog)) {
     price += catalog.premiumBackground;
   }
 
-  const addon = input.addon || "none";
-  if (addon === "halo_effect") price += catalog.halo;
-  else if (addon !== "none" && addon !== "priority_preview") price += 100;
+  const addons = addonTokens(input.addon);
+  if (addons.includes("halo_effect")) price += catalog.halo;
+  // Legacy illustration add-ons (bow tie, heart) cost ₹100 each; listed add-ons are priced by their own fields.
+  price += addons.filter((addon) => !LISTED_ADDONS.has(addon)).length * 100;
 
   if (input.priorityPreview) price += catalog.priorityPreview ?? DEFAULT_CATALOG.priorityPreview;
   if (input.giftWrap) price += catalog.giftWrap;

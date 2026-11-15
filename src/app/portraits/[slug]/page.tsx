@@ -24,8 +24,9 @@ import { getLandingProduct, productIsPurchasable } from "@/lib/landing-products"
 import { calculateQuote, formatRupee } from "@/lib/pricing";
 import { SELLABLE_PORTRAITS, portraitBySlug } from "@/lib/portraits";
 import { loadSiteMedia } from "@/lib/site-media";
-import { loadEverydayContent } from "@/lib/site-content";
-import { loadPriceCatalog } from "@/lib/store-config";
+import { loadLandingContent, loadProductContent } from "@/lib/site-content";
+import { CONFIGURATOR_MEDIA, configuratorForSlug } from "@/lib/everyday-content";
+import { loadPriceCatalog, loadShopCatalog } from "@/lib/store-config";
 
 type PortraitPageProps = { params: Promise<{ slug: string }> };
 
@@ -49,7 +50,7 @@ export default async function PortraitPage({ params }: PortraitPageProps) {
   const stored = await getLandingProduct(slug);
   if (stored?.kind === "fixed") {
     if (!productIsPurchasable(stored) || stored.price == null) notFound();
-    const { catalog } = await loadPriceCatalog();
+    const [{ catalog }, landing] = await Promise.all([loadPriceCatalog(), loadLandingContent()]);
     const base = {
       productType: "landing_offer" as const,
       offerId: stored.id,
@@ -60,7 +61,7 @@ export default async function PortraitPage({ params }: PortraitPageProps) {
     const cod = calculateQuote({ ...base, paymentMethod: "cod" }, catalog);
     return (
       <div className="flex min-h-screen flex-col bg-cream text-cocoa">
-        <AnnouncementBar />
+        <AnnouncementBar rotation={landing.homeAnnouncements} />
         <Navbar homeHref="/landing" />
         <main className="flex-1">
           <OfferCheckout
@@ -83,22 +84,34 @@ export default async function PortraitPage({ params }: PortraitPageProps) {
 
   const portrait = stored?.kind === "portrait" && stored.pets ? stored : portraitBySlug(slug);
   if (!portrait?.pets || (stored && !productIsPurchasable(stored))) notFound();
-  const everyday = portrait.slug === "everyday-pet-portrait";
-  const [media, everydayContent] = await Promise.all([
+  // Everyday, Multi-Pet and You & Your Pet share the three-step configurator, each with its own admin content.
+  const configurator = configuratorForSlug(portrait.slug);
+  const [media, everydayContent, catalog, landing] = await Promise.all([
     loadSiteMedia(),
-    everyday ? loadEverydayContent() : Promise.resolve(undefined),
+    configurator ? loadProductContent(configurator) : Promise.resolve(undefined),
+    loadShopCatalog(),
+    loadLandingContent(),
   ]);
+  const subtitle = everydayContent ? everydayContent.header.pageSubtitle : "Free shipping across India";
+  const mediaPrefix = configurator ? CONFIGURATOR_MEDIA[configurator].prefix : undefined;
+  // Admin → Configurator → Page sections: which shared sections this product page shows (all of them elsewhere).
+  const below = everydayContent?.below;
+  const show = (on: boolean | undefined) => on !== false;
 
   return (
     <SiteMediaProvider overrides={media}>
-    <div className="min-h-screen flex flex-col bg-white">
-      <AnnouncementBar />
+    <div
+      className="min-h-screen flex flex-col bg-white"
+      style={everydayContent ? { backgroundColor: everydayContent.header.pageBackground } : undefined}
+    >
+      {/* The shop-wide rotation (Admin → Landing & home → Home page), as on the home page. */}
+      <AnnouncementBar rotation={landing.homeAnnouncements} />
       <Navbar />
 
       <main className="flex-1">
         <div className="container mx-auto px-4 pt-8 md:pt-12">
           <div className="hidden lg:flex items-center gap-2 text-[13px] text-gray-500 font-inter mb-8">
-            <Link href="/" className="hover:text-gray-700">Home</Link>
+            <Link href="/" className="hover:text-gray-700">{everydayContent ? everydayContent.header.homeLabel : "Home"}</Link>
             <span className="text-gray-400 font-bold text-[10px]">&gt;</span>
             <span>{portrait.name}</span>
           </div>
@@ -107,35 +120,46 @@ export default async function PortraitPage({ params }: PortraitPageProps) {
             <h1 className="text-3xl font-normal text-[#1a1a1b] leading-tight font-playfair tracking-tight px-4">
               {portrait.name}
             </h1>
-            <p className="text-[13px] text-gray-500 px-2 leading-relaxed font-inter mt-1">
-              Free shipping across India
-            </p>
+            {subtitle ? (
+              <p className="text-[13px] text-gray-500 px-2 leading-relaxed font-inter mt-1">{subtitle}</p>
+            ) : null}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 lg:gap-20 pb-8 lg:pb-20 relative">
             <div className="relative h-full">
               <div className="lg:sticky lg:top-24 z-10 w-full self-start">
-                <ProductGallery />
+                {everydayContent ? (
+                  <ProductGallery
+                    mediaPrefix={mediaPrefix}
+                    photoCount={everydayContent.gallery.photoCount}
+                    showVideo={everydayContent.gallery.showVideo}
+                  />
+                ) : (
+                  <ProductGallery />
+                )}
               </div>
             </div>
             <ProductInfo
               title={portrait.name}
               presetPets={portrait.pets}
-              flow={everyday ? "everyday" : "standard"}
+              flow={configurator ?? "standard"}
               everydayContent={everydayContent}
+              initialCatalog={catalog}
             />
           </div>
 
-          <UnboxingCarousel />
-          <ScrollingTicker />
-          <HowItWorks />
-          <FeatureSections />
-          <IllustratedCarousel />
-          <Comparison />
-          <FAQ />
-          <Reviews />
-          <InstagramFeed />
-          <TrustFeatures />
+          {show(below?.showUnboxing) ? <UnboxingCarousel /> : null}
+          {show(below?.showTicker) ? <ScrollingTicker /> : null}
+          {show(below?.showHowItWorks) ? <HowItWorks /> : null}
+          {show(below?.showFeatures) ? <FeatureSections /> : null}
+          {show(below?.showCarousel) ? <IllustratedCarousel /> : null}
+          {show(below?.showComparison) ? <Comparison /> : null}
+          {show(below?.showFaq) ? <FAQ /> : null}
+          {show(below?.showReviews) ? (
+            everydayContent ? <Reviews copy={everydayContent.reviews} mediaPrefix={mediaPrefix} /> : <Reviews />
+          ) : null}
+          {show(below?.showInstagram) ? <InstagramFeed /> : null}
+          {show(below?.showTrustFeatures) ? <TrustFeatures /> : null}
         </div>
       </main>
 

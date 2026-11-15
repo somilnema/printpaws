@@ -15,7 +15,6 @@ import {
   ShieldCheck,
   Gift,
   PawPrint,
-  Heart as HeartIcon,
   ArrowRight,
   ArrowLeft,
   Package,
@@ -29,10 +28,11 @@ import {
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMedia, useUploadedMedia } from "@/components/SiteMedia";
+import { GUIDE_STOCK_PHOTOS, uploadedKey } from "@/lib/site-media-catalog";
 import {
   calculateQuote,
-  CANVAS_SIZES,
   cloneCatalog,
+  cloneOptionMeta,
   couponOffLabel,
   DEFAULT_CATALOG,
   displaySizeLabel,
@@ -42,7 +42,6 @@ import {
   firstAvailableSize,
   firstAvailableStyle,
   formatRupee,
-  FRAMED_SIZES,
   frameColorLabel,
   formatRs,
   getPortraitBreakdown,
@@ -52,6 +51,7 @@ import {
   PORTRAIT_STYLE_LABELS,
   PRODUCT_LABELS,
   sizeOptionMeta,
+  sizesForStyle,
   type CouponRule,
   type OptionMeta,
   type PaymentMethod,
@@ -63,10 +63,41 @@ import {
 import { trackPixel } from "@/lib/pixel";
 import { ExtraProducts } from "@/components/ExtraProducts";
 import { EverydayChooseStep } from "@/components/everyday/EverydayChooseStep";
-import { EverydayCart } from "@/components/everyday/EverydayCart";
-import { EverydayProgress } from "@/components/everyday/ui";
+import { EverydayCart, type CartDetail } from "@/components/everyday/EverydayCart";
+import { EverydayProgress, RichText, TrustGlyph } from "@/components/everyday/ui";
 import { BACKGROUNDS, backgroundById } from "@/lib/backgrounds";
-import { compareAtPrice, DEFAULT_EVERYDAY_CONTENT, fill, type EverydayContent, type ExtraId } from "@/lib/everyday-content";
+import {
+  compareAtPrice,
+  CONFIGURATOR_MEDIA,
+  CONFIGURATOR_SLUGS,
+  DEFAULT_EVERYDAY_CONTENT,
+  defaultContent,
+  fill,
+  isConfiguratorProduct,
+  limitedBackgroundIds,
+  sizeHiddenForPets,
+  type ConfiguratorProduct,
+  type EverydayContent,
+  type ExtraId,
+} from "@/lib/everyday-content";
+import {
+  enabledMethods,
+  isPhotoMethod,
+  methodCopy,
+  MULTI_PET_COUNTS,
+  needsGroupConfirm,
+  petCountNumber,
+  referenceKeys,
+  referenceNeedsPet,
+  slotSpecs,
+  type Composition,
+  type FlowProduct,
+  type PhotoMethod,
+} from "@/lib/product-order";
+import { CompositionCards, PetCountCards } from "@/components/everyday/ProductChoice";
+import { NamesSection, TributeSection } from "@/components/everyday/ProductPersonalize";
+import { ArtistNote, MethodCards, SlotUploadsSection } from "@/components/everyday/PhotoMethodUpload";
+import { useSlotUploads, type SavedSlot } from "@/components/everyday/useSlotUploads";
 import { EverydayPersonalizeStep } from "@/components/everyday/EverydayPersonalizeStep";
 import { EverydayUploadStep } from "@/components/everyday/EverydayUploadStep";
 import { SaveOfferModal } from "@/components/SaveOfferModal";
@@ -102,6 +133,62 @@ function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
+type SavedCart = Record<string, unknown>;
+type CartOwner = ConfiguratorProduct | "standard";
+
+/**
+ * Pages that can show the same cart item. The home page, Memorial and Everyday are all one-photo flows and keep
+ * sharing one cart as before; Multi-Pet and You & Your Pet carts carry their own photos and choices.
+ */
+function cartGroup(owner: CartOwner) {
+  return owner === "standard" || owner === "everyday" ? "single" : owner;
+}
+
+/** Which configurator owns a saved cart. Older carts only saved the pet choice. */
+function cartProductOf(saved: SavedCart): CartOwner {
+  if (saved.cartProduct === "standard" || isConfiguratorProduct(saved.cartProduct)) {
+    return saved.cartProduct as ConfiguratorProduct | "standard";
+  }
+  const pets = String(saved.selectedPets || "");
+  if (pets === "human") return "you_and_your_pet";
+  if (pets === "two" || pets === "three" || pets === "four") return "multi_pet";
+  return "everyday";
+}
+
+/** Page that shows a saved cart: where it was added ("/" or a product page), else the product's page. */
+function savedCartPath(saved: SavedCart, product: CartOwner) {
+  if (typeof saved.cartPath === "string" && /^\/(portraits\/[a-z0-9-]+)?$/.test(saved.cartPath)) return saved.cartPath;
+  return `/portraits/${product === "standard" ? CONFIGURATOR_SLUGS.everyday : CONFIGURATOR_SLUGS[product]}`;
+}
+
+/** This page can show the saved cart. Carts saved before products were tagged stay shared with the home page, as before. */
+function cartIsOwn(saved: SavedCart, page: CartOwner) {
+  if (!saved.cartProduct && page === "standard") return true;
+  return cartGroup(cartProductOf(saved)) === cartGroup(page);
+}
+
+/** Where to open the cart when it holds a portrait this page can't show; null when this page owns it. Never this page. */
+function foreignCartTarget(saved: SavedCart, page: CartOwner): string | null {
+  if (!saved.addedToCart || cartIsOwn(saved, page)) return null;
+  const owner = cartProductOf(saved);
+  const path = savedCartPath(saved, owner);
+  return path === window.location.pathname ? null : path;
+}
+
+function foreignCartPath(page: CartOwner): string | null {
+  try {
+    const raw = localStorage.getItem("peternity_cart");
+    return raw ? foreignCartTarget(JSON.parse(raw) as SavedCart, page) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Multi-Pet / You & Your Pet keep their unfinished choices here, whichever page owns the cart. */
+function draftKey(product: FlowProduct) {
+  return `peternity_draft_${product}`;
+}
+
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
   return <p className="text-[11px] font-bold text-red-500 mt-1.5">{message}</p>;
@@ -111,10 +198,12 @@ type ProductInfoProps = {
   title?: string;
   /** Pet choice a product page opens on. Ignored while the cart holds a portrait. */
   presetPets?: string;
-  /** Everyday Pet Portrait three-step configurator (PDF handoff). */
-  flow?: "everyday" | "standard";
+  /** Three-step configurator (Everyday design). Multi-Pet and You & Your Pet add their own choices to it. */
+  flow?: ConfiguratorProduct | "standard";
   /** Admin → Configurator copy for the Everyday flow. Defaults when omitted. */
   everydayContent?: EverydayContent;
+  /** Live prices from the server, so the first paint never shows the built-in defaults. */
+  initialCatalog?: PriceCatalog | null;
 };
 
 export function ProductInfo({
@@ -122,9 +211,34 @@ export function ProductInfo({
   presetPets,
   flow = "standard",
   everydayContent,
+  initialCatalog,
 }: ProductInfoProps = {}) {
-  const everyday = flow === "everyday";
-  const content = everydayContent ?? DEFAULT_EVERYDAY_CONTENT;
+  // "everyday" = the Everyday three-step design. Multi-Pet and You & Your Pet use it with their own content.
+  const everyday = flow !== "standard";
+  const configurator: ConfiguratorProduct | null = flow === "standard" ? null : flow;
+  const flowProduct: FlowProduct | null = flow === "multi_pet" || flow === "you_and_your_pet" ? flow : null;
+  const isMulti = flowProduct === "multi_pet";
+  const isYouPet = flowProduct === "you_and_your_pet";
+  const content = everydayContent ?? (configurator ? defaultContent(configurator) : DEFAULT_EVERYDAY_CONTENT);
+  const flowCopy = flowProduct ? content.flow : undefined;
+  const mediaPrefix = configurator ? CONFIGURATOR_MEDIA[configurator].prefix : "everyday";
+  /** Pets value each product prices with: Everyday one pet, You & Your Pet "human", Multi-Pet the chosen count. */
+  const productPets = (pets: string) =>
+    flow === "everyday"
+      ? "one"
+      : isYouPet
+        ? "human"
+        : isMulti
+          ? (MULTI_PET_COUNTS as readonly string[]).includes(pets)
+            ? pets
+            : "two"
+          : pets;
+  const startStyle: PortraitStyle = everyday && content.step1.defaultStyle === "canvas" ? "canvas" : "framed";
+  const visibleFrames = content.frames.filter((frame) => frame.visible);
+  // Frame a framed Everyday portrait starts on; a hidden default falls back to the first one on show.
+  const framedFrameDefault = everyday
+    ? visibleFrames.find((frame) => frame.id === content.step2.defaultFrame)?.id || visibleFrames[0]?.id || "black"
+    : "black";
   const media = useMedia();
   const [currentStep, setCurrentStepRaw] = useState(1);
   const currentStepSafe = Math.min(Math.max(currentStep, 1), 3);
@@ -135,7 +249,7 @@ export function ProductInfo({
     });
   };
   const [productType, setProductType] = useState<ProductType>("portrait");
-  const [catalog, setCatalog] = useState<PriceCatalog>(DEFAULT_CATALOG);
+  const [catalog, setCatalog] = useState<PriceCatalog>(() => (initialCatalog ? cloneCatalog(initialCatalog) : DEFAULT_CATALOG));
   const [couponRule, setCouponRule] = useState<CouponRule | null>(null);
   const [customPaymentAmount, setCustomPaymentAmount] = useState<number>(500);
   const [digitalDownloadAmount, setDigitalDownloadAmount] = useState<number>(300);
@@ -146,19 +260,21 @@ export function ProductInfo({
   const [couponError, setCouponError] = useState<string | null>(null);
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const [portraitStyle, setPortraitStyle] = useState<PortraitStyle>("framed");
+  const [portraitStyle, setPortraitStyle] = useState<PortraitStyle>(startStyle);
   const [showStylePreview, setShowStylePreview] = useState(false);
-  const [selectedSize, setSelectedSize] = useState('12"x16"');
-  const [selectedFrame, setSelectedFrame] = useState("black");
-  const [selectedPets, setSelectedPets] = useState("one");
+  const [selectedSize, setSelectedSize] = useState(
+    !everyday ? '12"x16"' : startStyle === "canvas" ? content.step1.defaultCanvasSize : content.step1.defaultFramedSize
+  );
+  const [selectedFrame, setSelectedFrame] = useState(startStyle === "canvas" ? "canva" : framedFrameDefault);
+  const [selectedPets, setSelectedPets] = useState(isMulti ? "two" : isYouPet ? "human" : "one");
   const petNameCount = PET_OPTIONS.find((pet) => pet.id === selectedPets)?.names ?? 1;
   const humanPetImage = useUploadedMedia("pets-human");
-  const [selectedBg, setSelectedBg] = useState("Pearl");
+  const [selectedBg, setSelectedBg] = useState(everyday ? content.step2.defaultBackground : "Pearl");
   const [selectedAddOn, setSelectedAddOn] = useState("none");
   const [giftWrap, setGiftWrap] = useState(false);
-  const [priorityPreview, setPriorityPreview] = useState(false);
-  const [includePetName, setIncludePetName] = useState(false);
-  const [includeSubtitle, setIncludeSubtitle] = useState(false);
+  const [priorityPreview, setPriorityPreview] = useState(everyday && content.step2.showPriority && content.step2.priorityDefaultOn);
+  const [includePetName, setIncludePetName] = useState(everyday && content.step2.petNameDefaultOn);
+  const [includeSubtitle, setIncludeSubtitle] = useState(everyday && content.step2.subtitleDefaultOn);
   const [subtitle, setSubtitle] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderStatus, setOrderStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -200,6 +316,48 @@ export function ProductInfo({
   const [isClaimingOffer, setIsClaimingOffer] = useState(false);
   const paymentSettled = useRef(false);
   const [deliveryDates, setDeliveryDates] = useState("");
+  // Multi-Pet / You & Your Pet only.
+  const [composition, setComposition] = useState<Composition>("solo");
+  const [nameList, setNameList] = useState<string[]>([]);
+  const [familyNames, setFamilyNames] = useState("");
+  const [tribute, setTribute] = useState(false);
+  const [haloPet, setHaloPet] = useState<number | null>(null);
+  const [haloNote, setHaloNote] = useState("");
+  const [photoMethod, setPhotoMethod] = useState<PhotoMethod>("group");
+  const [confirmGroup, setConfirmGroup] = useState(false);
+  const [artistNote, setArtistNote] = useState("");
+  // Path of the page whose portrait is already in the cart, when this page can't show it.
+  const foreignCartRef = useRef<string | null>(null);
+  const pageOwner: CartOwner = configurator ?? "standard";
+  const uploads = useSlotUploads(
+    {
+      maxMb: content.step3.uploadMaxMb,
+      formatErrorTitle: content.step3.formatErrorTitle,
+      formatError: content.step3.formatError,
+      tooLargeTitle: content.step3.tooLargeTitle,
+      tooLargeError: content.step3.tooLargeError,
+      uploadFailTitle: content.step3.uploadFailTitle,
+    },
+    (title, message) => setUploadFailAlert({ title, message })
+  );
+  const pricedPets = productPets(selectedPets);
+  const petCount = isMulti ? petCountNumber(pricedPets) : 1;
+  const methods = flowCopy ? enabledMethods(flowCopy) : [];
+  const activeMethod: PhotoMethod = methods.includes(photoMethod) ? photoMethod : methods[0] || "group";
+  const flowShape = flowProduct ? { product: flowProduct, method: activeMethod, composition, petCount } : null;
+  const slotList = flowCopy && flowShape ? slotSpecs(flowCopy, flowShape) : [];
+  const refKeys = flowCopy ? referenceKeys(flowCopy, activeMethod) : [];
+  const usedRefKeys = refKeys.filter((key) => uploads.slots[key]);
+  const activeSlotKeys = [...slotList.map((spec) => spec.key), ...usedRefKeys];
+  const groupConfirmNeeded = Boolean(flowCopy && flowShape && needsGroupConfirm(flowCopy, flowShape));
+  const tributeOn = isMulti && tribute && Boolean(flowCopy?.showTribute);
+  // Size rules: Multi-Pet per pet count, You & Your Pet per composition.
+  const sizeRule = isMulti ? pricedPets : isYouPet ? composition : "";
+  const haloPetName = haloPet ? (nameList[haloPet - 1] || "").trim() : "";
+  // A named pet is easy to find; otherwise the customer says which one gets the halo.
+  // A name alone does not show which animal it is in a group photo (handoff p11), so ask whenever a halo pet is chosen.
+  // Blanking the label in the admin turns the question off (the server then stops requiring it too).
+  const haloNoteNeeded = tributeOn && Boolean(haloPet) && Boolean(flowCopy?.tributeNoteLabel.trim());
 
   useEffect(() => {
     const today = new Date();
@@ -221,6 +379,11 @@ export function ProductInfo({
   // 1. Listen for global cart toggles (e.g. from the Navbar)
   useEffect(() => {
     const handleToggleCart = () => {
+      // The portrait in the cart was built on another product page: show it there.
+      if (foreignCartRef.current) {
+        window.location.assign(`${foreignCartRef.current}?cart=open`);
+        return;
+      }
       setShowCart(prev => !prev);
     };
     window.addEventListener('toggleCart', handleToggleCart);
@@ -231,9 +394,15 @@ export function ProductInfo({
   useEffect(() => {
     const url = new URL(window.location.href);
     if (url.searchParams.get("cart") !== "open") return;
-    setShowCart(true);
     url.searchParams.delete("cart");
     window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+    const elsewhere = foreignCartPath(pageOwner);
+    if (elsewhere) {
+      window.location.replace(`${elsewhere}?cart=open`);
+      return;
+    }
+    setShowCart(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -258,7 +427,7 @@ export function ProductInfo({
       const nextStyle = firstAvailableStyle(catalog);
       if (nextStyle) {
         setPortraitStyle(nextStyle);
-        setSelectedFrame(nextStyle === "framed" ? "black" : "canva");
+        setSelectedFrame(nextStyle === "framed" ? framedFrameDefault : "canva");
         const nextSize = firstAvailableSize(nextStyle, catalog);
         if (nextSize) setSelectedSize(nextSize);
       }
@@ -281,31 +450,38 @@ export function ProductInfo({
   // 2. Load customizer choices & cart details from persisted cache on mount
   useEffect(() => {
     let cartHasPortrait = false;
+    let restoredOwnChoices = false;
+    // Portrait choices, from the cart or (Multi-Pet / You & Your Pet) from this product's draft.
+    const applyChoices = (src: SavedCart) => {
+      if (src.portraitStyle === "framed" || src.portraitStyle === "canvas") setPortraitStyle(src.portraitStyle);
+      if (typeof src.selectedSize === "string" && src.selectedSize) setSelectedSize(src.selectedSize);
+      if (typeof src.selectedFrame === "string" && src.selectedFrame) setSelectedFrame(src.selectedFrame);
+      if (typeof src.selectedPets === "string" && src.selectedPets) setSelectedPets(src.selectedPets);
+      if (typeof src.selectedBg === "string" && src.selectedBg) setSelectedBg(src.selectedBg);
+      if (typeof src.priorityPreview === "boolean") setPriorityPreview(src.priorityPreview);
+      if (typeof src.includePetName === "boolean") setIncludePetName(src.includePetName);
+      if (typeof src.includeSubtitle === "boolean") setIncludeSubtitle(src.includeSubtitle);
+      if (typeof src.subtitle === "string" && src.subtitle) setSubtitle(src.subtitle);
+      if (!flowProduct) return;
+      if (src.composition === "solo" || src.composition === "family") setComposition(src.composition);
+      if (Array.isArray(src.nameList)) setNameList(src.nameList.slice(0, 4).map((name: unknown) => String(name ?? "")));
+      if (typeof src.familyNames === "string") setFamilyNames(src.familyNames);
+      if (typeof src.tribute === "boolean") setTribute(src.tribute);
+      if (typeof src.haloPet === "number" && Number.isInteger(src.haloPet)) setHaloPet(src.haloPet);
+      if (typeof src.haloNote === "string") setHaloNote(src.haloNote);
+      if (isPhotoMethod(src.photoMethod)) setPhotoMethod(src.photoMethod);
+      if (typeof src.confirmGroup === "boolean") setConfirmGroup(src.confirmGroup);
+      if (typeof src.artistNote === "string") setArtistNote(src.artistNote);
+      if (src.flowPhotos && typeof src.flowPhotos === "object") uploads.restore(src.flowPhotos as Record<string, SavedSlot>);
+    };
     try {
       const saved = localStorage.getItem('peternity_cart');
       if (saved) {
         const parsed = JSON.parse(saved);
-        cartHasPortrait = Boolean(parsed.addedToCart);
-        if (parsed.productType === "portrait") setProductType("portrait");
-        if (parsed.customPaymentAmount) setCustomPaymentAmount(parsed.customPaymentAmount);
-        if (parsed.digitalDownloadAmount) setDigitalDownloadAmount(parsed.digitalDownloadAmount);
-        if (parsed.paymentMethod) setPaymentMethod(parsed.paymentMethod);
-        if (parsed.appliedCoupon) setAppliedCoupon(parsed.appliedCoupon);
-        if (parsed.couponInput) setCouponInput(parsed.couponInput);
-        if (parsed.portraitStyle === "framed" || parsed.portraitStyle === "canvas") {
-          setPortraitStyle(parsed.portraitStyle);
-        }
-        if (parsed.selectedSize) setSelectedSize(parsed.selectedSize);
-        if (parsed.selectedFrame) setSelectedFrame(parsed.selectedFrame);
-        if (parsed.selectedPets) setSelectedPets(parsed.selectedPets);
-        if (parsed.selectedBg) setSelectedBg(parsed.selectedBg);
-        if (parsed.selectedAddOn) setSelectedAddOn(parsed.selectedAddOn);
-        if (parsed.giftWrap !== undefined) setGiftWrap(parsed.giftWrap);
-        if (parsed.priorityPreview !== undefined) setPriorityPreview(parsed.priorityPreview);
-        if (parsed.includePetName !== undefined) setIncludePetName(parsed.includePetName);
-        if (parsed.includeSubtitle !== undefined) setIncludeSubtitle(parsed.includeSubtitle);
-        if (parsed.subtitle) setSubtitle(parsed.subtitle);
-        if (parsed.petName) setPetName(parsed.petName);
+        // A page only takes back carts it can show (see cartGroup). A portrait from another product stays in the
+        // cart untouched, and this page leaves it alone until it adds its own.
+        const own = cartIsOwn(parsed, pageOwner);
+        if (!own) foreignCartRef.current = foreignCartTarget(parsed, pageOwner);
         if (parsed.customerName) setCustomerName(parsed.customerName);
         if (parsed.customerPhone) setCustomerPhone(parsed.customerPhone);
         if (parsed.customerEmail) setCustomerEmail(parsed.customerEmail);
@@ -314,28 +490,57 @@ export function ProductInfo({
         if (parsed.shippingState) setShippingState(parsed.shippingState);
         if (parsed.shippingPincode) setShippingPincode(parsed.shippingPincode);
         if (parsed.shippingLandmark) setShippingLandmark(parsed.shippingLandmark);
-        if (parsed.cartQty) setCartQty(parsed.cartQty);
-        if (parsed.addMagnet !== undefined) setAddMagnet(parsed.addMagnet);
-        if (parsed.addMug !== undefined) setAddMug(parsed.addMug);
-        if (parsed.addDigitalDownload !== undefined) setAddDigitalDownload(parsed.addDigitalDownload);
-        if (parsed.addDesk !== undefined) setAddDesk(parsed.addDesk);
-        if (parsed.addedToCart) setAddedToCart(true);
-        if (parsed.memorialText) setMemorialText(parsed.memorialText);
+        if (own) {
+          restoredOwnChoices = true;
+          cartHasPortrait = Boolean(parsed.addedToCart);
+          applyChoices(parsed);
+          if (parsed.productType === "portrait") setProductType("portrait");
+          if (parsed.customPaymentAmount) setCustomPaymentAmount(parsed.customPaymentAmount);
+          if (parsed.digitalDownloadAmount) setDigitalDownloadAmount(parsed.digitalDownloadAmount);
+          if (parsed.paymentMethod) setPaymentMethod(parsed.paymentMethod);
+          if (parsed.appliedCoupon) setAppliedCoupon(parsed.appliedCoupon);
+          if (parsed.couponInput) setCouponInput(parsed.couponInput);
+          if (parsed.selectedAddOn) setSelectedAddOn(parsed.selectedAddOn);
+          if (parsed.giftWrap !== undefined) setGiftWrap(parsed.giftWrap);
+          if (parsed.petName) setPetName(parsed.petName);
+          if (parsed.cartQty) setCartQty(parsed.cartQty);
+          if (parsed.addMagnet !== undefined) setAddMagnet(parsed.addMagnet);
+          if (parsed.addMug !== undefined) setAddMug(parsed.addMug);
+          if (parsed.addDigitalDownload !== undefined) setAddDigitalDownload(parsed.addDigitalDownload);
+          if (parsed.addDesk !== undefined) setAddDesk(parsed.addDesk);
+          if (parsed.addedToCart) setAddedToCart(true);
+          if (parsed.memorialText) setMemorialText(parsed.memorialText);
+        }
+      }
+      // Multi-Pet / You & Your Pet: unfinished work survives a visit to another product page.
+      if (flowProduct && !restoredOwnChoices) {
+        const draft = localStorage.getItem(draftKey(flowProduct));
+        if (draft) {
+          applyChoices(JSON.parse(draft) as SavedCart);
+          restoredOwnChoices = true;
+        }
       }
     } catch (e) {
       console.warn("Failed to load persisted cart cache:", e);
     }
     // Changing pets here would silently change the portrait already in the cart.
-    if (everyday) {
+    if (flow === "everyday") {
       if (!cartHasPortrait) setSelectedPets("one");
+    } else if (flowProduct) {
+      if (!restoredOwnChoices) setSelectedPets(isYouPet ? "human" : "two");
     } else if (presetPets && !cartHasPortrait) {
       setSelectedPets(presetPets);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [presetPets, everyday]);
 
   // 3. Keep cache synchronized in localStorage when configurations change
   useEffect(() => {
+    // Another product's portrait is in the cart: keep it until this page adds its own.
+    if (foreignCartRef.current && !addedToCart) return;
     const cartState = {
+      cartProduct: configurator ?? "standard",
+      cartPath: window.location.pathname,
       productType,
       customPaymentAmount,
       digitalDownloadAmount,
@@ -345,7 +550,7 @@ export function ProductInfo({
       portraitStyle,
       selectedSize,
       selectedFrame,
-      selectedPets: everyday ? "one" : selectedPets,
+      selectedPets: everyday ? productPets(selectedPets) : selectedPets,
       selectedBg,
       selectedAddOn,
       giftWrap,
@@ -369,7 +574,21 @@ export function ProductInfo({
       addDigitalDownload,
       addDesk,
       addedToCart,
-      hasCustomizedItem: addedToCart
+      hasCustomizedItem: addedToCart,
+      ...(flowProduct
+        ? {
+            composition,
+            nameList,
+            familyNames,
+            tribute,
+            haloPet,
+            haloNote,
+            photoMethod: activeMethod,
+            confirmGroup,
+            artistNote,
+            flowPhotos: uploads.savedSlots(),
+          }
+        : {}),
     };
     try {
       localStorage.setItem('peternity_cart', JSON.stringify(cartState));
@@ -381,6 +600,8 @@ export function ProductInfo({
     } catch (e) {
       console.warn("Failed to persist cart cache:", e);
     }
+    // configurator / flowProduct come from props; saved photos follow uploads.slots.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     portraitStyle,
     selectedSize,
@@ -417,6 +638,71 @@ export function ProductInfo({
     appliedCoupon,
     couponInput,
     everyday,
+    composition,
+    nameList,
+    familyNames,
+    tribute,
+    haloPet,
+    haloNote,
+    activeMethod,
+    confirmGroup,
+    artistNote,
+    uploads.slots,
+  ]);
+
+  // Multi-Pet / You & Your Pet draft, kept whichever page owns the cart (photos are saved links, never files).
+  useEffect(() => {
+    if (!flowProduct) return;
+    try {
+      localStorage.setItem(
+        draftKey(flowProduct),
+        JSON.stringify({
+          portraitStyle,
+          selectedSize,
+          selectedFrame,
+          selectedPets: pricedPets,
+          selectedBg,
+          priorityPreview,
+          includePetName,
+          includeSubtitle,
+          subtitle,
+          composition,
+          nameList,
+          familyNames,
+          tribute,
+          haloPet,
+          haloNote,
+          photoMethod: activeMethod,
+          confirmGroup,
+          artistNote,
+          flowPhotos: uploads.savedSlots(),
+        })
+      );
+    } catch {
+      // Private mode or full storage: the page still works, only the draft is not kept.
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    flowProduct,
+    portraitStyle,
+    selectedSize,
+    selectedFrame,
+    pricedPets,
+    selectedBg,
+    priorityPreview,
+    includePetName,
+    includeSubtitle,
+    subtitle,
+    composition,
+    nameList,
+    familyNames,
+    tribute,
+    haloPet,
+    haloNote,
+    activeMethod,
+    confirmGroup,
+    artistNote,
+    uploads.slots,
   ]);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -429,8 +715,8 @@ export function ProductInfo({
 
   const testimonials = [
     {
-      content: "Didn’t think I’d get emotional over a portrait honestly… but they captured him so perfectly. My family loved it instantly.",
-      author: "Vaidehi",
+      content: content.below.testimonialText,
+      author: content.below.testimonialAuthor,
       avatar: "review bar image 1.jpg.jpeg"
     }
   ];
@@ -454,7 +740,7 @@ export function ProductInfo({
     productType,
     portraitStyle,
     size: selectedSize,
-    numPets: everyday ? "one" : selectedPets,
+    numPets: everyday ? pricedPets : selectedPets,
     background: selectedBg,
     addon: everyday ? "none" : selectedAddOn,
     giftWrap,
@@ -469,21 +755,52 @@ export function ProductInfo({
     couponCode: appliedCoupon,
     couponRule,
     paymentMethod: productType === "portrait" ? paymentMethod : "prepaid",
+    ...(flowProduct
+      ? {
+          configurator: flowProduct,
+          composition: isYouPet ? composition : undefined,
+          tribute: isMulti ? tributeOn : undefined,
+        }
+      : {}),
   };
+  // Multi-Pet / You & Your Pet charge Limited Edition for their own background list.
+  const quoteCatalog: PriceCatalog = flowProduct ? { ...catalog, limitedBackgrounds: limitedBackgroundIds(content) } : catalog;
 
-  const effectivePetName = everyday ? (includePetName ? petName.trim() : "") : petName;
+  // Names exactly as the order needs them: one per pet (Multi-Pet), or the chosen composition (You & Your Pet).
+  const orderNames = isMulti
+    ? Array.from({ length: petCount }, (_, i) => (nameList[i] || "").trim())
+    : isYouPet
+      ? composition === "solo"
+        ? [(nameList[0] || "").trim(), (nameList[1] || "").trim()]
+        : [familyNames.trim()]
+      : [];
+  const flowNamesText = (isYouPet && composition === "solo" ? orderNames.filter(Boolean).join(" & ") : orderNames.filter(Boolean).join(", "));
+  const effectivePetName = flowProduct
+    ? includePetName
+      ? flowNamesText
+      : ""
+    : everyday
+      ? includePetName
+        ? petName.trim()
+        : ""
+      : petName;
   const effectiveSubtitle = everyday ? (includeSubtitle ? subtitle.trim() : "") : memorialText;
   // Everyday tiles: admin order, labels and visibility; ids stay the order / pricing keys.
+  // Limited Edition stays hidden on Multi-Pet / You & Your Pet until the admin switches it on (handoffs).
   const everydayBackgrounds = content.backgrounds
-    .filter((entry) => entry.visible)
+    .filter((entry) => entry.visible && (!flowCopy || flowCopy.showLimited || !entry.limited))
     .map((entry) => {
-      const bg = backgroundById(entry.id);
-      return bg
-        ? { id: bg.name, label: entry.label || bg.label || bg.name, value: bg.value, isImage: bg.isImage, limited: bg.limited }
-        : null;
-    })
-    .filter((bg): bg is NonNullable<typeof bg> => bg !== null);
+      const builtIn = backgroundById(entry.id);
+      return {
+        id: entry.id,
+        label: entry.label,
+        value: builtIn?.isImage ? media(builtIn.value) : entry.color,
+        isImage: builtIn?.isImage,
+        limited: entry.limited,
+      };
+    });
   const everydayBgIds = everydayBackgrounds.map((bg) => bg.id).join("|");
+  const everydayFrameIds = visibleFrames.map((frame) => frame.id).join("|");
 
   // A background the admin has hidden falls back to the first one still on show.
   useEffect(() => {
@@ -491,6 +808,13 @@ export function ProductInfo({
     const ids = everydayBgIds.split("|").filter(Boolean);
     if (ids.length && !ids.includes(selectedBg)) setSelectedBg(ids[0]);
   }, [everyday, everydayBgIds, selectedBg, addedToCart]);
+
+  // Same for a frame the admin has hidden or removed.
+  useEffect(() => {
+    if (!everyday || addedToCart || portraitStyle !== "framed") return;
+    const ids = everydayFrameIds.split("|").filter(Boolean);
+    if (ids.length && !ids.includes(selectedFrame)) setSelectedFrame(framedFrameDefault);
+  }, [everyday, everydayFrameIds, framedFrameDefault, selectedFrame, portraitStyle, addedToCart]);
 
   // Never charge for an add-on the admin has taken off the page (it may still be in a saved cart).
   useEffect(() => {
@@ -511,14 +835,42 @@ export function ProductInfo({
     content.step2.showPriority,
   ]);
 
+  // A size the admin keeps off sale for this many pets / this composition moves to the first one still offered.
+  useEffect(() => {
+    if (!sizeRule || !sizeHiddenForPets(content, sizeRule, portraitStyle, selectedSize)) return;
+    const next = sizesForStyle(portraitStyle, catalog).find(
+      (size) =>
+        isOptionSelectable(sizeOptionMeta(catalog, portraitStyle, size)) &&
+        !sizeHiddenForPets(content, sizeRule, portraitStyle, size)
+    );
+    if (next) setSelectedSize(next);
+  }, [sizeRule, content, portraitStyle, selectedSize, catalog]);
+
+  // Multi-Pet: a pet count switched off in Pricing moves to the first count still on sale.
+  useEffect(() => {
+    if (!isMulti || isOptionSelectable(catalog.options.pets[pricedPets])) return;
+    const next = MULTI_PET_COUNTS.find((id) => isOptionSelectable(catalog.options.pets[id]));
+    if (next && next !== pricedPets) setSelectedPets(next);
+  }, [isMulti, catalog, pricedPets]);
+
+  // A photo method the admin switched off falls back to the first one still offered.
+  useEffect(() => {
+    if (flowProduct && activeMethod !== photoMethod) setPhotoMethod(activeMethod);
+  }, [flowProduct, activeMethod, photoMethod]);
+
+  // The halo goes when the admin turns A Special Tribute off (it may still be in a saved cart).
+  useEffect(() => {
+    if (isMulti && !flowCopy?.showTribute && tribute) setTribute(false);
+  }, [isMulti, flowCopy?.showTribute, tribute]);
+
   const backgroundLabel = (id: string) =>
     content.backgrounds.find((bg) => bg.id === id)?.label || backgroundById(id)?.label || id;
 
   let quote;
   try {
-    quote = calculateQuote(pricingInput, catalog);
+    quote = calculateQuote(pricingInput, quoteCatalog);
   } catch {
-    quote = calculateQuote({ ...pricingInput, couponCode: null, couponRule: null }, catalog);
+    quote = calculateQuote({ ...pricingInput, couponCode: null, couponRule: null }, quoteCatalog);
   }
 
   const prepaidQuote = calculateQuote({
@@ -526,28 +878,28 @@ export function ProductInfo({
     couponCode: quote.couponCode,
     couponRule: quote.couponRule,
     paymentMethod: "prepaid",
-  }, catalog);
+  }, quoteCatalog);
   const codQuote = calculateQuote({
     ...pricingInput,
     couponCode: quote.couponCode,
     couponRule: quote.couponRule,
     paymentMethod: "cod",
-  }, catalog);
+  }, quoteCatalog);
 
   const totalPrice = quote.originalAmount;
   const cutPrice = Math.round(totalPrice / 0.70);
   const displayQuote = quote;
-  const extraLines = extraProductLines(pricingInput, catalog);
-  const extrasAmount = extrasTotal(pricingInput, catalog);
+  const extraLines = extraProductLines(pricingInput, quoteCatalog);
+  const extrasAmount = extrasTotal(pricingInput, quoteCatalog);
   const portraitBaseAmount = Math.max(0, quote.originalAmount - extrasAmount);
-  const breakdown = getPortraitBreakdown(pricingInput, catalog);
+  const breakdown = getPortraitBreakdown(pricingInput, quoteCatalog);
   const cartTotal = quote.afterCouponAmount;
   const offerSlice = saveOffer ? SAVE_WHEEL[saveOffer.index] : null;
   const offerRule = offerSlice ? saveOfferRule(offerSlice.code) : null;
   let offerQuote = quote;
   if (offerRule) {
     try {
-      offerQuote = calculateQuote({ ...pricingInput, couponCode: offerRule.code, couponRule: offerRule }, catalog);
+      offerQuote = calculateQuote({ ...pricingInput, couponCode: offerRule.code, couponRule: offerRule }, quoteCatalog);
     } catch {
       offerQuote = quote;
     }
@@ -585,22 +937,34 @@ export function ProductInfo({
     if (productType === "custom_payment" && !catalog.customPayments.includes(customPaymentAmount)) {
       errors.customPayment = "Please select a Custom Payment amount.";
     }
+    // Pet options switched off in Pricing (Number of pets) also close these products.
+    if (flowProduct && !isOptionSelectable(catalog.options.pets[pricedPets])) {
+      errors.pets = content.step1.unavailableLabel;
+      setWarningMessage(errors.pets);
+    }
+    // Only sizes the admin offers for this many pets / this composition may continue.
+    if (sizeRule && sizeHiddenForPets(content, sizeRule, portraitStyle, selectedSize)) {
+      errors.size = flowCopy
+        ? fill(flowCopy.sizeHiddenError, { size: displaySizeLabel(selectedSize), count: petCount })
+        : `Size ${displaySizeLabel(selectedSize)} is not available for this portrait. Please choose another size.`;
+      setWarningMessage(errors.size);
+    }
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
   const validateStep2 = () => {
     const errors: Record<string, string> = {};
-    if (everyday) {
-      if (includePetName && !petName.trim()) {
-        errors.petName = "Please enter your pet's name, or turn the toggle off.";
-      }
-      if (includeSubtitle && !subtitle.trim()) {
-        errors.subtitle = "Please enter a subtitle, or turn the toggle off.";
-      }
-    } else if (productType === "portrait" || productType === "digital_download") {
+    // Everyday's name and subtitle are optional: left empty, they simply show as not added.
+    if (!everyday && (productType === "portrait" || productType === "digital_download")) {
       if (!petName.trim()) errors.petName = "Please enter your pet's name to continue.";
       if (!selectedFile) errors.photo = "Please choose a pet photo to continue.";
+    }
+    // Multi-Pet halo: exactly one chosen pet.
+    if (tributeOn && !(haloPet && haloPet >= 1 && haloPet <= petCount)) {
+      errors.haloPet = flowCopy?.tributeError || "Choose the pet who should have the halo.";
+    } else if (haloNoteNeeded && !haloNote.trim()) {
+      errors.haloNote = flowCopy?.tributeNoteError || "Please tell us which pet should have the halo.";
     }
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
@@ -608,26 +972,106 @@ export function ProductInfo({
 
   const validateStep3 = () => {
     const errors: Record<string, string> = {};
-    if (everyday) {
-      if (!selectedFile) errors.photo = "Please choose a pet photo to continue.";
-      if (photoStatus === "error") errors.photo = photoError || "Please upload your photo again.";
+    if (flow === "everyday") {
+      if (!selectedFile) errors.photo = content.step3.photoError;
+      if (photoStatus === "error") errors.photo = photoError || content.step3.photoError;
     }
-    if (!customerName.trim()) errors.customerName = "Please enter your full name to continue.";
+    if (flowProduct && flowCopy) {
+      for (const key of activeSlotKeys) {
+        const state = uploads.slots[key];
+        if (state?.status === "error") errors[`photo:${key}`] = state.error || content.step3.uploadFailedLabel;
+      }
+      for (const spec of slotList) {
+        if (spec.required && !uploads.slots[spec.key]) errors[`photo:${spec.key}`] = fill(flowCopy.slotError, { slot: spec.label });
+      }
+      if (referenceNeedsPet(flowProduct)) {
+        for (const key of usedRefKeys) {
+          if (!errors[`photo:${key}`] && !uploads.slots[key]?.pet) errors[`photo:${key}`] = flowCopy.referencePetError;
+        }
+      }
+      if (groupConfirmNeeded && !confirmGroup) errors.confirmGroup = flowCopy.confirmGroupError;
+    }
+    if (!customerName.trim()) {
+      errors.customerName = everyday ? content.step3.nameError : "Please enter your full name to continue.";
+    }
     if (!everyday) {
       if (!customerEmail.trim()) errors.customerEmail = "Please enter your email to continue.";
       else if (!isValidEmail(customerEmail)) errors.customerEmail = "Please enter a valid email to continue.";
     } else if (customerEmail.trim() && !isValidEmail(customerEmail)) {
-      errors.customerEmail = "Please enter a valid email to continue.";
+      errors.customerEmail = content.step3.emailError;
     }
     if (everyday) {
       if (!isValidIndianMobile(customerPhone)) {
-        errors.customerPhone = "Please enter a valid Indian mobile number.";
+        errors.customerPhone = content.step3.phoneError;
       }
     } else if (!customerPhone.trim() || customerPhone.replace(/\D/g, "").length < 10) {
       errors.customerPhone = "Please enter a valid mobile number to continue.";
     }
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
+  };
+
+  // Multi-Pet / You & Your Pet: Add to Cart stays off until every required photo is saved on the server
+  // and the required details are valid (handoffs §5). The first missing item is shown above the button.
+  const flowUploading = activeSlotKeys.some((key) => uploads.slots[key]?.status === "uploading");
+  const flowBlocker = (() => {
+    if (!flowProduct || !flowCopy) return "";
+    if (flowUploading) return flowCopy.uploadsPendingLabel;
+    for (const key of activeSlotKeys) {
+      const state = uploads.slots[key];
+      if (state?.status === "error") return state.error || content.step3.uploadFailedLabel;
+    }
+    for (const spec of slotList) {
+      if (spec.required && uploads.slots[spec.key]?.status !== "saved") return fill(flowCopy.slotError, { slot: spec.label });
+    }
+    if (referenceNeedsPet(flowProduct) && usedRefKeys.some((key) => !uploads.slots[key]?.pet)) return flowCopy.referencePetError;
+    if (groupConfirmNeeded && !confirmGroup) return flowCopy.confirmGroupError;
+    if (!customerName.trim()) return content.step3.nameError;
+    if (!isValidIndianMobile(customerPhone)) return content.step3.phoneError;
+    if (customerEmail.trim() && !isValidEmail(customerEmail)) return content.step3.emailError;
+    return "";
+  })();
+  const flowPrimaryKey =
+    slotList.find((spec) => spec.role === "group" && uploads.slots[spec.key])?.key ||
+    slotList.find((spec) => uploads.slots[spec.key])?.key ||
+    "";
+  const flowPreviewUrl = flowPrimaryKey ? uploads.slots[flowPrimaryKey].previewUrl : "";
+
+  /** Waits for every photo this order needs; returns the main photo and all saved links. */
+  const ensureFlowPhotos = async () => {
+    const urls = await uploads.ensure(activeSlotKeys);
+    const missing = slotList.find((spec) => spec.required && !urls[spec.key]);
+    if (missing) throw new Error(fill(flowCopy?.slotError || "Please upload a photo for {slot}.", { slot: missing.label }));
+    const primary = urls.group || slotList.map((spec) => urls[spec.key]).find(Boolean) || "";
+    return { primary, urls };
+  };
+
+  /** Multi-Pet pet count. Data for remaining pets is kept; removed pets' names / photos go after a confirmation. */
+  const choosePets = (next: string) => {
+    if (!isMulti || next === pricedPets) return;
+    if (!isOptionSelectable(catalog.options.pets[next])) return;
+    const nextCount = petCountNumber(next);
+    const removedSlots = Object.keys(uploads.slots).filter((key) => {
+      const petSlot = /^pet-(\d+)$/.exec(key);
+      if (petSlot) return Number(petSlot[1]) > nextCount;
+      return key.startsWith("ref-") && (uploads.slots[key]?.pet || 0) > nextCount;
+    });
+    const removedNames = nameList.slice(nextCount).some((name) => name.trim());
+    const haloLost = Boolean(haloPet && haloPet > nextCount);
+    if ((removedSlots.length || removedNames || (tributeOn && haloLost)) && flowCopy?.petRemoveConfirm) {
+      if (!window.confirm(flowCopy.petRemoveConfirm)) return;
+    }
+    setSelectedPets(next);
+    setNameList((prev) => prev.slice(0, nextCount));
+    uploads.removeMany(removedSlots);
+    if (haloLost) {
+      setHaloPet(null);
+      setHaloNote("");
+    }
+    // "Every pet is visible" was confirmed for the old count.
+    setConfirmGroup(false);
+    clearFieldError("haloPet");
+    window.dispatchEvent(new CustomEvent("petSelectionChanged", { detail: next }));
   };
 
   const validateCheckout = () => {
@@ -679,21 +1123,34 @@ export function ProductInfo({
 
   const handleAddToCart = async () => {
     if (!validateStep3()) return;
-    if (everyday && (productType === "portrait" || productType === "digital_download")) {
+    if (flowProduct) {
+      try {
+        await ensureFlowPhotos();
+      } catch (err) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          photo: err instanceof Error ? err.message : content.step3.photoError,
+        }));
+        return;
+      }
+    } else if (everyday && (productType === "portrait" || productType === "digital_download")) {
       try {
         const url = await ensurePhotoUploaded();
         if (!storedPetPhotoUrl(url)) {
-          setFieldErrors((prev) => ({ ...prev, photo: "Please choose a pet photo to continue." }));
+          setFieldErrors((prev) => ({ ...prev, photo: content.step3.photoError }));
           return;
         }
       } catch (err) {
         setFieldErrors((prev) => ({
           ...prev,
-          photo: err instanceof Error ? err.message : "We couldn't save the pet photo. Please try again.",
+          photo: err instanceof Error ? err.message : content.step3.uploadFailTitle,
         }));
         return;
       }
     }
+    // The cart holds one portrait: replacing another page's portrait needs a yes first.
+    if (foreignCartRef.current && content.cart.replaceConfirm && !window.confirm(content.cart.replaceConfirm)) return;
+    foreignCartRef.current = null;
     setAddedToCart(true);
     setShowCheckout(false);
     setShowCart(true);
@@ -716,23 +1173,25 @@ export function ProductInfo({
     });
   };
 
-  const checkoutPayload = (photoUrl = "") => ({
+  const checkoutPayload = (photoUrl = "", flowUrls?: Record<string, string>) => ({
     ...pricingInput,
     size: productType === "portrait" ? selectedSize : PRODUCT_LABELS[productType],
     frameStyle: productType === "portrait" ? selectedFrame : productType,
-    numPets: productType === "portrait" ? selectedPets : "one",
+    numPets: productType === "portrait" ? (everyday ? pricedPets : selectedPets) : "one",
     background: productType === "portrait" ? selectedBg : "",
+    backgroundLabel: productType === "portrait" && everyday ? backgroundLabel(selectedBg) : "",
     addon: productType === "portrait"
       ? [
           everyday ? "" : selectedAddOn !== "none" ? selectedAddOn : "",
           everyday && priorityPreview ? "priority_preview" : "",
+          tributeOn ? "halo_tribute" : "",
           addMug ? "custom_mug" : "",
           addMagnet ? "fridge_magnet" : "",
           addDigitalDownload ? "digital_download" : "",
           everyday && addDesk ? "desk_portrait" : "",
         ].filter(Boolean).join(", ") || "none"
       : productType,
-    petName: effectivePetName || PRODUCT_LABELS[productType],
+    petName: effectivePetName || (flowProduct ? content.header.productName : PRODUCT_LABELS[productType]),
     memorialText: everyday ? effectiveSubtitle : memorialText,
     giftWrap,
     portraitStyle: productType === "portrait" ? portraitStyle : productType,
@@ -745,6 +1204,24 @@ export function ProductInfo({
     shippingPincode,
     shippingLandmark,
     photoUrl,
+    // Multi-Pet / You & Your Pet: the server rebuilds and checks the structured order from these.
+    ...(flowProduct
+      ? {
+          configurator: flowProduct,
+          composition: isYouPet ? composition : undefined,
+          tribute: isMulti ? tributeOn : undefined,
+          haloPet: tributeOn ? haloPet ?? undefined : undefined,
+          haloNote: tributeOn ? haloNote.trim() : undefined,
+          photoMethod: activeMethod,
+          photos: activeSlotKeys
+            .map((key) => ({ key, url: flowUrls?.[key] || uploads.slots[key]?.url || "", pet: uploads.slots[key]?.pet }))
+            .filter((photo) => photo.url),
+          namesEnabled: includePetName,
+          names: includePetName ? orderNames : [],
+          artistNote: flowCopy?.showInstructions ? artistNote.trim() : "",
+          confirmGroup: groupConfirmNeeded ? confirmGroup : undefined,
+        }
+      : {}),
   });
 
   const showPhotoUploadFail = (title: string, message: string) => {
@@ -754,14 +1231,19 @@ export function ProductInfo({
   };
 
   const startPhotoUpload = (file: File) => {
+    const uploadCopy = content.step3;
     if (!file.type.startsWith("image/")) {
-      const message = "Please choose a photo (JPG, PNG, or WebP).";
-      showPhotoUploadFail("Photo format not supported", message);
+      const message = everyday ? uploadCopy.formatError : "Please choose a photo (JPG, PNG, or WebP).";
+      showPhotoUploadFail(everyday ? uploadCopy.formatErrorTitle : "Photo format not supported", message);
       return Promise.reject(new Error(message));
     }
-    if (file.size > 25 * 1024 * 1024) {
-      const message = `“${file.name}” is too large (${(file.size / (1024 * 1024)).toFixed(1)} MB). Please choose a photo under 25 MB.`;
-      showPhotoUploadFail("File is too large", message);
+    const maxMb = everyday ? uploadCopy.uploadMaxMb : 25;
+    if (file.size > maxMb * 1024 * 1024) {
+      const size = (file.size / (1024 * 1024)).toFixed(1);
+      const message = everyday
+        ? fill(uploadCopy.tooLargeError, { name: file.name, size, max: maxMb })
+        : `“${file.name}” is too large (${size} MB). Please choose a photo under 25 MB.`;
+      showPhotoUploadFail(everyday ? uploadCopy.tooLargeTitle : "File is too large", message);
       return Promise.reject(new Error(message));
     }
 
@@ -784,10 +1266,18 @@ export function ProductInfo({
       })
       .catch((err: unknown) => {
         if (photoUploadGeneration.current !== generation) return "";
-        const message = err instanceof Error ? err.message : "We couldn't save the pet photo. Please try again.";
+        const raw = err instanceof Error ? err.message : "We couldn't save the pet photo. Please try again.";
         uploadedPhotoUrlRef.current = "";
+        // Browsers that can't decode a photo (HEIC outside Safari) get the admin's wording.
+        const badFormat = everyday && /format isn't supported/i.test(raw);
+        const message = badFormat ? uploadCopy.formatError : raw;
         const tooLarge = /too large|smaller/i.test(message);
-        showPhotoUploadFail(tooLarge ? "File is too large" : "Photo upload failed", message);
+        const failTitle = badFormat
+          ? uploadCopy.formatErrorTitle
+          : tooLarge
+            ? everyday ? uploadCopy.tooLargeTitle : "File is too large"
+            : everyday ? uploadCopy.uploadFailTitle : "Photo upload failed";
+        showPhotoUploadFail(failTitle, message);
         throw new Error(message);
       });
     uploadPromiseRef.current = promise;
@@ -817,13 +1307,21 @@ export function ProductInfo({
     setOrderStatus('idle');
 
     try {
-      const publicUrl = await ensurePhotoUploaded().catch(() => uploadedPhotoUrlRef.current);
+      let publicUrl = "";
+      let flowUrls: Record<string, string> | undefined;
+      if (flowProduct) {
+        const ensured = await ensureFlowPhotos().catch(() => null);
+        publicUrl = ensured?.primary || "";
+        flowUrls = ensured?.urls;
+      } else {
+        publicUrl = await ensurePhotoUploaded().catch(() => uploadedPhotoUrlRef.current);
+      }
 
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...checkoutPayload(publicUrl),
+          ...checkoutPayload(publicUrl, flowUrls),
           razorpayPaymentId,
           razorpayOrderId,
           razorpaySignature,
@@ -835,6 +1333,7 @@ export function ProductInfo({
       if (result.success && result.orderId) {
         setOrderStatus('success');
         localStorage.removeItem('peternity_cart');
+        if (flowProduct) localStorage.removeItem(draftKey(flowProduct));
         window.location.assign(`/checkout/success?orderId=${encodeURIComponent(result.orderId)}`);
         return;
       }
@@ -856,10 +1355,13 @@ export function ProductInfo({
     }
   };
 
+  const couponAppliedText = (code: string, off: string) =>
+    everyday ? fill(content.cart.couponAppliedMessage, { code, off }) : `${code} applied — ${off} off`;
+
   const applyCoupon = async () => {
     const code = couponInput.trim();
     if (!code) {
-      setCouponError("Please enter a coupon code.");
+      setCouponError(everyday ? content.cart.couponEmptyError : "Please enter a coupon code.");
       setCouponMessage(null);
       return;
     }
@@ -881,9 +1383,9 @@ export function ProductInfo({
       }
       setAppliedCoupon(data.quote.couponCode);
       setCouponRule(data.quote.couponRule || null);
-      setCouponMessage(`${data.quote.couponCode} applied — ${couponOffLabel(data.quote)} off`);
+      setCouponMessage(couponAppliedText(data.quote.couponCode, couponOffLabel(data.quote)));
     } catch {
-      setCouponError("Could not validate coupon. Please try again.");
+      setCouponError(everyday ? content.cart.couponCheckError : "Could not validate coupon. Please try again.");
     } finally {
       setIsApplyingCoupon(false);
     }
@@ -965,7 +1467,7 @@ export function ProductInfo({
       setCouponRule(data.quote.couponRule || offerRule);
       setCouponInput(data.quote.couponCode || offerRule.code);
       setCouponError(null);
-      setCouponMessage(`${data.quote.couponCode} applied — ${couponOffLabel(data.quote)} off`);
+      setCouponMessage(couponAppliedText(data.quote.couponCode, couponOffLabel(data.quote)));
       setSaveOffer(null);
       setShowCheckout(true);
     } catch {
@@ -1000,13 +1502,20 @@ export function ProductInfo({
     try {
       const photoRequired = productType === "portrait" || productType === "digital_download";
       let photoUrl = storedPetPhotoUrl(uploadedPhotoUrlRef.current);
-      if (photoRequired || selectedFile) {
-        photoUrl = await ensurePhotoUploaded();
+      let flowUrls: Record<string, string> | undefined;
+      if (flowProduct) {
+        const ensured = await ensureFlowPhotos();
+        photoUrl = ensured.primary;
+        flowUrls = ensured.urls;
+      } else {
+        if (photoRequired || selectedFile) {
+          photoUrl = await ensurePhotoUploaded();
+        }
+        if (photoRequired && !storedPetPhotoUrl(photoUrl)) {
+          throw new Error("The pet photo was not saved. Please upload it again before paying.");
+        }
       }
-      if (photoRequired && !storedPetPhotoUrl(photoUrl)) {
-        throw new Error("The pet photo was not saved. Please upload it again before paying.");
-      }
-      const payload = checkoutPayload(photoUrl);
+      const payload = checkoutPayload(photoUrl, flowUrls);
 
       const res = await fetch("/api/razorpay/order", {
         method: "POST",
@@ -1108,11 +1617,74 @@ export function ProductInfo({
 
   const hasCustomizedItem = addedToCart;
 
+  // Multi-Pet / You & Your Pet cart card: only filled-in details are listed (empty ones stay hidden).
+  const cartSizeLabel = selectedSize.replace(/\s*x\s*/i, " × ");
+  const cartStyleLabel = portraitStyle === "framed" ? content.step1.framedTitle : content.step1.canvasTitle;
+  const cartFrameLabel =
+    portraitStyle === "canvas"
+      ? content.cart.canvasFrameLabel
+      : content.frames.find((frame) => frame.id === selectedFrame)?.label || selectedFrame;
+  const flowChoiceLabel = !flowCopy
+    ? ""
+    : isYouPet
+      ? composition === "family"
+        ? flowCopy.familyTitle
+        : flowCopy.soloTitle
+      : `${petCount} ${flowCopy.petsWord}`.trim();
+  const flowPhotoValue = (() => {
+    if (!flowCopy) return "";
+    if (activeMethod === "separate") {
+      return slotList
+        .filter((spec) => uploads.slots[spec.key])
+        .map((spec) => spec.label)
+        .join(", ");
+    }
+    const refs = usedRefKeys.length;
+    return [uploads.slots.group?.fileName || "", refs ? fill(flowCopy.referencesCartValue, { count: refs }) : ""]
+      .filter(Boolean)
+      .join(" ");
+  })();
+  const haloLabel = haloPet
+    ? `${fill(flowCopy?.petSlotLabel || "Pet {n}", { n: haloPet })}${
+        includePetName && haloPetName ? ` (${haloPetName})` : haloNote.trim() ? ` – ${haloNote.trim()}` : ""
+      }`
+    : "";
+  const flowCartDetails: CartDetail[] | undefined =
+    flowProduct && flowCopy
+      ? ([
+          { icon: isYouPet ? "composition" : "pets", label: flowCopy.choiceCartLabel, value: flowChoiceLabel },
+          { icon: "size", label: content.cart.sizeLabel, value: cartSizeLabel },
+          { icon: "background", label: content.cart.backgroundLabel, value: backgroundLabel(selectedBg) },
+          portraitStyle === "framed" ? { icon: "frame", label: content.cart.frameLabel, value: cartFrameLabel } : null,
+          effectivePetName ? { icon: "name", label: flowCopy.namesCartLabel, value: effectivePetName } : null,
+          effectiveSubtitle ? { icon: "subtitle", label: content.cart.subtitleLabel, value: effectiveSubtitle } : null,
+          tributeOn && haloPet
+            ? {
+                icon: "halo",
+                label: flowCopy.haloCartLabel,
+                value: haloLabel,
+              }
+            : null,
+          priorityPreview
+            ? { icon: "priority", label: content.cart.priorityLabel, value: formatRupee(catalog.priorityPreview) }
+            : null,
+          { icon: "method", label: flowCopy.methodCartLabel, value: methodCopy(flowCopy, activeMethod).title },
+          { icon: "photos", label: flowCopy.photosCartLabel, value: flowPhotoValue || "—", thumb: flowPreviewUrl },
+          flowCopy.showInstructions && artistNote.trim()
+            ? { icon: "note", label: flowCopy.instructionsCartLabel, value: artistNote.trim() }
+            : null,
+        ].filter(Boolean) as CartDetail[])
+      : undefined;
+
   const choosePortraitStyle = (style: PortraitStyle) => {
+    // Tapping the style that is already chosen keeps the size and frame the customer picked.
+    if (style === portraitStyle) return;
     if (!isOptionSelectable(catalog.options.styles[style])) return;
-    const nextSize = firstAvailableSize(style, catalog);
+    const preferred = !everyday ? "" : style === "canvas" ? content.step1.defaultCanvasSize : content.step1.defaultFramedSize;
+    const preferredMeta = preferred ? sizeOptionMeta(catalog, style, preferred) : undefined;
+    const nextSize = preferredMeta && isOptionSelectable(preferredMeta) ? preferred : firstAvailableSize(style, catalog);
     if (!nextSize) return;
-    const frame = style === "framed" ? "black" : "canva";
+    const frame = style === "framed" ? framedFrameDefault : "canva";
     setPortraitStyle(style);
     setSelectedFrame(frame);
     setSelectedSize(nextSize);
@@ -1230,7 +1802,7 @@ export function ProductInfo({
     <div ref={containerRef} id="product-customizer" className="flex flex-col gap-0 scroll-mt-24">
       {/* Header Info */}
       <div className="lg:space-y-4 space-y-1">
-        <div className="hidden lg:flex items-center gap-1.5">
+        <div className={`${everyday && !content.header.reviewsLabel ? "hidden" : "hidden lg:flex"} items-center gap-1.5`}>
           <div className="flex gap-0.5 items-center">
             {[...Array(4)].map((_, i) => (
               <Star key={i} size={14} className="fill-[#FFB800] text-[#FFB800]" />
@@ -1242,7 +1814,7 @@ export function ProductInfo({
               </div>
             </div>
           </div>
-          <span className="text-sm font-medium text-gray-400 ml-1">145 Reviews</span>
+          <span className="text-sm font-medium text-gray-400 ml-1">{everyday ? content.header.reviewsLabel : "145 Reviews"}</span>
         </div>
         <h1 className="hidden lg:block text-5xl lg:text-[56px] font-normal text-[#1a1a1b] leading-tight font-playfair tracking-tight">
           {title}
@@ -1250,11 +1822,11 @@ export function ProductInfo({
     
         {everyday ? (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="font-inter text-[18px] font-semibold text-[#2D2D2D]">Rs. {totalPrice}.00</span>
+            <span className="font-inter text-[18px] font-semibold text-[#2D2D2D]">{fill(content.header.priceFormat, { price: totalPrice })}</span>
             {productType === "portrait" && content.header.discountPercent > 0 ? (
               <>
                 <span className="font-inter text-[14px] text-[#9B8B7D] line-through">
-                  Rs. {compareAtPrice(totalPrice, content.header.discountPercent)}.00
+                  {fill(content.header.priceFormat, { price: compareAtPrice(totalPrice, content.header.discountPercent) })}
                 </span>
                 {content.header.discountBadge ? (
                   <span className="inline-flex h-6 items-center rounded-[12px] bg-[#F28B82] px-3 text-[12px] font-bold uppercase text-white">
@@ -1287,11 +1859,15 @@ export function ProductInfo({
               : ""}
           </p>
         ) : null}
-        {productType === "portrait" && everyday && ((breakdown.priority || 0) + breakdown.premiumBg > 0) ? (
+        {productType === "portrait" && everyday && ((breakdown.priority || 0) + breakdown.premiumBg + (breakdown.tribute || 0) > 0) ? (
           <p className="mt-1 text-[12px] font-medium text-[#8B7B6B]">
-            {breakdown.premiumBg > 0 ? `${formatRupee(breakdown.premiumBg)} ${content.step2.limitedHeading}` : null}
-            {breakdown.premiumBg > 0 && (breakdown.priority || 0) > 0 ? " · " : null}
-            {(breakdown.priority || 0) > 0 ? `${formatRupee(breakdown.priority)} ${content.step2.priorityTitle}` : null}
+            {[
+              breakdown.premiumBg > 0 ? `${formatRupee(breakdown.premiumBg)} ${content.step2.limitedHeading}` : "",
+              (breakdown.priority || 0) > 0 ? `${formatRupee(breakdown.priority)} ${content.step2.priorityTitle}` : "",
+              (breakdown.tribute || 0) > 0 ? `${formatRupee(breakdown.tribute)} ${flowCopy?.haloCartLabel || ""}` : "",
+            ]
+              .filter(Boolean)
+              .join(" · ")}
           </p>
         ) : null}
       </div>
@@ -1383,7 +1959,26 @@ export function ProductInfo({
                 <EverydayChooseStep
                   content={content}
                   catalog={catalog}
-                  petsExtra={catalog.pets[selectedPets] ?? 0}
+                  petsExtra={(catalog.pets[everyday ? pricedPets : selectedPets] ?? 0) + (isYouPet && composition === "family" ? Math.max(0, catalog.familyUpgrade) : 0)}
+                  mediaPrefix={mediaPrefix}
+                  beforeStyle={
+                    isYouPet ? (
+                      <CompositionCards
+                        content={content}
+                        catalog={catalog}
+                        composition={composition}
+                        onComposition={(next) => setComposition(next)}
+                      />
+                    ) : undefined
+                  }
+                  afterStyle={
+                    isMulti ? (
+                      <PetCountCards content={content} catalog={catalog} selectedPets={pricedPets} onPets={choosePets} />
+                    ) : undefined
+                  }
+                  isSizeOffered={
+                    sizeRule ? (size) => !sizeHiddenForPets(content, sizeRule, portraitStyle, size) : undefined
+                  }
                   portraitStyle={portraitStyle}
                   onStyle={choosePortraitStyle}
                   selectedSize={selectedSize}
@@ -1397,7 +1992,22 @@ export function ProductInfo({
                   }}
                   onPreview={() => setShowStylePreview(true)}
                   onContinue={handleContinueFromStep1}
-                  footer={content.step1.showDeliveryEstimate ? <DeliveryEstimate /> : null}
+                  footer={
+                    content.step1.showDeliveryEstimate ? (
+                      <DeliveryEstimate
+                        copy={{
+                          title: content.step1.deliveryTitle,
+                          subtitle: content.step1.deliverySubtitle,
+                          placeholder: content.step1.deliveryPlaceholder,
+                          invalid: content.step1.deliveryInvalid,
+                          result: content.step1.deliveryResult,
+                          range: content.step1.deliveryRange,
+                          minDays: content.step1.deliveryMinDays,
+                          maxDays: content.step1.deliveryMaxDays,
+                        }}
+                      />
+                    ) : null
+                  }
                 />
               ) : (
               <div className="space-y-6">
@@ -1431,23 +2041,14 @@ export function ProductInfo({
                     2. Choose Your Size
                   </label>
                   <div className="flex flex-col gap-3">
-                    {portraitStyle === "framed"
-                      ? FRAMED_SIZES.map((size) =>
-                          sizeCard(
-                            portraitStyle,
-                            size,
-                            (catalog.framed[size] ?? 0) + (catalog.pets[selectedPets] ?? 0),
-                            catalog.options.framedSizes[size]
-                          )
-                        )
-                      : CANVAS_SIZES.map((size) =>
-                          sizeCard(
-                            portraitStyle,
-                            size,
-                            (catalog.canvas[size] ?? 0) + (catalog.pets[selectedPets] ?? 0),
-                            catalog.options.canvasSizes[size]
-                          )
-                        )}
+                    {sizesForStyle(portraitStyle, catalog).map((size) =>
+                      sizeCard(
+                        portraitStyle,
+                        size,
+                        ((portraitStyle === "framed" ? catalog.framed : catalog.canvas)[size] ?? 0) + (catalog.pets[selectedPets] ?? 0),
+                        sizeOptionMeta(catalog, portraitStyle, size) ?? cloneOptionMeta()
+                      )
+                    )}
                   </div>
                 </div>
 
@@ -1549,6 +2150,7 @@ export function ProductInfo({
                 <EverydayPersonalizeStep
                   content={content}
                   portraitStyle={portraitStyle}
+                  frames={visibleFrames}
                   selectedFrame={selectedFrame}
                   onFrame={(frame) => {
                     setSelectedFrame(frame);
@@ -1577,8 +2179,74 @@ export function ProductInfo({
                   }}
                   priorityPreview={priorityPreview}
                   onPriorityPreview={setPriorityPreview}
-                  fieldErrors={fieldErrors}
                   onContinue={() => void handleContinueFromStep2()}
+                  mediaPrefix={mediaPrefix}
+                  renumber={Boolean(flowProduct)}
+                  renderNames={
+                    flowProduct
+                      ? (heading) => (
+                          <NamesSection
+                            product={flowProduct}
+                            content={content}
+                            heading={heading}
+                            on={includePetName}
+                            onToggle={() => setIncludePetName(!includePetName)}
+                            names={isYouPet && composition === "family" ? [familyNames] : nameList}
+                            onName={(index, value) => {
+                              if (isYouPet && composition === "family") {
+                                setFamilyNames(value);
+                                return;
+                              }
+                              setNameList((prev) => {
+                                const next = [...prev];
+                                while (next.length <= index) next.push("");
+                                next[index] = value;
+                                return next;
+                              });
+                            }}
+                            composition={composition}
+                            petCount={petCount}
+                          />
+                        )
+                      : undefined
+                  }
+                  extraSection={
+                    isMulti && flowCopy?.showTribute
+                      ? {
+                          heading: flowCopy.tributeHeading,
+                          render: (heading) => (
+                            <TributeSection
+                              content={content}
+                              heading={heading}
+                              on={tribute}
+                              onToggle={() => {
+                                setTribute(!tribute);
+                                clearFieldError("haloPet");
+                              }}
+                              petCount={petCount}
+                              names={includePetName ? nameList : []}
+                              haloPet={haloPet && haloPet <= petCount ? haloPet : null}
+                              onHaloPet={(pet) => {
+                                // A description typed for another pet would point the artist at the wrong one.
+                                if (pet !== haloPet) setHaloNote("");
+                                setHaloPet(pet);
+                                clearFieldError("haloPet");
+                                clearFieldError("haloNote");
+                              }}
+                              price={Math.max(0, catalog.multiPetHalo)}
+                              error={fieldErrors.haloPet}
+                              note={haloNote}
+                              onNote={(value) => {
+                                setHaloNote(value);
+                                clearFieldError("haloNote");
+                              }}
+                              noteNeeded={haloNoteNeeded}
+                              noteError={fieldErrors.haloNote}
+                            />
+                          ),
+                        }
+                      : undefined
+                  }
                 />
               ) : (
               <>
@@ -1912,6 +2580,49 @@ export function ProductInfo({
                     clearFieldError("customerEmail");
                   }}
                   onAddToCart={() => void handleAddToCart()}
+                  beforeGuide={
+                    flowProduct ? (
+                      <MethodCards
+                        content={content}
+                        methods={methods}
+                        method={activeMethod}
+                        onMethod={(next) => {
+                          setPhotoMethod(next);
+                          setFieldErrors({});
+                        }}
+                      />
+                    ) : undefined
+                  }
+                  uploadSection={
+                    flowProduct ? (
+                      <div className="space-y-2">
+                        <SlotUploadsSection
+                          product={flowProduct}
+                          content={content}
+                          method={activeMethod}
+                          specs={slotList}
+                          uploads={uploads}
+                          petCount={petCount}
+                          confirmGroup={confirmGroup}
+                          onConfirmGroup={(on) => {
+                            setConfirmGroup(on);
+                            clearFieldError("confirmGroup");
+                          }}
+                          showConfirm={groupConfirmNeeded && Boolean(uploads.slots.group)}
+                          errors={fieldErrors}
+                          onSlotChange={(key) => {
+                            if (key === "group") setConfirmGroup(false);
+                          }}
+                        />
+                        {fieldErrors.photo ? <p className="text-[12px] font-semibold text-red-500">{fieldErrors.photo}</p> : null}
+                      </div>
+                    ) : undefined
+                  }
+                  beforeDetails={
+                    flowProduct ? <ArtistNote content={content} value={artistNote} onValue={setArtistNote} /> : undefined
+                  }
+                  addToCartDisabled={Boolean(flowProduct && flowBlocker)}
+                  addToCartHint={flowBlocker}
                 />
               ) : (
               <>
@@ -2036,6 +2747,7 @@ export function ProductInfo({
       ) : null}
 
       {/* Testimonial Card */}
+      {content.below.showTestimonial ? (
       <div className="bg-[#fcf8f5] rounded-2xl p-8 border border-[#f0e4db] relative overflow-hidden mt-4 min-h-[190px] sm:min-h-[160px] transform -translate-y-2">
         <div className="absolute top-0 right-0 p-3 text-[#f0e4db]">
           <PawPrint size={40} className="rotate-12 opacity-20" />
@@ -2052,7 +2764,7 @@ export function ProductInfo({
             >
               <div className="relative w-16 h-16 rounded-full overflow-hidden border-2 border-white shadow-sm flex-shrink-0 bg-[#A87B62]">
                 <Image
-                  src={media(testimonials[testimonialIndex].avatar)}
+                  src={(everyday && media(uploadedKey(`${mediaPrefix}-testimonial`))) || media(testimonials[testimonialIndex].avatar)}
                   alt={testimonials[testimonialIndex].author}
                   fill
                   sizes="64px"
@@ -2071,68 +2783,43 @@ export function ProductInfo({
           </AnimatePresence>
         </div>
       </div>
+      ) : null}
 
       {/* Social Proof Banner */}
+      {content.below.showTrustedBanner ? (
       <div className="border border-dashed border-gray-300 rounded-xl p-4 flex items-center justify-center gap-3 bg-gray-50/30 mt-5 mb-5">
         <div className="flex -space-x-2">
-          {SOCIAL_PROOF_AVATARS.map((avatar) => (
-            <div key={avatar.src} className="relative w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-gray-100 shadow-sm">
-              <Image
-                src={media(avatar.src)}
-                alt="Happy pet parent"
-                fill
-                sizes="96px"
-                className="object-cover"
-                style={{ objectPosition: avatar.face, transformOrigin: avatar.face, transform: `scale(${avatar.zoom})` }}
-              />
-            </div>
-          ))}
+          {SOCIAL_PROOF_AVATARS.map((avatar, index) => {
+            const own = everyday ? media(uploadedKey(`${mediaPrefix}-trusted-${index + 1}`)) : "";
+            return (
+              <div key={avatar.src} className="relative w-8 h-8 rounded-full border-2 border-white overflow-hidden bg-gray-100 shadow-sm">
+                <Image
+                  src={own || media(avatar.src)}
+                  alt="Happy pet parent"
+                  fill
+                  sizes="96px"
+                  className="object-cover"
+                  style={own ? undefined : { objectPosition: avatar.face, transformOrigin: avatar.face, transform: `scale(${avatar.zoom})` }}
+                />
+              </div>
+            );
+          })}
         </div>
         <p className="text-[13px] font-bold text-[#1a1a1b]">
-          Trusted By 1,378+ Happy Pet Parents
+          {content.below.trustedLabel}
         </p>
       </div>
+      ) : null}
 
       {/* Accordions */}
       <div className="space-y-2 pt-4">
-        <Accordion
-          label="Description"
-          icon={<PawPrint size={18} />}
-        >
-          <div className="text-sm text-gray-600 leading-relaxed font-inter space-y-4">
-            <p>Your pet isn’t just part of your life - they are your life in a thousand little moments. The way they wait for you. The way they look at you. The quiet comfort of just having them close.</p>
-            <p>At Peternity, we turn your pet’s photo into a portrait that captures all of that - not just how they look, but how they feel to you.</p>
-            <p>Every piece is carefully created to reflect their personality, so when you see it… it feels like they’re right there, exactly as you know them.</p>
-            <ul className="list-disc pl-5 space-y-1 mt-2">
-              <li>Preview your artwork before it’s printed</li>
-              <li>2 revision rounds included</li>
-              <li>Ready to hang, made to stay with you</li>
-            </ul>
-            <p className="font-bold italic">Because some bonds don’t fade. They deserve to be remembered, beautifully.</p>
-          </div>
-        </Accordion>
-        <Accordion
-          label="Shipping"
-          icon={<Truck size={18} />}
-        >
-          <div className="text-sm text-gray-600 leading-relaxed font-inter space-y-4">
-            <p>Within 48 hours, you’ll receive your pet’s portrait preview - the first moment it starts to feel real.</p>
-            <p>We refine every detail with you, until it doesn’t just look right… it feels like them.</p>
-            <p>The moment you approve, we begin printing within 24 hours - carefully, thoughtfully, as something that truly matters.</p>
-            <p><strong>Delivery across India:</strong> 4-7 working days after approval.</p>
-            <p>From a photo you love… to a memory you can live with, every single day.</p>
-          </div>
-        </Accordion>
-        <Accordion
-          label="Satisfaction Guarantee"
-          icon={<HeartIcon size={18} />}
-        >
-          <div className="text-sm text-gray-600 leading-relaxed font-inter space-y-4">
-            <p>You’ll receive your portrait preview within 48 hours - and we don’t print until it feels right to you.</p>
-            <p>We refine every detail with you, from expression to mood, until it truly feels like <em>them</em>.</p>
-            <p>Because this isn’t something you should “settle” for. It should feel personal, emotional… and exactly right.</p>
-          </div>
-        </Accordion>
+        {content.accordions
+          .filter((item) => item.title.trim())
+          .map((item, index) => (
+            <Accordion key={`${item.title}-${index}`} label={item.title} icon={<TrustGlyph icon={item.icon} />}>
+              <RichText text={item.body} />
+            </Accordion>
+          ))}
       </div>
 
       {/* Photo Guide Modal */}
@@ -2149,7 +2836,7 @@ export function ProductInfo({
               {/* Header */}
               <div className="p-6 border-b border-gray-100 flex items-center justify-between">
                 <h3 className="font-extrabold text-[#1a1a1b] text-xs md:text-sm leading-tight tracking-tight uppercase font-inter">
-                  Tips for Taking the Perfect Photo of Your Pet
+                  {content.photoGuide.title}
                 </h3>
                 <button
                   type="button"
@@ -2163,48 +2850,29 @@ export function ProductInfo({
               {/* Body */}
               <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
                 <p className="text-xs md:text-sm text-gray-600 leading-relaxed font-inter">
-                  For best results, please follow our handy guide below when choosing a photo to upload. We use the exact image uploaded to create your artwork, so please only choose images you are happy for us to use.
+                  {content.photoGuide.intro}
                 </p>
 
                 {/* Bullets */}
                 <ul className="space-y-2.5 font-inter text-xs md:text-sm font-bold text-[#1a1a1b] leading-tight">
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#A87B62] font-black">•</span>
-                    <span>Take your photo at eye level with your pet.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#A87B62] font-black">•</span>
-                    <span>Take your photo in natural daylight and don't use flash.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#A87B62] font-black">•</span>
-                    <span>Try to get your pet to sit or stay still - make sure there's no blur.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#A87B62] font-black">•</span>
-                    <span>Photo is sharp and not a screenshot.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-[#A87B62] font-black">•</span>
-                    <span>Photo is a headshot and taken from a good distance.</span>
-                  </li>
+                  {content.photoGuide.tips.map((tip, index) => (
+                    <li key={index} className="flex items-start gap-2">
+                      <span className="text-[#A87B62] font-black">•</span>
+                      <span>{tip}</span>
+                    </li>
+                  ))}
                 </ul>
 
                 {/* Dog Headshots Grid */}
                 <div className="grid grid-cols-4 gap-2 pt-2">
-                  {[
-                    "https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&q=80&w=200&h=260",
-                    "https://images.unsplash.com/photo-1543466835-00a7907e9de1?auto=format&fit=crop&q=80&w=200&h=260",
-                    "https://images.unsplash.com/photo-1531804055935-76f44d7c3621?auto=format&fit=crop&q=80&w=200&h=260",
-                    "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&q=80&w=200&h=260"
-                  ].map((src, i) => (
-                    <div key={i} className="aspect-[3/4] relative rounded-xl overflow-hidden shadow-sm border border-gray-100">
-                      <img
-                        src={src}
-                        alt={`Dog headshot example ${i + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
+                  {GUIDE_STOCK_PHOTOS.map((src, i) => (
+                    <PhotoGuideImage
+                      key={src}
+                      slot={`${mediaPrefix}-guide-${i + 1}`}
+                      fallbackSlot={`everyday-guide-${i + 1}`}
+                      stock={src}
+                      position={i + 1}
+                    />
                   ))}
                 </div>
               </div>
@@ -2235,20 +2903,21 @@ export function ProductInfo({
                 <EverydayCart
                   content={content}
                   catalog={catalog}
+                  mediaPrefix={mediaPrefix}
                   hasItem={hasCustomizedItem}
                   onClose={() => setShowCart(false)}
-                  photoUrl={photoPreviewUrl}
-                  photoBusy={photoStatus === "uploading"}
+                  photoUrl={flowProduct ? flowPreviewUrl : photoPreviewUrl}
+                  photoBusy={flowProduct ? flowUploading : photoStatus === "uploading"}
+                  summaryLine={flowProduct ? [cartStyleLabel, flowChoiceLabel, cartSizeLabel].filter(Boolean).join(" · ") : undefined}
+                  details={flowCartDetails}
                   fileName={selectedFile?.name || ""}
                   styleLabel={portraitStyle === "framed" ? content.step1.framedTitle : content.step1.canvasTitle}
                   sizeLabel={selectedSize.replace(/\s*x\s*/i, " × ")}
                   backgroundLabel={backgroundLabel(selectedBg)}
                   frameLabel={
                     portraitStyle === "canvas"
-                      ? frameColorLabel(selectedFrame, portraitStyle)
-                      : selectedFrame === "white"
-                        ? content.step2.whiteFrameLabel
-                        : content.step2.blackFrameLabel
+                      ? content.cart.canvasFrameLabel
+                      : content.frames.find((frame) => frame.id === selectedFrame)?.label || selectedFrame
                   }
                   petName={effectivePetName}
                   subtitle={effectiveSubtitle}
@@ -3000,7 +3669,7 @@ export function ProductInfo({
         )}
       </AnimatePresence>
 
-      <UploadFailDialog alert={uploadFailAlert} onClose={() => setUploadFailAlert(null)} buttonLabel="Try again" />
+      <UploadFailDialog alert={uploadFailAlert} onClose={() => setUploadFailAlert(null)} buttonLabel={everyday ? content.step3.dialogButton : "Try again"} />
 
       {/* Warning Modal */}
       <AnimatePresence>
@@ -3024,13 +3693,15 @@ export function ProductInfo({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-black text-[#1a1a1b] uppercase tracking-tight">Missing Details</h3>
+                <h3 className="text-lg font-black text-[#1a1a1b] uppercase tracking-tight">
+                  {everyday ? content.header.noticeTitle : "Missing Details"}
+                </h3>
                 <p className="text-sm font-medium text-gray-500">{warningMessage}</p>
                 <button
                   onClick={() => setWarningMessage(null)}
                   className="w-full py-3 bg-[#1a1a1b] text-white rounded-xl font-bold uppercase tracking-widest text-xs hover:bg-[#2F2F2F] transition-all shadow-md active:scale-95 mt-2"
                 >
-                  Got It
+                  {everyday ? content.header.noticeButton : "Got It"}
                 </button>
               </div>
             </motion.div>
@@ -3042,11 +3713,44 @@ export function ProductInfo({
         open={showStylePreview}
         onClose={() => setShowStylePreview(false)}
         styleOptions={catalog.options.styles}
+        mediaPrefix={everyday ? mediaPrefix : undefined}
+        copy={
+          everyday
+            ? {
+                title: content.step1.previewTitle,
+                framedTitle: content.step1.previewFramedTitle,
+                framedTagline: content.step1.previewFramedTagline,
+                canvasTitle: content.step1.previewCanvasTitle,
+                canvasTagline: content.step1.previewCanvasTagline,
+                unavailable: content.step1.previewUnavailable,
+              }
+            : undefined
+        }
       />
     </div>
   );
 }
 
+
+function PhotoGuideImage({
+  slot,
+  fallbackSlot,
+  stock,
+  position,
+}: {
+  slot: string;
+  fallbackSlot: string;
+  stock: string;
+  position: number;
+}) {
+  const uploaded = useUploadedMedia(slot);
+  const everydayUpload = useUploadedMedia(fallbackSlot);
+  return (
+    <div className="aspect-[3/4] relative rounded-xl overflow-hidden shadow-sm border border-gray-100">
+      <img src={uploaded || everydayUpload || stock} alt={`Pet photo example ${position}`} className="w-full h-full object-cover" />
+    </div>
+  );
+}
 
 function Accordion({ label, icon, children, isOpenDefault = false }: any) {
   const [isOpen, setIsOpen] = useState(isOpenDefault);

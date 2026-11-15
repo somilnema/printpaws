@@ -3,145 +3,32 @@
 import { Star, Check } from "lucide-react";
 import Image from "next/image";
 import { useMedia } from "@/components/SiteMedia";
+import { REVIEWS, REVIEWS_SUMMARY, type ReviewItem } from "@/lib/reviews";
+import { uploadedKey } from "@/lib/site-media-catalog";
+import type { EverydayContent } from "@/lib/everyday-content";
 
-export interface ReviewItem {
-  name: string;
-  initial: string;
-  verified: boolean;
-  date: string;
-  rating: number;
-  text: string;
-  image?: string;
-  hasMultiplePhotos?: boolean;
-  itemType?: string;
-  productBox?: {
-    image: string;
-    text: string;
-  };
-}
+// The list lives in lib/reviews (plain data the server can read); kept exported here for existing imports.
+export { REVIEWS };
+export type { ReviewItem };
 
-export const REVIEWS: ReviewItem[] = [
-  {
-    name: "Radha",
-    initial: "R",
-    verified: true,
-    date: "12/20/2024",
-    rating: 5,
-    text: "I was absolutely blown away by the quality. The attention to detail is incredible, and it truly captures the spirit of my pet. I couldn't be happier with this masterpiece!",
-    image: "/new-images/2nd Image.png",
-    productBox: {
-      image: "/review-image/review-box-icon.png",
-      text: "One Pet Portrait - Premium Canvas"
-    }
-  },
-  {
-    name: "Vaidehi",
-    initial: "K",
-    verified: true,
-    date: "12/13/2024",
-    rating: 5,
-    text: "I didn’t expect to feel this much. It’s not just a portrait - it genuinely feels like him. I pause every time I walk past it.",
-    image: "/new-review/IMG-20260628-WA0015.jpg.jpeg",
-    hasMultiplePhotos: true,
-  },
-  {
-    name: "Ananya",
-    initial: "A",
-    verified: true,
-    date: "10/19/2024",
-    rating: 5,
-    text: "The moment I saw it, I smiled… and then I teared up. You’ve captured something I can’t even explain.",
-    image: "/new-review/IMG-20260706-WA0006.jpg.jpeg",
-    productBox: {
-      image: "/review-image/review-box-icon.png",
-      text: "One Pet Portrait - Black Frame"
-    }
-  },
-  {
-    name: "Ishaan",
-    initial: "I",
-    verified: true,
-    date: "10/17/2024",
-    rating: 5,
-    text: "It’s crazy how accurate it is. Not just the face - the feeling. It’s like she’s still right here.",
-    image: "/new-review/IMG-20260706-WA0019.jpg.jpeg",
-    itemType: "Pearl / 50x70 cm / 20x28\"",
-    productBox: {
-      image: "/review-image/review-box-icon.png",
-      text: "One Pet Portrait - Premium Wood"
-    }
-  },
-  {
-    name: "Zoya",
-    initial: "Z",
-    verified: true,
-    date: "9/24/2024",
-    rating: 5,
-    text: "I gifted this to my parents and they couldn’t stop looking at it. It’s one of those things that just hits you.",
-    image: "/new-review/IMG-20260706-WA0020.jpg.jpeg",
-  },
-  {
-    name: "Aarav",
-    initial: "A",
-    verified: true,
-    date: "11/02/2024",
-    rating: 5,
-    text: "I’ve taken hundreds of photos of my dog, but this… this is the one that actually feels like him.",
-    image: "/new-review/IMG-20260710-WA0004.jpg.jpeg",
-    itemType: "Almond / 30x40 cm / 12x16\"",
-    productBox: {
-      image: "/review-image/review-box-icon.png",
-      text: "Two Pet Portraits - Black Frame"
-    }
-  },
-  {
-    name: "Rhea",
-    initial: "R",
-    verified: true,
-    date: "10/29/2024",
-    rating: 5,
-    text: "The eyes, the expression, everything - it’s so real it almost feels alive. I wasn’t expecting that.",
-    image: "/new-review/IMG-20260712-WA0010.jpg.jpeg",
-    productBox: {
-      image: "/review-image/review-box-icon.png",
-      text: "One Pet Portrait - Premium Wood"
-    }
-  },
-  {
-    name: "Reyansh",
-    initial: "R",
-    verified: true,
-    date: "10/05/2024",
-    rating: 5,
-    text: "I thought it would be nice. I didn’t think it would mean this much. It’s now my favorite thing in the house.",
-    image: "/new-review/IMG-20260713-WA0001.jpg.jpeg",
-    productBox: {
-      image: "/review-image/review-box-icon.png",
-      text: "One Pet Portrait - Pearl Frame"
-    }
-  },
-  {
-    name: "Kiara",
-    initial: "K",
-    verified: true,
-    date: "11/20/2024",
-    rating: 5,
-    text: "It’s the kind of thing you don’t just hang on a wall - you feel something every time you look at it.",
-    image: "/new-review/IMG-20260714-WA0007.jpg.jpeg",
-  },
-  {
-    name: "Vihaan",
-    initial: "V",
-    verified: true,
-    date: "11/15/2024",
-    rating: 5,
-    text: "My dog passed away last year… and this brought back a part of him I thought I’d lost. I can’t thank you enough.",
-    image: "/new-review/WhatsApp Image 2026-07-18 at 12.44.35 AM.jpeg",
-  }
-];
+type Card = { review: ReviewItem; position: number; photosBadge: string };
 
-export function Reviews() {
+/**
+ * Reviews grid. Configurator product pages pass their admin copy (cards keep their place) and media prefix,
+ * so each card can show that product's own photo; without them it shows the shared list as before.
+ */
+export function Reviews({ copy, mediaPrefix }: { copy?: EverydayContent["reviews"]; mediaPrefix?: string } = {}) {
   const media = useMedia();
+  const cards: Card[] = copy
+    ? copy.items.flatMap((item, index) => {
+        const base = REVIEWS[index];
+        if (!item.visible || !base) return [];
+        const review: ReviewItem = { ...base, name: item.name, date: item.date, rating: item.rating, verified: item.verified, text: item.text };
+        return [{ review, position: index + 1, photosBadge: item.photosBadge }];
+      })
+    : REVIEWS.map((review, index) => ({ review, position: index + 1, photosBadge: review.hasMultiplePhotos ? "+2" : "" }));
+  const photo = (card: Card) =>
+    (mediaPrefix && media(uploadedKey(`${mediaPrefix}-review-${card.position}`))) || (card.review.image ? media(card.review.image) : "");
   return (
     <section id="reviews" className="py-16 bg-white font-inter">
       <div className="container mx-auto px-4 max-w-5xl">
@@ -160,29 +47,29 @@ export function Reviews() {
               </div>
             </div>
             <span className="text-sm font-medium text-gray-500 font-inter ml-1">
-              4.5 / 145 Reviews
+              {copy ? copy.summary : REVIEWS_SUMMARY}
             </span>
           </div>
         </div>
 
         {/* Responsive Grid Layout - 2 Columns on Mobile, 3 Columns on Desktop */}
         <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
-          {REVIEWS.map((review, i) => (
+          {cards.map(({ review, position, photosBadge }, i) => (
             <div
-              key={i}
+              key={position}
               className="bg-white rounded-[1rem] md:rounded-[1.5rem] border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col"
             >
               {/* Review Image (If Available) */}
-              {review.image && (
+              {photo(cards[i]) && (
                 <div className="relative w-full aspect-[3/4] overflow-hidden bg-gray-50 group">
                   <Image
-                    src={media(review.image)}
+                    src={photo(cards[i])}
                     alt={`${review.name}'s custom pet portrait`}
                     fill
                     sizes="(max-width: 768px) 50vw, (max-width: 1024px) 50vw, 33vw"
                     className="object-cover group-hover:scale-105 transition-transform duration-500"
                   />
-                  {review.hasMultiplePhotos && (
+                  {photosBadge && (
                     <div className="absolute top-2.5 right-2.5 bg-black/60 backdrop-blur-sm text-white px-1.5 py-0.5 rounded text-[8px] md:text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -195,7 +82,7 @@ export function Reviews() {
                           d="M1 5.25A2.25 2.25 0 013.25 3h13.5A2.25 2.25 0 0119 5.25v9.5A2.25 2.25 0 0116.75 17H3.25A2.25 2.25 0 011 14.75v-9.5zm3.25-1a.75.75 0 00-.75.75v9.5c0 .414.336.75.75.75h13.5a.75.75 0 00.75-.75v-9.5a.75.75 0 00-.75-.75H3.25zm5.28 2.97a.75.75 0 01.3-.03c.123.013.24.062.335.141l2.5 2a.75.75 0 01.12 1.08l-4 4.5a.75.75 0 01-1.1-.02l-2-2a.75.75 0 011.06-1.06l1.42 1.42 3.39-3.81-1.72-1.38a.75.75 0 01-.3-1.04v.002zm5.72 1.28a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"
                         />
                       </svg>
-                      +2
+                      {photosBadge}
                     </div>
                   )}
                 </div>
@@ -212,7 +99,7 @@ export function Reviews() {
                         <span className="w-3 h-3 md:w-3.5 md:h-3.5 rounded-full bg-black text-white flex items-center justify-center scale-75 origin-left">
                           <Check size={8} strokeWidth={4} />
                         </span>
-                        Verified
+                        {copy ? copy.verifiedLabel : "Verified"}
                       </span>
                     )}
                   </div>

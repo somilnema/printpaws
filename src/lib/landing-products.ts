@@ -269,6 +269,28 @@ export async function saveLandingProduct(input: LandingProductInput, image?: Buf
   return { ok: true as const };
 }
 
+/** Drops the photo uploaded for a card, so the card goes back to its Media → Landing page photo. */
+export async function clearLandingProductImage(id: string) {
+  const { data, error } = await supabaseAdmin.from("landing_products").select("slug, image_url").eq("id", id).maybeSingle();
+  if (error) {
+    if (isMissingTable(error)) return { ok: false as const, error: SETUP_HINT };
+    return { ok: false as const, error: error.message };
+  }
+  if (!data) return { ok: false as const, error: "That product no longer exists. Refresh the page." };
+  const { error: updateError } = await supabaseAdmin
+    .from("landing_products")
+    .update({ image_url: "", updated_at: new Date().toISOString() })
+    .eq("id", id);
+  if (updateError) return { ok: false as const, error: updateError.message };
+  // Only files this panel uploaded for this product are deleted.
+  const path = String(data.image_url || "").split(`/object/public/${BUCKET}/`)[1] || "";
+  if (path.startsWith(`landing-offers/${id}/`) && !path.includes("..")) {
+    await supabaseAdmin.storage.from(BUCKET).remove([path]);
+  }
+  publish(String(data.slug || ""));
+  return { ok: true as const };
+}
+
 export async function removeLandingProduct(id: string) {
   const { data, error } = await supabaseAdmin.from("landing_products").delete().eq("id", id).select("slug").maybeSingle();
   if (error) {

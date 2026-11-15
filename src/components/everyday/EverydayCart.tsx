@@ -3,18 +3,23 @@
 import type { ReactNode } from "react";
 import {
   ArrowRight,
+  Camera,
   CaseSensitive,
   Expand,
   FileText,
   SquareSquare,
   Gift,
   Image as ImageIcon,
+  MessageSquareText,
   Minus,
   Paintbrush,
+  PawPrint,
   Plus,
   ShoppingBag,
+  Sparkles,
   Tag,
   Trash2,
+  Users,
   X,
   Zap,
 } from "lucide-react";
@@ -22,11 +27,68 @@ import { PreviewImage } from "@/components/PreviewImage";
 import { useMedia, useUploadedMedia } from "@/components/SiteMedia";
 import { extraCatalog, formatRupee, type PriceCatalog } from "@/lib/pricing";
 import { EXTRA_IDS, fill, type EverydayContent, type ExtraId } from "@/lib/everyday-content";
+import { uploadedKey } from "@/lib/site-media-catalog";
 import { Toggle } from "@/components/everyday/ui";
+
+export type CartDetailIcon =
+  | "style"
+  | "background"
+  | "name"
+  | "priority"
+  | "size"
+  | "frame"
+  | "subtitle"
+  | "pets"
+  | "composition"
+  | "halo"
+  | "method"
+  | "photos"
+  | "note";
+
+/** One line of the product card. Callers pass only filled-in details, so empty ones stay hidden. */
+export type CartDetail = { icon: CartDetailIcon; label: string; value: string; thumb?: string };
+
+const DETAIL_ICON: Record<CartDetailIcon, typeof ImageIcon> = {
+  style: ImageIcon,
+  background: Paintbrush,
+  name: CaseSensitive,
+  priority: Zap,
+  size: Expand,
+  frame: SquareSquare,
+  subtitle: FileText,
+  pets: PawPrint,
+  composition: Users,
+  halo: Sparkles,
+  method: Camera,
+  photos: Camera,
+  note: MessageSquareText,
+};
+
+function DetailCell({ detail }: { detail: CartDetail }) {
+  if (detail.thumb !== undefined) {
+    return (
+      <div className="flex min-w-0 items-start gap-2.5">
+        <span className="mt-0.5 h-6 w-6 shrink-0 overflow-hidden rounded-[4px] bg-[#F1E7DC]">
+          {detail.thumb ? <img src={detail.thumb} alt="" className="h-full w-full object-cover" /> : null}
+        </span>
+        <p className="min-w-0">
+          <span className="block text-[12px] leading-tight text-[#6B5E53]">{detail.label}</span>
+          <span className="mt-0.5 line-clamp-2 block break-words text-[13px] font-semibold leading-tight text-[#2D2D2D]">
+            {detail.value}
+          </span>
+        </p>
+      </div>
+    );
+  }
+  const Icon = DETAIL_ICON[detail.icon];
+  return <Detail icon={<Icon size={18} strokeWidth={1.75} />} label={detail.label} value={detail.value} />;
+}
 
 export type EverydayCartProps = {
   content: EverydayContent;
   catalog: PriceCatalog;
+  /** Media slot prefix for the add-on and gift photos ("multi-pet", "you-pet"). Everyday when omitted. */
+  mediaPrefix?: string;
   hasItem: boolean;
   onClose: () => void;
   photoUrl: string;
@@ -60,6 +122,10 @@ export type EverydayCartProps = {
   discount: number;
   total: number;
   onCheckout: () => void;
+  /** Line under the product name, e.g. "Framed Portrait · 3 Pets · 8 × 10". Style · size when omitted. */
+  summaryLine?: string;
+  /** Product details to list instead of the Everyday set (Multi-Pet / You & Your Pet). */
+  details?: CartDetail[];
 };
 
 function Detail({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
@@ -68,7 +134,7 @@ function Detail({ icon, label, value }: { icon: ReactNode; label: string; value:
       <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center text-[#A97659]">{icon}</span>
       <p className="min-w-0">
         <span className="block text-[12px] leading-tight text-[#6B5E53]">{label}</span>
-        <span className="mt-0.5 line-clamp-2 block break-words text-[13px] font-semibold leading-tight text-[#2D2D2D]">{value}</span>
+        <span className="mt-0.5 block break-words text-[13px] font-semibold leading-tight text-[#2D2D2D]">{value}</span>
       </p>
     </div>
   );
@@ -80,18 +146,22 @@ function ExtraRow({
   catalog,
   selected,
   onToggle,
+  prefix,
 }: {
   id: ExtraId;
   content: EverydayContent;
   catalog: PriceCatalog;
   selected: boolean;
   onToggle: () => void;
+  prefix: string;
 }) {
   const media = useMedia();
   const deskPhoto = useUploadedMedia("extra-desk");
   const product = extraCatalog(catalog, id);
   const copy = content.extras[id];
-  const image = id === "desk" ? deskPhoto || media(product.image) : media(product.image);
+  // This product's own photo wins; otherwise the shared add-on photo (Media → Add-on products).
+  const shared = id === "desk" ? deskPhoto || media(product.image) : media(product.image);
+  const image = media(uploadedKey(`${prefix}-extra-${id}`)) || shared;
   return (
     <div className="flex items-center gap-3 rounded-[10px] bg-white p-2.5">
       <div className="h-16 w-16 shrink-0 overflow-hidden rounded-[8px] bg-[#F1E7DC]">
@@ -104,7 +174,7 @@ function ExtraRow({
           <p className="mt-0.5 text-[12px] leading-snug text-[#6B5E53]">{copy.description}</p>
         ) : null}
         <p className="mt-1 flex items-baseline gap-1.5 leading-none">
-          {product.compareAt > product.price ? (
+          {content.cart.showCompareAt && product.compareAt > product.price ? (
             <span className="text-[13px] text-[#9B8B7D] line-through">{formatRupee(product.compareAt)}</span>
           ) : null}
           <span className="text-[15px] font-bold text-[#A97659]">{formatRupee(product.price)}</span>
@@ -117,8 +187,11 @@ function ExtraRow({
 
 export function EverydayCart(props: EverydayCartProps) {
   const { content, catalog } = props;
+  const prefix = props.mediaPrefix || "everyday";
   const copy = content.cart;
-  const giftPhoto = useUploadedMedia("everyday-gift-wrap");
+  const ownGiftPhoto = useUploadedMedia(`${prefix}-gift-wrap`);
+  const everydayGiftPhoto = useUploadedMedia("everyday-gift-wrap");
+  const giftPhoto = ownGiftPhoto || everydayGiftPhoto;
   const visibleExtras = EXTRA_IDS.filter((id) => content.extras[id].visible);
   const notAdded = copy.notAddedLabel;
 
@@ -171,12 +244,30 @@ export function EverydayCart(props: EverydayCartProps) {
                     {content.header.productName}
                   </h3>
                   <p className="mt-1 text-[13px] text-[#6B5E53]">
-                    {props.styleLabel} · {props.sizeLabel}
+                    {props.summaryLine || `${props.styleLabel} · ${props.sizeLabel}`}
                   </p>
                   <p className="mt-1.5 text-[18px] font-semibold text-[#A97659]">{formatRupee(props.itemPrice)}</p>
                 </div>
               </div>
 
+              {props.details ? (
+                <div className="grid grid-cols-2 border-t border-[#EBD6C8]">
+                  <div className="space-y-4 border-r border-[#EBD6C8] p-4">
+                    {props.details
+                      .filter((_, index) => index % 2 === 0)
+                      .map((detail) => (
+                        <DetailCell key={`${detail.icon}-${detail.label}`} detail={detail} />
+                      ))}
+                  </div>
+                  <div className="space-y-4 p-4">
+                    {props.details
+                      .filter((_, index) => index % 2 === 1)
+                      .map((detail) => (
+                        <DetailCell key={`${detail.icon}-${detail.label}`} detail={detail} />
+                      ))}
+                  </div>
+                </div>
+              ) : (
               <div className="grid grid-cols-2 border-t border-[#EBD6C8]">
                 <div className="space-y-4 border-r border-[#EBD6C8] p-4">
                   <Detail icon={<ImageIcon size={18} strokeWidth={1.75} />} label={copy.styleLabel} value={props.styleLabel} />
@@ -210,6 +301,7 @@ export function EverydayCart(props: EverydayCartProps) {
                   </div>
                 </div>
               </div>
+              )}
 
               <div className="flex items-center justify-between border-t border-[#EBD6C8] px-4 py-3">
                 <div className="flex h-9 items-center overflow-hidden rounded-[8px] border border-[#E3D9CF] bg-white">
@@ -226,7 +318,7 @@ export function EverydayCart(props: EverydayCartProps) {
                   </span>
                   <button
                     type="button"
-                    onClick={() => props.onQty(props.qty + 1)}
+                    onClick={() => props.onQty(Math.min(99, props.qty + 1))}
                     aria-label="Increase quantity"
                     className="flex h-full w-9 items-center justify-center text-[#2D2D2D] transition-colors hover:bg-[#FAF7F2]"
                   >
@@ -258,6 +350,7 @@ export function EverydayCart(props: EverydayCartProps) {
                   <ExtraRow
                     key={id}
                     id={id}
+                    prefix={prefix}
                     content={content}
                     catalog={catalog}
                     selected={props.extras[id]}
@@ -291,7 +384,10 @@ export function EverydayCart(props: EverydayCartProps) {
                     {copy.giftDescription ? (
                       <p className="mt-0.5 text-[12px] leading-snug text-[#6B5E53]">{copy.giftDescription}</p>
                     ) : null}
-                    <p className="mt-1 text-[15px] font-bold text-[#A97659]">{formatRupee(catalog.giftWrap)}</p>
+                    <p className="mt-1 text-[15px] font-bold text-[#A97659]">
+                      {formatRupee(catalog.giftWrap)}
+                      {props.qty > 1 ? <span className="text-[12px] font-semibold text-[#6B5E53]"> × {props.qty}</span> : null}
+                    </p>
                   </div>
                   <Toggle on={props.giftWrap} onToggle={() => props.onGiftWrap(!props.giftWrap)} label={copy.giftHeading} />
                 </div>

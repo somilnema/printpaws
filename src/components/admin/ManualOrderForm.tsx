@@ -8,6 +8,9 @@ import { UploadFailDialog, type UploadFailAlert } from "@/components/UploadFailD
 import { CANVAS_SIZES, FRAMED_SIZES } from "@/lib/pricing";
 import { uploadPetPhotoFile } from "@/lib/uploadPetPhoto";
 
+/** Sizes the offline order form offers for each style (the built-in list, as before). */
+const sizeLists: Record<"framed" | "canvas", readonly string[]> = { framed: FRAMED_SIZES, canvas: CANVAS_SIZES };
+
 function nowLocal() {
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -134,7 +137,7 @@ export function ManualOrderForm({ onClose, onCreated }: { onClose: () => void; o
     await onCreated();
   }
 
-  const sizes = form.portraitStyle === "canvas" ? CANVAS_SIZES : FRAMED_SIZES;
+  const sizes = sizeLists[form.portraitStyle === "canvas" ? "canvas" : "framed"];
 
   return (
     <Panel title="Add offline order" note="For orders that came in on WhatsApp, phone, or in person. It shows up in Orders and the overview for the date you pick.">
@@ -196,7 +199,7 @@ export function ManualOrderForm({ onClose, onCreated }: { onClose: () => void; o
                 value={form.portraitStyle}
                 onChange={(e) => {
                   const style = e.target.value === "canvas" ? "canvas" : "framed";
-                  setForm((prev) => ({ ...prev, portraitStyle: style, size: (style === "canvas" ? CANVAS_SIZES : FRAMED_SIZES)[0] }));
+                  setForm((prev) => ({ ...prev, portraitStyle: style, size: sizeLists[style][0] }));
                 }}
                 className={inputClass}
               >

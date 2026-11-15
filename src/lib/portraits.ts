@@ -1,4 +1,5 @@
-import type { PriceCatalog } from "@/lib/pricing";
+import { isOptionSelectable, sizeOptionMeta, sizesForStyle, type PortraitStyle, type PriceCatalog } from "@/lib/pricing";
+import { resolveMediaUrl } from "@/lib/site-media-catalog";
 
 export type PetPreset = "one" | "two" | "human";
 
@@ -78,7 +79,34 @@ export function portraitForPets(pets?: string) {
   return portraitBySlug(slug)!;
 }
 
-/** Cheapest configuration a shopper can buy today. Framed is paused, so canvas sets the floor. */
-export function startingPrice(catalog: PriceCatalog, pets: PetPreset) {
-  return Math.min(...Object.values(catalog.canvas)) + (catalog.pets[pets] ?? 0);
+/**
+ * "From" price on a portrait card: the cheapest style and size on sale in Pricing, plus the card's pet option.
+ * `hidden` drops sizes the product's own size rules keep off sale (Multi-Pet per pet count, You & Your Pet per
+ * composition). With nothing on sale it falls back to the cheapest canvas, as before.
+ */
+export function startingPrice(catalog: PriceCatalog, pets: PetPreset, hidden?: (style: PortraitStyle, size: string) => boolean) {
+  let cheapest: number | null = null;
+  for (const style of ["framed", "canvas"] as const) {
+    if (!isOptionSelectable(catalog.options.styles[style])) continue;
+    const prices = style === "framed" ? catalog.framed : catalog.canvas;
+    for (const size of sizesForStyle(style, catalog)) {
+      if (!isOptionSelectable(sizeOptionMeta(catalog, style, size)) || hidden?.(style, size)) continue;
+      if (cheapest === null || prices[size] < cheapest) cheapest = prices[size];
+    }
+  }
+  return (cheapest ?? Math.min(...Object.values(catalog.canvas))) + (catalog.pets[pets] ?? 0);
+}
+
+export type CardPhotoSource = "upload" | "media" | "shop" | "none";
+
+/**
+ * Landing card photo: the one uploaded in Admin → Landing products, else the card's Media → Landing page
+ * photo, else a shop photo. "" shows a paw.
+ */
+export function cardPhoto(slug: string, uploaded: string, media: Record<string, string>): { url: string; source: CardPhotoSource } {
+  const known = portraitBySlug(slug);
+  if (uploaded) return { url: uploaded, source: "upload" };
+  if (known && media[known.imageSlot]) return { url: media[known.imageSlot], source: "media" };
+  if (known?.fallbackImage) return { url: resolveMediaUrl(known.fallbackImage, media), source: "shop" };
+  return { url: "", source: "none" };
 }

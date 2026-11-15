@@ -37,6 +37,12 @@ export default function AdminPage() {
         setError(json.error || "Invalid username or password");
         return;
       }
+      // Signed in from a deep link such as /admin/configurator: go back there.
+      const next = new URLSearchParams(window.location.search).get("next") || "";
+      if (/^\/admin\/[a-z-]+$/.test(next)) {
+        window.location.assign(next);
+        return;
+      }
       const data = await getAdminDashboard();
       if (!data) {
         setError("Signed in, but the dashboard could not load. Refresh and try again.");

@@ -2,12 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Pause, Play } from "lucide-react";
-import { VIDEO_SECTION } from "@/lib/landing-content";
+import type { LandingContent } from "@/lib/landing-content";
 import { CAROUSEL_ROW, CarouselDots, useCarouselIndex } from "./Carousel";
 
 export type VideoClip = { src: string; caption: string };
 
-export function VideoCarousel({ clips }: { clips: VideoClip[] }) {
+type VideoCopy = Pick<LandingContent["video"], "title" | "text">;
+
+export function VideoCarousel({ clips, copy }: { clips: VideoClip[]; copy: VideoCopy }) {
   const { ref, index, onScroll, goTo } = useCarouselIndex(clips.length);
   const [playing, setPlaying] = useState<number | null>(null);
 
@@ -16,14 +18,14 @@ export function VideoCarousel({ clips }: { clips: VideoClip[] }) {
   return (
     <section className="pt-14 md:pt-20">
       <header className="mx-auto max-w-xl px-4 text-center">
-        <h2 className="font-playfair text-[26px] font-semibold leading-tight text-cocoa md:text-4xl">{VIDEO_SECTION.title}</h2>
-        <p className="mt-2 text-sm text-cocoa/75 md:text-base">{VIDEO_SECTION.text}</p>
+        <h2 className="font-playfair text-[26px] font-semibold leading-tight text-cocoa md:text-4xl">{copy.title}</h2>
+        {copy.text ? <p className="mt-2 text-sm text-cocoa/75 md:text-base">{copy.text}</p> : null}
       </header>
 
       <div ref={ref} onScroll={onScroll} className={`${CAROUSEL_ROW} mx-auto mt-6 max-w-6xl gap-2.5 md:gap-4`}>
         {clips.map((clip, i) => (
           <VideoCard
-            key={clip.src}
+            key={`${clip.src}-${i}`}
             clip={clip}
             playing={playing === i}
             onPlay={() => setPlaying(i)}

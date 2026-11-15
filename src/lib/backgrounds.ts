@@ -31,13 +31,17 @@ export function backgroundById(id: string) {
   return ALL_BACKGROUNDS.find((bg) => bg.name === id) || null;
 }
 
-/** Admin → Media slot holding the tile photo (pet on this background). */
-export function backgroundTileSlot(id: string) {
-  const slug = id
+/** "Tea Rosé" → "tea-rose". */
+export function optionSlug(value: string) {
+  return value
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-  return `everyday-bg-${slug}`;
+}
+
+/** Admin media slot holding the tile photo (pet on this background). Each configurator product has its own prefix. */
+export function backgroundTileSlot(id: string, prefix = "everyday") {
+  return `${prefix}-bg-${optionSlug(id)}`;
 }

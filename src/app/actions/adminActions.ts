@@ -1,5 +1,7 @@
 "use server";
 
+import { orderDetailsFor } from "@/lib/order-details";
+import type { OrderDetails } from "@/lib/product-order";
 import { randomUUID } from "crypto";
 import { headers } from "next/headers";
 import { getAdminSession } from "@/lib/admin-auth";
@@ -332,6 +334,8 @@ export type AdminOrderDetails = {
   emails: EmailLogRow[];
   teamNotes: TeamNote[];
   vendor: VendorAttempt | null;
+  /** Multi-Pet / You & Your Pet: photos with roles and pet ids, names, halo, artist note. */
+  configuration: OrderDetails | null;
 };
 
 export async function getAdminDashboard(): Promise<AdminDashboard | null> {
@@ -362,12 +366,13 @@ export async function getAdminOrderDetails(orderId: string): Promise<AdminOrderD
   try {
     const session = await getAdminSession();
     if (!session || !orderId) return null;
-    const [updates, events, emails, teamNotes, vendorAttempts] = await Promise.all([
+    const [updates, events, emails, teamNotes, vendorAttempts, configurations] = await Promise.all([
       updatesFor([orderId]),
       eventsFor([orderId]),
       emailLogFor([orderId]),
       notesFor([orderId]),
       latestVendorAttempts([orderId]),
+      orderDetailsFor([orderId]),
     ]);
     return {
       updates,
@@ -375,6 +380,7 @@ export async function getAdminOrderDetails(orderId: string): Promise<AdminOrderD
       emails,
       teamNotes,
       vendor: vendorAttempts[0] ?? null,
+      configuration: configurations.get(orderId) ?? null,
     };
   } catch (err) {
     console.error("Admin order details error:", err);

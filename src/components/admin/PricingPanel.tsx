@@ -3,17 +3,22 @@
 import { FormEvent, useEffect, useState } from "react";
 import { updatePrices } from "@/app/actions/storeActions";
 import {
-  CANVAS_SIZES,
   cloneCatalog,
+  cloneOptionMeta,
   displaySizeLabel,
-  FRAMED_SIZES,
+  isBuiltInSize,
+  makeSize,
+  MAX_SIZE_INCHES,
   OPTION_STATUS_LABELS,
   OPTION_STATUSES,
+  sizeOptionMeta,
+  sizesForStyle,
   type OptionMeta,
   type OptionStatus,
+  type PortraitStyle,
   type PriceCatalog,
 } from "@/lib/pricing";
-import { buttonClass, errorClass, Field, inputClass, okClass, Panel, warnClass } from "@/components/admin/ui";
+import { buttonClass, errorClass, Field, ghostButtonClass, inputClass, okClass, Panel, warnClass } from "@/components/admin/ui";
 
 function Money({
   label,
@@ -48,6 +53,7 @@ function OptionControls({
   onMetaChange,
   priceHint,
   showPrice = true,
+  onRemove,
 }: {
   label: string;
   price?: number;
@@ -56,11 +62,17 @@ function OptionControls({
   onMetaChange: (meta: OptionMeta) => void;
   priceHint?: string;
   showPrice?: boolean;
+  onRemove?: () => void;
 }) {
   return (
     <div className="rounded-2xl border border-[#eeeeee] bg-[#fafafa] p-3 space-y-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-semibold text-[#1a1a1b]">{label}</p>
+        {onRemove ? (
+          <button type="button" onClick={onRemove} className="ml-auto text-xs font-semibold text-[#b42318] hover:underline">
+            Remove size
+          </button>
+        ) : null}
         <span
           className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
             meta.status === "available"
@@ -100,6 +112,81 @@ function OptionControls({
             className={inputClass}
           />
         </Field>
+      </div>
+    </div>
+  );
+}
+
+/** Sizes for one style, with an add form. Built-in sizes can only be hidden; added ones can be removed. */
+function SizeRows({
+  style,
+  catalog,
+  onChange,
+}: {
+  style: PortraitStyle;
+  catalog: PriceCatalog;
+  onChange: (next: Partial<PriceCatalog>) => void;
+}) {
+  const [width, setWidth] = useState("");
+  const [height, setHeight] = useState("");
+  const [problem, setProblem] = useState("");
+  const optionKey = style === "framed" ? "framedSizes" : "canvasSizes";
+  const prices = catalog[style];
+  const options = catalog.options[optionKey];
+
+  function addSize() {
+    const w = Number(width);
+    const h = Number(height);
+    if (!Number.isInteger(w) || !Number.isInteger(h) || w < 1 || h < 1 || w > MAX_SIZE_INCHES || h > MAX_SIZE_INCHES) {
+      setProblem(`Enter whole inches from 1 to ${MAX_SIZE_INCHES}.`);
+      return;
+    }
+    const size = makeSize(w, h);
+    if (prices[size] != null) {
+      setProblem(`${displaySizeLabel(size)} is already in the list.`);
+      return;
+    }
+    onChange({
+      [style]: { ...prices, [size]: 0 },
+      options: { ...catalog.options, [optionKey]: { ...options, [size]: cloneOptionMeta() } },
+    });
+    setWidth("");
+    setHeight("");
+    setProblem("");
+  }
+
+  function removeSize(size: string) {
+    const nextPrices = { ...prices };
+    const nextOptions = { ...options };
+    delete nextPrices[size];
+    delete nextOptions[size];
+    onChange({ [style]: nextPrices, options: { ...catalog.options, [optionKey]: nextOptions } });
+  }
+
+  return (
+    <div className="space-y-3">
+      {sizesForStyle(style, catalog).map((size) => (
+        <OptionControls
+          key={size}
+          label={displaySizeLabel(size)}
+          price={prices[size]}
+          onPriceChange={(value) => onChange({ [style]: { ...prices, [size]: value } })}
+          meta={sizeOptionMeta(catalog, style, size) ?? cloneOptionMeta()}
+          onMetaChange={(meta) => onChange({ options: { ...catalog.options, [optionKey]: { ...options, [size]: meta } } })}
+          onRemove={isBuiltInSize(style, size) ? undefined : () => removeSize(size)}
+        />
+      ))}
+      <div className="flex flex-wrap items-end gap-2 rounded-2xl border border-dashed border-[#d1d5db] p-3">
+        <Field label="Width (in)">
+          <input type="number" min={1} max={MAX_SIZE_INCHES} value={width} onChange={(e) => setWidth(e.target.value)} className={`${inputClass} w-24`} />
+        </Field>
+        <Field label="Height (in)">
+          <input type="number" min={1} max={MAX_SIZE_INCHES} value={height} onChange={(e) => setHeight(e.target.value)} className={`${inputClass} w-24`} />
+        </Field>
+        <button type="button" onClick={addSize} className={ghostButtonClass}>
+          Add size
+        </button>
+        {problem ? <p className="w-full text-sm text-[#b42318]">{problem}</p> : null}
       </div>
     </div>
   );
@@ -189,41 +276,11 @@ export function PricingPanel({
       </Panel>
 
       <Panel title="Framed sizes" note="Only shown when Framed Portrait is visible.">
-        <div className="space-y-3">
-          {FRAMED_SIZES.map((size) => (
-            <OptionControls
-              key={size}
-              label={displaySizeLabel(size)}
-              price={catalog.framed[size]}
-              onPriceChange={(value) => patch({ framed: { ...catalog.framed, [size]: value } })}
-              meta={catalog.options.framedSizes[size]}
-              onMetaChange={(meta) =>
-                patchOptions({
-                  framedSizes: { ...catalog.options.framedSizes, [size]: meta },
-                })
-              }
-            />
-          ))}
-        </div>
+        <SizeRows style="framed" catalog={catalog} onChange={patch} />
       </Panel>
 
       <Panel title="Canvas sizes" note="Only shown when Canvas Portrait is visible.">
-        <div className="space-y-3">
-          {CANVAS_SIZES.map((size) => (
-            <OptionControls
-              key={size}
-              label={displaySizeLabel(size)}
-              price={catalog.canvas[size]}
-              onPriceChange={(value) => patch({ canvas: { ...catalog.canvas, [size]: value } })}
-              meta={catalog.options.canvasSizes[size]}
-              onMetaChange={(meta) =>
-                patchOptions({
-                  canvasSizes: { ...catalog.options.canvasSizes, [size]: meta },
-                })
-              }
-            />
-          ))}
-        </div>
+        <SizeRows style="canvas" catalog={catalog} onChange={patch} />
       </Panel>
 
       <Panel title="Number of pets" note="One pet stays ₹0 when included. Status still controls show / hide / out of stock.">
@@ -259,13 +316,31 @@ export function PricingPanel({
 
       <Panel
         title="Add-ons"
-        note="Limited Edition backgrounds (bg7–bg9) charge premium background. Priority Preview is an Everyday Pet Portrait option."
+        note="Backgrounds marked Limited Edition in the configurator charge this price. Priority Preview is an Everyday Pet Portrait option."
       >
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Money label="Halo effect" value={catalog.halo} onChange={(halo) => patch({ halo })} />
           <Money label="Gift wrap" value={catalog.giftWrap} onChange={(giftWrap) => patch({ giftWrap })} />
           <Money label="Limited Edition background" value={catalog.premiumBackground} onChange={(premiumBackground) => patch({ premiumBackground })} />
           <Money label="Priority Preview" value={catalog.priorityPreview} onChange={(priorityPreview) => patch({ priorityPreview })} />
+        </div>
+      </Panel>
+
+      <Panel
+        title="You & Your Pet and Multi-Pet"
+        note="Family upgrade: added to the main product price when the shopper picks My Family & Our Pet (never shown as an add-on). Halo: Multi-Pet's Special Tribute; keep ₹0 until Peternity approves a price. Both base prices come from the sizes above plus Human + pet / Two pets."
+      >
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <Money
+            label="My Family & Our Pet upgrade"
+            value={catalog.familyUpgrade}
+            onChange={(familyUpgrade) => patch({ familyUpgrade })}
+          />
+          <Money
+            label="Multi-Pet halo (Special Tribute)"
+            value={catalog.multiPetHalo}
+            onChange={(multiPetHalo) => patch({ multiPetHalo })}
+          />
         </div>
       </Panel>
 

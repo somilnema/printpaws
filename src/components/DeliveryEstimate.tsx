@@ -3,11 +3,34 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { CheckCircle2, Loader2, MapPin, Truck } from "lucide-react";
+import { fill } from "@/lib/everyday-content";
 
 const PIN_PATTERN = /^[1-9][0-9]{5}$/;
 const CHECK_DELAY_MS = 1500;
-const MIN_DAYS = 8;
-const MAX_DAYS = 12;
+
+export type DeliveryCopy = {
+  title: string;
+  subtitle: string;
+  placeholder: string;
+  invalid: string;
+  /** {min} and {max} are days. */
+  result: string;
+  /** {from} and {to} are dates; {pin} is the code entered. */
+  range: string;
+  minDays: number;
+  maxDays: number;
+};
+
+const DEFAULT_COPY: DeliveryCopy = {
+  title: "When will I receive my order?",
+  subtitle: "Enter your PIN code to check delivery time",
+  placeholder: "Enter 6-digit PIN code",
+  invalid: "Please enter a valid 6-digit PIN code.",
+  result: "Estimated delivery: {min}–{max} days",
+  range: "Expected between {from} – {to} to PIN {pin}",
+  minDays: 8,
+  maxDays: 12,
+};
 
 type Status = "idle" | "checking" | "done" | "invalid";
 
@@ -17,7 +40,7 @@ function formatDay(daysFromToday: number) {
   return date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 }
 
-export function DeliveryEstimate() {
+export function DeliveryEstimate({ copy = DEFAULT_COPY }: { copy?: DeliveryCopy } = {}) {
   const [pin, setPin] = useState("");
   const [status, setStatus] = useState<Status>("idle");
 
@@ -45,8 +68,8 @@ export function DeliveryEstimate() {
           <Truck size={18} strokeWidth={2} className="relative" />
         </div>
         <div className="min-w-0">
-          <p className="text-[14px] font-black text-[#1a1a1b] leading-tight">When will I receive my order?</p>
-          <p className="text-[11px] font-medium text-gray-500 mt-0.5">Enter your PIN code to check delivery time</p>
+          <p className="text-[14px] font-black text-[#1a1a1b] leading-tight">{copy.title}</p>
+          <p className="text-[11px] font-medium text-gray-500 mt-0.5">{copy.subtitle}</p>
         </div>
       </div>
 
@@ -59,7 +82,7 @@ export function DeliveryEstimate() {
           maxLength={6}
           value={pin}
           onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
-          placeholder="Enter 6-digit PIN code"
+          placeholder={copy.placeholder}
           aria-label="PIN code"
           className={`w-full rounded-xl border-[1.5px] bg-white py-3 pl-10 pr-11 text-sm font-bold tracking-[0.2em] text-[#1a1a1b] outline-none transition-all placeholder:font-medium placeholder:tracking-normal placeholder:text-gray-400 ${
             status === "invalid"
@@ -88,7 +111,7 @@ export function DeliveryEstimate() {
             exit={{ opacity: 0 }}
             className="relative mt-2 text-[11px] font-bold text-red-500"
           >
-            Please enter a valid 6-digit PIN code.
+            {copy.invalid}
           </motion.p>
         )}
         {status === "done" && (
@@ -102,10 +125,10 @@ export function DeliveryEstimate() {
             <CheckCircle2 size={18} className="mt-0.5 flex-shrink-0 text-green-600" strokeWidth={2.5} />
             <div>
               <p className="text-[13px] font-black text-green-800">
-                Estimated delivery: {MIN_DAYS}–{MAX_DAYS} days
+                {fill(copy.result, { min: copy.minDays, max: copy.maxDays })}
               </p>
               <p className="text-[11px] font-medium text-green-700 mt-0.5">
-                Expected between {formatDay(MIN_DAYS)} – {formatDay(MAX_DAYS)} to PIN {pin}
+                {fill(copy.range, { from: formatDay(copy.minDays), to: formatDay(copy.maxDays), pin })}
               </p>
             </div>
           </motion.div>

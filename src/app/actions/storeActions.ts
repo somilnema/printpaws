@@ -4,13 +4,17 @@ import { getAdminSession } from "@/lib/admin-auth";
 import {
   cloneCatalog,
   cloneOptionMeta,
+  DEFAULT_CATALOG,
   firstAvailablePets,
   firstAvailableSize,
   firstAvailableStyle,
   FRAMED_SIZES,
   CANVAS_SIZES,
   isOptionSelectable,
+  MAX_SIZE_INCHES,
   OPTION_STATUSES,
+  parseSize,
+  type OptionMeta,
   type OptionStatus,
   type PriceCatalog,
 } from "@/lib/pricing";
@@ -31,23 +35,51 @@ export type StoreAdmin = {
   coupons: CouponRecord[];
 };
 
+const MAX_SIZES_PER_STYLE = 12;
+
 function whole(value: number, label: string) {
   if (!Number.isInteger(value) || value < 0) return `${label} must be a whole number, 0 or more.`;
   return "";
+}
+
+/** Cleans one style's sizes. Built-in sizes always stay (they can be hidden); added ones must be real sizes. */
+function validateSizes(
+  label: string,
+  builtIn: readonly string[],
+  defaults: Record<string, number>,
+  prices: Record<string, number>,
+  options: Record<string, OptionMeta>,
+  checks: string[]
+) {
+  for (const size of builtIn) {
+    if (prices[size] == null) prices[size] = defaults[size];
+  }
+  const sizes = Object.keys(prices);
+  if (sizes.length > MAX_SIZES_PER_STYLE) checks.push(`${label} can have up to ${MAX_SIZES_PER_STYLE} sizes.`);
+
+  const cleaned: Record<string, OptionMeta> = {};
+  for (const size of sizes) {
+    const parsed = parseSize(size);
+    if (!parsed || parsed.w < 1 || parsed.h < 1 || parsed.w > MAX_SIZE_INCHES || parsed.h > MAX_SIZE_INCHES) {
+      checks.push(`${label} size ${size} is not valid. Use whole inches from 1 to ${MAX_SIZE_INCHES}.`);
+      continue;
+    }
+    prices[size] = Math.round(Number(prices[size]));
+    checks.push(whole(prices[size], `${label} ${size}`));
+    const status = (options[size]?.status || "available") as OptionStatus;
+    if (!OPTION_STATUSES.includes(status)) checks.push(`${label} ${size} needs a valid shop status.`);
+    cleaned[size] = cloneOptionMeta({ status, badge: String(options[size]?.badge || "").trim().slice(0, 40) });
+  }
+  return cleaned;
 }
 
 function validateCatalog(input: PriceCatalog): { ok: true; catalog: PriceCatalog } | { ok: false; error: string } {
   const catalog = cloneCatalog(input);
   const checks: string[] = [];
 
-  for (const size of FRAMED_SIZES) {
-    catalog.framed[size] = Math.round(Number(catalog.framed[size]));
-    checks.push(whole(catalog.framed[size], `Framed ${size}`));
-  }
-  for (const size of CANVAS_SIZES) {
-    catalog.canvas[size] = Math.round(Number(catalog.canvas[size]));
-    checks.push(whole(catalog.canvas[size], `Canvas ${size}`));
-  }
+  catalog.options.framedSizes = validateSizes("Framed", FRAMED_SIZES, DEFAULT_CATALOG.framed, catalog.framed, catalog.options.framedSizes, checks);
+  catalog.options.canvasSizes = validateSizes("Canvas", CANVAS_SIZES, DEFAULT_CATALOG.canvas, catalog.canvas, catalog.options.canvasSizes, checks);
+
   for (const key of ["two", "three", "four", "human"] as const) {
     catalog.pets[key] = Math.round(Number(catalog.pets[key]));
     checks.push(whole(catalog.pets[key], key === "human" ? "Human + pet" : `${key} pets`));
@@ -56,6 +88,10 @@ function validateCatalog(input: PriceCatalog): { ok: true; catalog: PriceCatalog
   catalog.halo = Math.round(Number(catalog.halo));
   catalog.giftWrap = Math.round(Number(catalog.giftWrap));
   catalog.premiumBackground = Math.round(Number(catalog.premiumBackground));
+  catalog.familyUpgrade = Math.round(Number(catalog.familyUpgrade));
+  catalog.multiPetHalo = Math.round(Number(catalog.multiPetHalo));
+  checks.push(whole(catalog.familyUpgrade, "You & Your Pet family upgrade"));
+  checks.push(whole(catalog.multiPetHalo, "Multi-Pet halo"));
   checks.push(whole(catalog.halo, "Halo"));
   checks.push(whole(catalog.giftWrap, "Gift wrap"));
   checks.push(whole(catalog.premiumBackground, "Premium background"));
@@ -106,22 +142,6 @@ function validateCatalog(input: PriceCatalog): { ok: true; catalog: PriceCatalog
     options.styles[style] = cloneOptionMeta({
       status,
       badge: String(options.styles[style].badge || "").trim().slice(0, 40),
-    });
-  }
-  for (const size of FRAMED_SIZES) {
-    const status = (options.framedSizes[size]?.status || "available") as OptionStatus;
-    if (!OPTION_STATUSES.includes(status)) checks.push(`Framed ${size} needs a valid shop status.`);
-    options.framedSizes[size] = cloneOptionMeta({
-      status,
-      badge: String(options.framedSizes[size]?.badge || "").trim().slice(0, 40),
-    });
-  }
-  for (const size of CANVAS_SIZES) {
-    const status = (options.canvasSizes[size]?.status || "available") as OptionStatus;
-    if (!OPTION_STATUSES.includes(status)) checks.push(`Canvas ${size} needs a valid shop status.`);
-    options.canvasSizes[size] = cloneOptionMeta({
-      status,
-      badge: String(options.canvasSizes[size]?.badge || "").trim().slice(0, 40),
     });
   }
   for (const id of ["one", "two", "three", "four", "human"] as const) {

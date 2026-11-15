@@ -1,29 +1,34 @@
 "use server";
 
 import { getAdminSession } from "@/lib/admin-auth";
+import { isConfiguratorProduct, type ConfiguratorProduct } from "@/lib/everyday-content";
 import {
-  describeEverydayContent,
-  resetEverydayContent,
-  saveEverydayContent,
+  describeProductContent,
+  resetProductContent,
+  saveProductContent,
   type EverydayContentAdmin,
 } from "@/lib/site-content";
 
 export type { EverydayContentAdmin } from "@/lib/site-content";
 
-export async function getEverydayContentAdmin(): Promise<EverydayContentAdmin | null> {
+function productOrEveryday(product: unknown): ConfiguratorProduct {
+  return isConfiguratorProduct(product) ? product : "everyday";
+}
+
+export async function getEverydayContentAdmin(product: ConfiguratorProduct = "everyday"): Promise<EverydayContentAdmin | null> {
   const session = await getAdminSession();
   if (!session) return null;
-  return describeEverydayContent();
+  return describeProductContent(productOrEveryday(product));
 }
 
-export async function updateEverydayContent(input: unknown) {
+export async function updateEverydayContent(input: unknown, product: ConfiguratorProduct = "everyday") {
   const session = await getAdminSession();
   if (!session) return { ok: false as const, error: "Sign in again to continue." };
-  return saveEverydayContent(input);
+  return saveProductContent(productOrEveryday(product), input);
 }
 
-export async function restoreEverydayContent() {
+export async function restoreEverydayContent(product: ConfiguratorProduct = "everyday") {
   const session = await getAdminSession();
   if (!session) return { ok: false as const, error: "Sign in again to continue." };
-  return resetEverydayContent();
+  return resetProductContent(productOrEveryday(product));
 }

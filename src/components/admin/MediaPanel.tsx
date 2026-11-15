@@ -10,7 +10,15 @@ import {
   type SiteMediaAdmin,
   type SiteMediaSlotView,
 } from "@/app/actions/mediaActions";
-import { IMAGE_UPLOAD_LIMIT, VIDEO_UPLOAD_LIMIT, mediaGroups } from "@/lib/site-media-catalog";
+import {
+  IMAGE_UPLOAD_LIMIT,
+  MEDIA_SECTIONS,
+  VIDEO_UPLOAD_LIMIT,
+  mediaGroups,
+  mediaSections,
+  mediaSlot,
+  shopMediaUrl,
+} from "@/lib/site-media-catalog";
 import { buttonClass, errorClass, ghostButtonClass, okClass, warnClass } from "@/components/admin/ui";
 import { PhotoUploadBar, PreviewImage } from "@/components/PreviewImage";
 import { UploadFailDialog, type UploadFailAlert } from "@/components/UploadFailDialog";
@@ -95,15 +103,47 @@ function probeBrowserVideo(file: File): Promise<{ ok: true } | { ok: false; erro
   });
 }
 
+/** Photos the admin should check for one product, e.g. the background tiles that are on show. */
+export type MediaChecklist = {
+  title: string;
+  /** What customers see for a missing one. */
+  note: string;
+  items: { slotId: string; label: string }[];
+};
+
+const TILE_SECTION = MEDIA_SECTIONS[2];
+
+/** Without a list from the configurator, every tile slot in the group is checked. */
+function tileChecklist(group: string, slots: SiteMediaSlotView[]): MediaChecklist[] {
+  const items = slots
+    .filter((slot) => slot.group === group && mediaSlot(slot.id)?.section === TILE_SECTION)
+    .map((slot) => ({ slotId: slot.id, label: slot.label.replace(/^Background tile:\s*/, "") }));
+  if (!items.length) return [];
+  return [
+    {
+      title: "Step 2 background tiles",
+      note: "A tile without its own photo shows the plain background colour (Limited Edition: its pattern).",
+      items,
+    },
+  ];
+}
+
 export function MediaPanel({
   initial,
   onChanged,
+  onlyGroups,
+  checklist,
 }: {
   initial: SiteMediaAdmin;
   onChanged: () => Promise<void>;
+  /** Limits the panel to these groups, e.g. the configurator's own photos. */
+  onlyGroups?: string[];
+  /** Photos to check for the shown group (the configurator passes the tiles that are on show). */
+  checklist?: MediaChecklist[];
 }) {
-  const groups = useMemo(() => mediaGroups(), []);
+  const groups = useMemo(() => mediaGroups().filter((item) => !onlyGroups || onlyGroups.includes(item)), [onlyGroups]);
   const [group, setGroup] = useState(groups[0] || "Product gallery");
+  const [focusId, setFocusId] = useState("");
   const [query, setQuery] = useState("");
   const [slots, setSlots] = useState(initial.slots);
   const [ready, setReady] = useState(initial.ready);
@@ -180,6 +220,24 @@ export function MediaPanel({
     const haystack = `${slot.label} ${slot.hint}`.toLowerCase();
     return haystack.includes(query.trim().toLowerCase());
   });
+  const sections = mediaSections(group);
+  const urlOf = (id: string) => slots.find((item) => item.id === id)?.url || "";
+  const nameOf = (id: string) => {
+    const found = slots.find((item) => item.id === id);
+    return found ? `${found.group} → ${found.label}` : "the original file";
+  };
+  const lists = (checklist ?? tileChecklist(group, slots))
+    .map((list) => ({ ...list, items: list.items.filter((item) => slots.some((slot) => slot.id === item.slotId && slot.group === group)) }))
+    .filter((list) => list.items.length > 0);
+
+  function showSlot(id: string) {
+    setQuery("");
+    setFocusId(id);
+    window.setTimeout(() => {
+      document.getElementById(`media-slot-${id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 60);
+    window.setTimeout(() => setFocusId((current) => (current === id ? "" : current)), 2500);
+  }
 
   async function uploadVideo(slot: SiteMediaSlotView, file: File) {
     if (await isQuickTimeFile(file)) {
@@ -391,10 +449,177 @@ export function MediaPanel({
       )
     );
     setNotice(
-      slot.fallbackUrl ? `${slot.label} is back to the original file.` : `${slot.label} is removed and hidden on the shop.`
+      slot.fallbackUrl
+        ? `${slot.label} is back to the original file.`
+        : mediaSlot(slot.id)?.inherits
+          ? `${slot.label} is removed. The shop shows the shared photo again.`
+          : `${slot.label} is removed and hidden on the shop.`
     );
     await onChanged();
   }
+
+  function renderCard(slot: SiteMediaSlotView) {
+    const busy = pendingId === slot.id;
+    const when = formatWhen(slot.updatedAt);
+    const draft = drafts[slot.id];
+    const meta = mediaSlot(slot.id);
+    const isTile = meta?.section === TILE_SECTION;
+    // An empty slot may still show a photo on the shop: the shared one it inherits.
+    const inherited = !slot.url && !draft ? shopMediaUrl(slot.id, urlOf) : null;
+    const status = slot.custom
+      ? slot.fallbackUrl
+        ? "Replaced"
+        : "Live"
+      : slot.fallbackUrl
+        ? "Original"
+        : inherited?.url
+          ? "Using shared"
+          : isTile
+            ? "Plain colour"
+            : "Hidden";
+    return (
+      <article
+        key={slot.id}
+        id={`media-slot-${slot.id}`}
+        className={`overflow-hidden rounded-3xl border bg-white shadow-sm transition-shadow ${
+          focusId === slot.id ? "border-primary ring-2 ring-primary/30" : "border-[#eeeeee]"
+        }`}
+      >
+        <div className="relative aspect-[4/3] bg-[#f3f4f6]">
+          {draft ? (
+            slot.kind === "video" ? (
+              <video
+                key={draft}
+                src={draft}
+                muted
+                playsInline
+                preload="metadata"
+                className={`h-full w-full object-cover ${busy ? "opacity-70" : ""}`}
+              />
+            ) : (
+              <PreviewImage src={draft} alt={slot.label} busy={busy} className="h-full w-full" />
+            )
+          ) : !slot.url && inherited?.url ? (
+            slot.kind === "video" ? (
+              <video
+                key={inherited.url}
+                src={previewSrc(inherited.url)}
+                controls
+                muted
+                playsInline
+                preload="metadata"
+                className="h-full w-full object-cover opacity-80"
+              />
+            ) : (
+              <img
+                key={inherited.url}
+                src={previewSrc(inherited.url)}
+                alt={slot.label}
+                loading="lazy"
+                decoding="async"
+                className="h-full w-full object-cover opacity-80"
+              />
+            )
+          ) : !slot.url ? (
+            <div className="flex h-full w-full flex-col items-center justify-center gap-1 px-6 text-center">
+              <p className="text-sm font-semibold text-[#6b7280]">
+                {busy ? "Uploading…" : `No ${slot.kind} yet`}
+              </p>
+              <p className="text-xs text-[#9ca3af]">
+                {isTile
+                  ? "The shop shows the plain background colour until you upload one."
+                  : "Nothing shows here on the shop until you upload one (see the note below)."}
+              </p>
+            </div>
+          ) : slot.kind === "video" ? (
+            <video
+              key={slot.url}
+              src={previewSrc(slot.url)}
+              controls
+              muted
+              playsInline
+              preload="metadata"
+              className={`h-full w-full object-cover ${busy ? "opacity-70" : ""}`}
+            />
+          ) : (
+            <img
+              key={slot.url}
+              src={previewSrc(slot.url)}
+              alt={slot.label}
+              loading="lazy"
+              decoding="async"
+              className="h-full w-full object-cover"
+            />
+          )}
+          {busy ? (
+            <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+              <div className="absolute inset-y-0 w-1/2 animate-photo-shimmer bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+            </div>
+          ) : null}
+          <span
+            className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${
+              slot.custom ? "bg-primary text-white" : "bg-white/95 text-[#6b7280]"
+            }`}
+          >
+            {status}
+          </span>
+        </div>
+        <div className="space-y-3 p-4">
+          <div>
+            <h2 className="text-base font-bold tracking-tight">{slot.label}</h2>
+            <p className="mt-1 text-xs leading-relaxed text-[#9ca3af]">{slot.hint}</p>
+            {inherited?.url ? (
+              <p className="mt-1 text-[11px] leading-snug text-[#8a5a00]">Showing now: {nameOf(inherited.from)}</p>
+            ) : null}
+            {when ? <p className="mt-1 text-[11px] text-[#9ca3af]">Updated {when}</p> : null}
+          </div>
+          {busy ? (
+            <PhotoUploadBar
+              percent={uploadProgress}
+              label={slot.kind === "video" ? "Uploading video" : "Uploading photo"}
+              detail={
+                uploadDetail ||
+                `${slot.kind === "video" ? "Videos" : "Photos"} must stay under ${formatFileSize(
+                  slot.kind === "video" ? VIDEO_UPLOAD_LIMIT : IMAGE_UPLOAD_LIMIT
+                )}.`
+              }
+            />
+          ) : null}
+          {cardError[slot.id] ? <p className={errorClass}>{cardError[slot.id]}</p> : null}
+          <div className="flex flex-wrap gap-2">
+            <label
+              className={`${buttonClass} cursor-pointer ${busy ? "pointer-events-none opacity-50" : pendingId ? "opacity-70" : ""}`}
+            >
+              {busy ? "Uploading…" : slot.url ? "Replace" : "Upload"}
+              <input
+                type="file"
+                accept={slot.kind === "video" ? "video/mp4,video/webm" : "image/jpeg,image/png,image/webp"}
+                className="sr-only"
+                disabled={busy}
+                onChange={(event) => {
+                  const file = event.target.files?.[0] || null;
+                  event.target.value = "";
+                  void onReplace(slot, file);
+                }}
+              />
+            </label>
+            {slot.custom ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void onReset(slot)}
+                className={ghostButtonClass}
+              >
+                {slot.fallbackUrl ? "Restore original" : meta?.inherits ? "Remove (use shared)" : "Remove"}
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </article>
+    );
+  }
+
+  const gridClass = "grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3";
 
   return (
     <div className="space-y-4">
@@ -427,122 +652,56 @@ export function MediaPanel({
         className="w-full max-w-sm rounded-xl border border-[#e5e7eb] bg-white px-3.5 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
       />
 
+      {lists.map((list) => {
+        const missing = list.items.filter((item) => !slots.find((slot) => slot.id === item.slotId)?.custom);
+        return (
+          <div key={list.title} className={missing.length ? warnClass : okClass}>
+            <p className="font-semibold">
+              {list.title}: {list.items.length - missing.length} of {list.items.length} have their own photo.
+            </p>
+            {missing.length ? (
+              <>
+                <p className="mt-1 text-xs">{list.note} Still missing (tap to upload):</p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {missing.map((item) => (
+                    <button
+                      key={item.slotId}
+                      type="button"
+                      onClick={() => showSlot(item.slotId)}
+                      className="rounded-full border border-[#f1d9a8] bg-white px-2.5 py-1 text-xs font-semibold text-[#8a5a00] hover:border-[#8a5a00]"
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : null}
+          </div>
+        );
+      })}
+
       {visible.length === 0 ? (
         <p className="text-sm text-[#6b7280]">Nothing in this section matches that search.</p>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {visible.map((slot) => {
-            const busy = pendingId === slot.id;
-            const when = formatWhen(slot.updatedAt);
-            const draft = drafts[slot.id];
+      ) : sections.length ? (
+        <div className="space-y-8">
+          {[...sections, ""].map((section) => {
+            const rows = visible.filter((slot) => (mediaSlot(slot.id)?.section || "") === section);
+            if (!rows.length) return null;
             return (
-              <article key={slot.id} className="overflow-hidden rounded-3xl border border-[#eeeeee] bg-white shadow-sm">
-                <div className="relative aspect-[4/3] bg-[#f3f4f6]">
-                  {draft ? (
-                    slot.kind === "video" ? (
-                      <video
-                        key={draft}
-                        src={draft}
-                        muted
-                        playsInline
-                        preload="metadata"
-                        className={`h-full w-full object-cover ${busy ? "opacity-70" : ""}`}
-                      />
-                    ) : (
-                      <PreviewImage src={draft} alt={slot.label} busy={busy} className="h-full w-full" />
-                    )
-                  ) : !slot.url ? (
-                    <div className="flex h-full w-full flex-col items-center justify-center gap-1 px-6 text-center">
-                      <p className="text-sm font-semibold text-[#6b7280]">
-                        {busy ? "Uploading…" : `No ${slot.kind} yet`}
-                      </p>
-                      <p className="text-xs text-[#9ca3af]">This spot stays hidden on the shop until you upload one.</p>
-                    </div>
-                  ) : slot.kind === "video" ? (
-                    <video
-                      key={slot.url}
-                      src={previewSrc(slot.url)}
-                      controls
-                      muted
-                      playsInline
-                      preload="metadata"
-                      className={`h-full w-full object-cover ${busy ? "opacity-70" : ""}`}
-                    />
-                  ) : (
-                    <img
-                      key={slot.url}
-                      src={previewSrc(slot.url)}
-                      alt={slot.label}
-                      loading="lazy"
-                      decoding="async"
-                      className="h-full w-full object-cover"
-                    />
-                  )}
-                  {busy ? (
-                    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-                      <div className="absolute inset-y-0 w-1/2 animate-photo-shimmer bg-gradient-to-r from-transparent via-white/60 to-transparent" />
-                    </div>
-                  ) : null}
-                  <span
-                    className={`absolute left-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${
-                      slot.custom ? "bg-primary text-white" : "bg-white/95 text-[#6b7280]"
-                    }`}
-                  >
-                    {slot.custom ? (slot.fallbackUrl ? "Replaced" : "Live") : slot.fallbackUrl ? "Original" : "Hidden"}
+              <section key={section || "other"} className="space-y-3">
+                <h3 className="flex flex-wrap items-baseline gap-x-2 text-sm font-bold text-[#1a1a1b]">
+                  {section || "Other"}
+                  <span className="text-xs font-normal text-[#9ca3af]">
+                    {rows.filter((slot) => slot.custom).length} of {rows.length} uploaded here
                   </span>
-                </div>
-                <div className="space-y-3 p-4">
-                  <div>
-                    <h2 className="text-base font-bold tracking-tight">{slot.label}</h2>
-                    <p className="mt-1 text-xs leading-relaxed text-[#9ca3af]">{slot.hint}</p>
-                    {when ? <p className="mt-1 text-[11px] text-[#9ca3af]">Updated {when}</p> : null}
-                  </div>
-                  {busy ? (
-                    <PhotoUploadBar
-                      percent={uploadProgress}
-                      label={slot.kind === "video" ? "Uploading video" : "Uploading photo"}
-                      detail={
-                        uploadDetail ||
-                        `${slot.kind === "video" ? "Videos" : "Photos"} must stay under ${formatFileSize(
-                          slot.kind === "video" ? VIDEO_UPLOAD_LIMIT : IMAGE_UPLOAD_LIMIT
-                        )}.`
-                      }
-                    />
-                  ) : null}
-                  {cardError[slot.id] ? <p className={errorClass}>{cardError[slot.id]}</p> : null}
-                  <div className="flex flex-wrap gap-2">
-                    <label
-                      className={`${buttonClass} cursor-pointer ${busy ? "pointer-events-none opacity-50" : pendingId ? "opacity-70" : ""}`}
-                    >
-                      {busy ? "Uploading…" : slot.url ? "Replace" : "Upload"}
-                      <input
-                        type="file"
-                        accept={slot.kind === "video" ? "video/mp4,video/webm" : "image/jpeg,image/png,image/webp"}
-                        className="sr-only"
-                        disabled={busy}
-                        onChange={(event) => {
-                          const file = event.target.files?.[0] || null;
-                          event.target.value = "";
-                          void onReplace(slot, file);
-                        }}
-                      />
-                    </label>
-                    {slot.custom ? (
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => void onReset(slot)}
-                        className={ghostButtonClass}
-                      >
-                        {slot.fallbackUrl ? "Restore original" : "Remove"}
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              </article>
+                </h3>
+                <div className={gridClass}>{rows.map(renderCard)}</div>
+              </section>
             );
           })}
         </div>
+      ) : (
+        <div className={gridClass}>{visible.map(renderCard)}</div>
       )}
 
       <UploadFailDialog alert={alert} onClose={() => setAlert(null)} />

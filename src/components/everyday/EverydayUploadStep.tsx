@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { Check, ChevronRight, CloudUpload, ImageIcon, Mail, Phone, ShieldCheck, Trash2, User } from "lucide-react";
 import { PhotoUploadBar, PreviewImage } from "@/components/PreviewImage";
-import type { EverydayContent } from "@/lib/everyday-content";
+import { fill, type EverydayContent } from "@/lib/everyday-content";
 import { PrimaryButton, SectionHeading, StepIntro, TrustStrip } from "@/components/everyday/ui";
 
 type Props = {
@@ -26,6 +26,16 @@ type Props = {
   onCustomerEmail: (v: string) => void;
   onAddToCart: () => void;
   fileInputId?: string;
+  /** Shown before the Photo Guide card (Multi-Pet / You & Your Pet photo method cards). */
+  beforeGuide?: ReactNode;
+  /** Replaces the single photo upload (method-specific upload boxes and reference photos). */
+  uploadSection?: ReactNode;
+  /** Shown between the uploads and Your Details (artist instructions). */
+  beforeDetails?: ReactNode;
+  /** Keeps Add to Cart off until every required upload and detail is ready. */
+  addToCartDisabled?: boolean;
+  /** Why Add to Cart is off, shown just above it. */
+  addToCartHint?: string;
 };
 
 function formatBytes(bytes: number) {
@@ -96,12 +106,19 @@ export function EverydayUploadStep({
   onCustomerEmail,
   onAddToCart,
   fileInputId = "everyday-pet-photo-upload",
+  beforeGuide,
+  uploadSection,
+  beforeDetails,
+  addToCartDisabled = false,
+  addToCartHint = "",
 }: Props) {
   const copy = content.step3;
 
   return (
     <div className="space-y-6">
       <StepIntro title={copy.title} description={copy.description} />
+
+      {beforeGuide}
 
       <button
         type="button"
@@ -118,6 +135,7 @@ export function EverydayUploadStep({
         <ChevronRight size={20} className="shrink-0 text-[#6B5E53]" />
       </button>
 
+      {uploadSection ?? (
       <div className="space-y-3">
         <SectionHeading>{copy.uploadHeading}</SectionHeading>
         <input
@@ -139,7 +157,7 @@ export function EverydayUploadStep({
         >
           <CloudUpload size={32} strokeWidth={1.5} className="text-[#2D2D2D]" />
           <span className="mt-1 text-[16px] font-semibold text-[#2D2D2D]">{copy.uploadTitle}</span>
-          <span className="text-[14px] text-[#6B5E53]">{copy.uploadHint}</span>
+          <span className="text-[14px] text-[#6B5E53]">{fill(copy.uploadHint, { max: copy.uploadMaxMb })}</span>
         </label>
         {fieldErrors.photo ? <p className="text-[12px] font-semibold text-red-500">{fieldErrors.photo}</p> : null}
 
@@ -166,7 +184,7 @@ export function EverydayUploadStep({
                 </p>
                 {photoStatus === "error" ? (
                   <button type="button" onClick={onRetryUpload} className="mt-1 text-left text-[12px] font-semibold text-red-600">
-                    {photoError || "Upload failed."} Tap to retry.
+                    {photoError || copy.uploadFailedLabel} {copy.retryLabel}
                   </button>
                 ) : null}
               </div>
@@ -183,6 +201,9 @@ export function EverydayUploadStep({
           </div>
         ) : null}
       </div>
+      )}
+
+      {beforeDetails}
 
       <div className="space-y-4">
         <div className="space-y-1">
@@ -206,8 +227,12 @@ export function EverydayUploadStep({
 
         <DetailField id="everyday-phone" icon={<Phone size={20} />} label={copy.phoneLabel} required error={fieldErrors.customerPhone}>
           <div className="mt-0.5 flex items-center gap-3">
-            <span className="shrink-0 text-[16px] text-[#2D2D2D]">+91</span>
-            <span aria-hidden className="h-5 w-px shrink-0 bg-[#EBD6C8]" />
+            {copy.phonePrefix ? (
+              <>
+                <span className="shrink-0 text-[16px] text-[#2D2D2D]">{copy.phonePrefix}</span>
+                <span aria-hidden className="h-5 w-px shrink-0 bg-[#EBD6C8]" />
+              </>
+            ) : null}
             <input
               id="everyday-phone"
               type="tel"
@@ -249,7 +274,12 @@ export function EverydayUploadStep({
         ) : null}
       </div>
 
-      <PrimaryButton label={copy.addToCartLabel} onClick={onAddToCart} />
+      {addToCartDisabled && addToCartHint ? (
+        <p className="-mb-3 text-center text-[13px] leading-snug text-[#8C5A3F]" role="status">
+          {addToCartHint}
+        </p>
+      ) : null}
+      <PrimaryButton label={copy.addToCartLabel} onClick={onAddToCart} disabled={addToCartDisabled} />
 
       {copy.showTrust ? <TrustStrip items={content.trust} /> : null}
     </div>

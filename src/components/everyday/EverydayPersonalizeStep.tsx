@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Image from "next/image";
 import { Crown, Info, Zap } from "lucide-react";
 import type { PriceCatalog, PortraitStyle } from "@/lib/pricing";
 import { formatRupee } from "@/lib/pricing";
-import { fill, type EverydayContent } from "@/lib/everyday-content";
+import { fill, numberedHeading, type EverydayContent } from "@/lib/everyday-content";
 import { backgroundTileSlot } from "@/lib/backgrounds";
 import { useUploadedMedia } from "@/components/SiteMedia";
 import { CornerMark, PrimaryButton, SectionHeading, StepIntro, Toggle } from "@/components/everyday/ui";
@@ -18,10 +18,13 @@ export type EverydayBg = {
   limited?: boolean;
 };
 
+export type EverydayFrameOption = { id: string; label: string; color: string };
+
 type Props = {
   content: EverydayContent;
   catalog: PriceCatalog;
   portraitStyle: PortraitStyle;
+  frames: EverydayFrameOption[];
   selectedFrame: string;
   onFrame: (frame: string) => void;
   backgrounds: EverydayBg[];
@@ -37,12 +40,29 @@ type Props = {
   onSubtitle: (v: string) => void;
   priorityPreview: boolean;
   onPriorityPreview: (v: boolean) => void;
-  fieldErrors: Record<string, string>;
   onContinue: () => void;
+  /** Media slot prefix for the background tiles ("multi-pet", "you-pet"). Everyday when omitted. */
+  mediaPrefix?: string;
+  /** Number the visible sections 1, 2, 3… (Canvas hides frame colour, so Background becomes 1). */
+  renumber?: boolean;
+  /** Replaces the single pet-name field (per-pet names, or names for the chosen composition). */
+  renderNames?: (heading: string) => ReactNode;
+  /** Extra section after the subtitle, e.g. Multi-Pet's Special Tribute. */
+  extraSection?: { heading: string; render: (heading: string) => ReactNode };
 };
 
-function BackgroundTile({ bg, selected, onSelect }: { bg: EverydayBg; selected: boolean; onSelect: () => void }) {
-  const tile = useUploadedMedia(backgroundTileSlot(bg.id));
+function BackgroundTile({
+  bg,
+  selected,
+  onSelect,
+  prefix,
+}: {
+  bg: EverydayBg;
+  selected: boolean;
+  onSelect: () => void;
+  prefix: string;
+}) {
+  const tile = useUploadedMedia(backgroundTileSlot(bg.id, prefix));
   const src = tile || (bg.isImage ? bg.value : "");
   return (
     <button type="button" onClick={onSelect} aria-pressed={selected} className="flex flex-col items-stretch gap-2 text-center">
@@ -60,6 +80,79 @@ function BackgroundTile({ bg, selected, onSelect }: { bg: EverydayBg; selected: 
   );
 }
 
+/** Heading + optional tag + description with a switch; the body shows only while it is on. */
+export function ToggleSection({
+  heading,
+  optionalLabel,
+  description,
+  on,
+  onToggle,
+  toggleLabel,
+  aside,
+  children,
+}: {
+  heading: string;
+  optionalLabel: string;
+  description: string;
+  on: boolean;
+  onToggle: () => void;
+  toggleLabel: string;
+  aside?: ReactNode;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="font-inter! text-[16px] font-semibold! leading-tight text-[#2D2D2D]">
+            {heading}
+            {optionalLabel ? <span className="font-normal text-[#6B5E53]"> {optionalLabel}</span> : null}
+            {aside ? <span className="ml-1.5 font-bold text-[#A97659]">{aside}</span> : null}
+          </h3>
+          {description ? <p className="mt-1 text-[14px] leading-snug text-[#6B5E53]">{description}</p> : null}
+        </div>
+        <Toggle on={on} onToggle={onToggle} label={toggleLabel} />
+      </div>
+      {on ? children : null}
+    </div>
+  );
+}
+
+/** Text box with the live "4/30" counter used by every configurator text field. */
+export function CountedInput({
+  value,
+  onValue,
+  placeholder,
+  max,
+  label,
+  id,
+}: {
+  value: string;
+  onValue: (v: string) => void;
+  placeholder: string;
+  max: number;
+  label?: string;
+  id?: string;
+}) {
+  return (
+    <div className="relative">
+      <input
+        id={id}
+        type="text"
+        value={value}
+        maxLength={max}
+        aria-label={label}
+        onChange={(e) => onValue(e.target.value.slice(0, max))}
+        placeholder={placeholder}
+        className="h-[46px] w-full rounded-[10px] border border-[#EBD6C8] bg-white pl-4 pr-16 text-[16px] text-[#2D2D2D] outline-none transition-colors placeholder:text-[#B0A29A] focus:border-[#A97659]"
+      />
+      <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[14px] text-[#8B8B7D]">
+        {value.length}/{max}
+      </span>
+    </div>
+  );
+}
+
 function TextOption({
   heading,
   optionalLabel,
@@ -71,7 +164,6 @@ function TextOption({
   onValue,
   placeholder,
   max,
-  error,
 }: {
   heading: string;
   optionalLabel: string;
@@ -83,7 +175,6 @@ function TextOption({
   onValue: (v: string) => void;
   placeholder: string;
   max: number;
-  error?: string;
 }) {
   return (
     <div className="space-y-3">
@@ -106,16 +197,12 @@ function TextOption({
               maxLength={max}
               onChange={(e) => onValue(e.target.value.slice(0, max))}
               placeholder={placeholder}
-              aria-invalid={Boolean(error)}
-              className={`h-[46px] w-full rounded-[10px] border bg-white pl-4 pr-16 text-[16px] text-[#2D2D2D] outline-none transition-colors placeholder:text-[#B0A29A] focus:border-[#A97659] ${
-                error ? "border-red-400 bg-red-50/40" : "border-[#EBD6C8]"
-              }`}
+              className="h-[46px] w-full rounded-[10px] border border-[#EBD6C8] bg-white pl-4 pr-16 text-[16px] text-[#2D2D2D] outline-none transition-colors placeholder:text-[#B0A29A] focus:border-[#A97659]"
             />
             <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[14px] text-[#8B8B7D]">
               {value.length}/{max}
             </span>
           </div>
-          {error ? <p className="mt-1.5 text-[12px] font-semibold text-red-500">{error}</p> : null}
         </div>
       ) : null}
     </div>
@@ -126,6 +213,7 @@ export function EverydayPersonalizeStep({
   content,
   catalog,
   portraitStyle,
+  frames,
   selectedFrame,
   onFrame,
   backgrounds,
@@ -141,10 +229,19 @@ export function EverydayPersonalizeStep({
   onSubtitle,
   priorityPreview,
   onPriorityPreview,
-  fieldErrors,
   onContinue,
+  mediaPrefix = "everyday",
+  renumber = false,
+  renderNames,
+  extraSection,
 }: Props) {
   const copy = content.step2;
+  // Visible sections numbered in order when asked; otherwise the admin's headings are shown as typed.
+  let sectionNumber = 0;
+  const heading = (text: string) => {
+    sectionNumber += 1;
+    return renumber ? numberedHeading(text, sectionNumber) : text;
+  };
   const [showInfo, setShowInfo] = useState(false);
   const standard = backgrounds.filter((bg) => !bg.limited);
   const limited = backgrounds.filter((bg) => bg.limited);
@@ -154,16 +251,11 @@ export function EverydayPersonalizeStep({
     <div className="space-y-6">
       <StepIntro title={copy.title} description={copy.description} />
 
-      {portraitStyle === "framed" && copy.showFrameColor ? (
+      {portraitStyle === "framed" && copy.showFrameColor && frames.length > 0 ? (
         <div className="space-y-3">
-          <SectionHeading>{copy.frameHeading}</SectionHeading>
+          <SectionHeading>{heading(copy.frameHeading)}</SectionHeading>
           <div className="grid grid-cols-2 gap-3">
-            {(
-              [
-                { id: "black", label: copy.blackFrameLabel, swatch: "#1F1F1F" },
-                { id: "white", label: copy.whiteFrameLabel, swatch: "#FFFFFF" },
-              ] as const
-            ).map((frame) => {
+            {frames.map((frame) => {
               const selected = selectedFrame === frame.id;
               return (
                 <button
@@ -171,7 +263,7 @@ export function EverydayPersonalizeStep({
                   type="button"
                   onClick={() => onFrame(frame.id)}
                   aria-pressed={selected}
-                  className={`relative flex h-12 items-center gap-2.5 rounded-[10px] bg-white pl-3 pr-9 text-left transition-all ${
+                  className={`relative flex h-12 items-center gap-2 rounded-[10px] bg-white pl-2.5 pr-8 text-left transition-all min-[375px]:gap-2.5 min-[375px]:pl-3 min-[375px]:pr-9 ${
                     selected
                       ? "border border-[#A97659] shadow-[0_0_0_1px_#A97659]"
                       : "border border-[#E8D6C8] hover:border-[#C9B9A8]"
@@ -180,9 +272,9 @@ export function EverydayPersonalizeStep({
                   <span
                     aria-hidden
                     className="h-5 w-5 shrink-0 rounded-[4px] border-[3px] border-[#D9CDB8]"
-                    style={{ borderColor: frame.swatch === "#FFFFFF" ? "#E3D9CF" : frame.swatch }}
+                    style={{ borderColor: frame.color === "#FFFFFF" ? "#E3D9CF" : frame.color }}
                   />
-                  <span className="truncate text-[14px] font-medium text-[#2D2D2D]">{frame.label}</span>
+                  <span className="truncate text-[13px] font-medium text-[#2D2D2D] min-[375px]:text-[14px]">{frame.label}</span>
                   <CornerMark selected={selected} size={20} className="absolute right-2.5 top-1/2 -translate-y-1/2" />
                 </button>
               );
@@ -203,11 +295,17 @@ export function EverydayPersonalizeStep({
               ) : null
             }
           >
-            {copy.backgroundHeading}
+            {heading(copy.backgroundHeading)}
           </SectionHeading>
           <div className="grid grid-cols-3 gap-3">
             {standard.map((bg) => (
-              <BackgroundTile key={bg.id} bg={bg} selected={selectedBg === bg.id} onSelect={() => onBg(bg.id)} />
+              <BackgroundTile
+                key={bg.id}
+                bg={bg}
+                prefix={mediaPrefix}
+                selected={selectedBg === bg.id}
+                onSelect={() => onBg(bg.id)}
+              />
             ))}
           </div>
         </div>
@@ -224,28 +322,37 @@ export function EverydayPersonalizeStep({
           </div>
           <div className="grid grid-cols-3 gap-3">
             {limited.map((bg) => (
-              <BackgroundTile key={bg.id} bg={bg} selected={selectedBg === bg.id} onSelect={() => onBg(bg.id)} />
+              <BackgroundTile
+                key={bg.id}
+                bg={bg}
+                prefix={mediaPrefix}
+                selected={selectedBg === bg.id}
+                onSelect={() => onBg(bg.id)}
+              />
             ))}
           </div>
         </div>
       ) : null}
 
-      <TextOption
-        heading={copy.petNameHeading}
-        optionalLabel={copy.optionalLabel}
-        description={copy.petNameDescription}
-        on={includePetName}
-        onToggle={() => onIncludePetName(!includePetName)}
-        toggleLabel={copy.petNameHeading}
-        value={petName}
-        onValue={onPetName}
-        placeholder={copy.petNamePlaceholder}
-        max={copy.petNameMax}
-        error={fieldErrors.petName}
-      />
+      {renderNames ? (
+        renderNames(heading(copy.petNameHeading))
+      ) : (
+        <TextOption
+          heading={heading(copy.petNameHeading)}
+          optionalLabel={copy.optionalLabel}
+          description={copy.petNameDescription}
+          on={includePetName}
+          onToggle={() => onIncludePetName(!includePetName)}
+          toggleLabel={copy.petNameHeading}
+          value={petName}
+          onValue={onPetName}
+          placeholder={copy.petNamePlaceholder}
+          max={copy.petNameMax}
+        />
+      )}
 
       <TextOption
-        heading={copy.subtitleHeading}
+        heading={heading(copy.subtitleHeading)}
         optionalLabel={copy.optionalLabel}
         description={copy.subtitleDescription}
         on={includeSubtitle}
@@ -255,8 +362,9 @@ export function EverydayPersonalizeStep({
         onValue={onSubtitle}
         placeholder={copy.subtitlePlaceholder}
         max={copy.subtitleMax}
-        error={fieldErrors.subtitle}
       />
+
+      {extraSection ? extraSection.render(heading(extraSection.heading)) : null}
 
       {copy.showPriority ? (
         <div className="rounded-[12px] bg-[#FAF4EC] px-4 py-3">

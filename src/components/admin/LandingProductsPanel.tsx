@@ -1,8 +1,12 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { PawPrint } from "lucide-react";
 import { deleteLandingProductAction, saveLandingProductAction } from "@/app/actions/landingActions";
+import { removeLandingProductPhoto } from "@/app/actions/landingContentActions";
 import type { LandingProduct } from "@/lib/landing-products";
+import { PORTRAITS, cardPhoto, portraitBySlug, type CardPhotoSource } from "@/lib/portraits";
+import { mediaSlot } from "@/lib/site-media-catalog";
 import { buttonClass, dangerButtonClass, errorClass, Field, ghostButtonClass, inputClass, okClass, Panel, warnClass } from "@/components/admin/ui";
 
 type Draft = {
@@ -46,21 +50,62 @@ function fromProduct(product: LandingProduct): Draft {
   };
 }
 
+/** "Photos tab → Landing page → You & Your Pet card", for cards that have a Media slot. */
+function mediaPath(slug: string) {
+  const slot = portraitBySlug(slug)?.imageSlot;
+  const label = slot ? mediaSlot(slot)?.label : "";
+  return label ? `Photos tab → Landing page → ${label}` : "";
+}
+
+/** Where the card photo comes from, and how to change it. */
+function photoNote(slug: string, source: CardPhotoSource, canUpload: boolean) {
+  const path = mediaPath(slug);
+  if (source === "upload") return `Photo uploaded here.${path ? ` Remove it to use ${path} instead.` : ""}`;
+  if (source === "media") return `Photo from ${path}.${canUpload ? " A photo uploaded here would replace it on this card." : ""}`;
+  const where = [canUpload ? "here (Edit → Photo)" : "", path ? `in ${path}` : ""].filter(Boolean).join(" or ");
+  if (source === "shop") return `Shop photo, shown until you upload one ${where}.`;
+  return where ? `No photo yet: the card shows a paw. Upload one ${where}.` : "No photo yet: the card shows a paw.";
+}
+
+function previewSrc(url: string) {
+  return /^https?:\/\//i.test(url) ? url : encodeURI(url);
+}
+
+function CardThumb({ url }: { url: string }) {
+  return (
+    <div className="relative flex h-16 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#f5efe9]">
+      {url ? (
+        <img src={previewSrc(url)} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <PawPrint aria-hidden size={18} className="text-[#A97659]/50" />
+      )}
+    </div>
+  );
+}
+
 export function LandingProductsPanel({
   products,
   ready,
   setupError,
+  media,
   onChanged,
+  onOpenPhotos,
 }: {
   products: LandingProduct[];
   ready: boolean;
   setupError?: string;
+  /** Admin uploads by Media slot id, to show each card's current photo. */
+  media: Record<string, string>;
   onChanged: () => Promise<void>;
+  /** Opens the landing photos (Media → Landing page). */
+  onOpenPhotos: () => void;
 }) {
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const editing = products.find((product) => product.id === draft.id);
+  const editingPhoto = editing ? cardPhoto(editing.slug, editing.imageUrl, media) : null;
 
   function set<K extends keyof Draft>(key: K, value: Draft[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -103,15 +148,57 @@ export function LandingProductsPanel({
     await onChanged();
   }
 
+  async function removePhoto(id: string) {
+    if (!window.confirm("Remove the photo uploaded for this card? The card goes back to its Media photo, or a paw if it has none.")) return;
+    setSaving(true);
+    setError("");
+    setMessage("");
+    const result = await removeLandingProductPhoto(id);
+    setSaving(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    setMessage("Photo removed.");
+    await onChanged();
+  }
+
   if (!ready) {
-    return <p className={warnClass}>{setupError || "Landing products are not ready yet."}</p>;
+    return (
+      <div className="space-y-4">
+        <p className={warnClass}>{setupError || "Landing products are not ready yet."}</p>
+        <Panel
+          title="Cards on the landing page now"
+          note="Until that SQL is run, /landing shows these built-in cards and their names, descriptions, order and visibility can't be changed here. Their photos can: upload them in the Photos tab → Landing page."
+        >
+          <ul className="divide-y divide-[#f3f4f6]">
+            {PORTRAITS.map((portrait) => {
+              const photo = cardPhoto(portrait.slug, "", media);
+              return (
+                <li key={portrait.slug} className="flex flex-wrap items-center gap-3 py-3">
+                  <CardThumb url={photo.url} />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold">{portrait.name}</p>
+                    <p className="text-xs text-[#6b7280]">{portrait.pets ? "Opens the portrait customizer" : "Coming soon"}</p>
+                    <p className="mt-0.5 text-xs text-[#9ca3af]">{photoNote(portrait.slug, photo.source, false)}</p>
+                  </div>
+                  <button type="button" className={ghostButtonClass} onClick={onOpenPhotos}>
+                    {photo.source === "media" ? "Change photo" : "Upload photo"}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </Panel>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-4">
       <Panel
         title={draft.id ? "Edit product" : "New product"}
-        note="Portrait cards open the existing customizer and show the live canvas starting price. Fixed-price cards stay as Coming soon until you enter a price and turn on For sale. Checkout charges that price."
+        note="Portrait cards open the existing customizer and show the cheapest price on sale in Pricing. Fixed-price cards stay as Coming soon until you enter a price and turn on For sale. Checkout charges that price. The “From” and “Coming soon” wording is in the Page text tab."
       >
         <form onSubmit={onSubmit} className="grid gap-4 md:grid-cols-2">
           <input type="hidden" name="id" value={draft.id} />
@@ -126,12 +213,34 @@ export function LandingProductsPanel({
               <input name="description" value={draft.description} onChange={(event) => set("description", event.target.value)} className={inputClass} required />
             </Field>
           </div>
-          <Field label="Order on the page">
+          <Field label="Order on the page" hint="Smaller numbers come first.">
             <input name="sortOrder" value={draft.sortOrder} onChange={(event) => set("sortOrder", event.target.value)} className={inputClass} inputMode="numeric" />
           </Field>
-          <Field label="Photo" hint={draft.id ? "Leave empty to keep the current photo." : "Vertical photo, JPG, PNG, or WebP."}>
+          <Field
+            label="Photo"
+            hint={
+              draft.id
+                ? "Vertical 3:4 photo, JPG, PNG, or WebP, under 15 MB. Leave empty to keep the current photo."
+                : "Vertical 3:4 photo, JPG, PNG, or WebP, under 15 MB. Without one, the card uses its Media → Landing page photo, if it has one."
+            }
+          >
             <input name="file" type="file" accept="image/jpeg,image/png,image/webp" className="block w-full text-sm" />
           </Field>
+          {editing && editingPhoto ? (
+            <div className="flex items-center gap-3 rounded-2xl border border-[#eeeeee] bg-[#fafafa] p-3 md:col-span-2">
+              <CardThumb url={editingPhoto.url} />
+              <p className="min-w-0 flex-1 text-xs text-[#6b7280]">Shown on the card now. {photoNote(editing.slug, editingPhoto.source, true)}</p>
+              {editingPhoto.source === "upload" ? (
+                <button type="button" disabled={saving} className={dangerButtonClass} onClick={() => removePhoto(editing.id)}>
+                  Remove uploaded photo
+                </button>
+              ) : mediaPath(editing.slug) ? (
+                <button type="button" className={ghostButtonClass} onClick={onOpenPhotos}>
+                  Open landing photos
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           <Field label="How it sells">
             <select
               name="kind"
@@ -181,29 +290,37 @@ export function LandingProductsPanel({
         {message ? <p className={`${okClass} mt-4`}>{message}</p> : null}
       </Panel>
 
-      <Panel title="Products" note="Signature Gift Bundle and Mini Desk Portrait stay Coming soon until you set a price and mark them for sale.">
+      <Panel
+        title="Products"
+        note="In page order. Card photo: the one uploaded here wins, then the card's photo in Photos tab → Landing page, then a shop photo; with none, the card shows a paw. Signature Gift Bundle and Mini Desk Portrait stay Coming soon until you set a price and mark them for sale."
+      >
         <ul className="divide-y divide-[#f3f4f6]">
-          {products.map((product) => (
-            <li key={product.id} className="flex flex-wrap items-center gap-3 py-3">
-              <div className="min-w-0 flex-1">
-                <p className="font-semibold">{product.name}</p>
-                <p className="text-xs text-[#6b7280]">
-                  {product.kind === "portrait"
-                    ? `Customizer · ${product.pets === "human" ? "person and pet" : product.pets === "two" ? "two pets" : "one pet"}`
-                    : product.forSale && product.price
-                      ? `For sale · ₹${product.price.toLocaleString("en-IN")}`
-                      : "Coming soon"}
-                  {product.active ? "" : " · Hidden"}
-                </p>
-              </div>
-              <button type="button" className={ghostButtonClass} onClick={() => setDraft(fromProduct(product))}>
-                Edit
-              </button>
-              <button type="button" className={dangerButtonClass} onClick={() => remove(product.id, product.name)}>
-                Remove
-              </button>
-            </li>
-          ))}
+          {products.map((product) => {
+            const photo = cardPhoto(product.slug, product.imageUrl, media);
+            return (
+              <li key={product.id} className="flex flex-wrap items-center gap-3 py-3">
+                <CardThumb url={photo.url} />
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold">{product.name}</p>
+                  <p className="text-xs text-[#6b7280]">
+                    {product.kind === "portrait"
+                      ? `Customizer · ${product.pets === "human" ? "person and pet" : product.pets === "two" ? "two pets" : "one pet"}`
+                      : product.forSale && product.price
+                        ? `For sale · ₹${product.price.toLocaleString("en-IN")}`
+                        : "Coming soon"}
+                    {product.active ? "" : " · Hidden"}
+                  </p>
+                  <p className="mt-0.5 text-xs text-[#9ca3af]">{photoNote(product.slug, photo.source, true)}</p>
+                </div>
+                <button type="button" className={ghostButtonClass} onClick={() => setDraft(fromProduct(product))}>
+                  Edit
+                </button>
+                <button type="button" className={dangerButtonClass} onClick={() => remove(product.id, product.name)}>
+                  Remove
+                </button>
+              </li>
+            );
+          })}
           {products.length === 0 ? <li className="py-3 text-sm text-[#6b7280]">No products yet.</li> : null}
         </ul>
       </Panel>

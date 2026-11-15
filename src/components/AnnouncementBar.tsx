@@ -3,14 +3,17 @@
 import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { DEFAULT_LANDING_CONTENT, fillPercent } from "@/lib/landing-content";
 
 type AnnouncementBarProps = {
   /** Fixed messages, already checked by the server. Leave out for the shop's default rotation. */
   messages?: string[];
+  /** The shop's rotation from Admin → Landing & home → Home page. "{percent}" is the prepaid discount from Pricing. */
+  rotation?: string[];
   colorClass?: string;
 };
 
-export function AnnouncementBar({ messages, colorClass = "bg-[#ff5959]" }: AnnouncementBarProps = {}) {
+export function AnnouncementBar({ messages, rotation, colorClass = "bg-[#ff5959]" }: AnnouncementBarProps = {}) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(0); // -1 for left, 1 for right
   const [prepaidPercent, setPrepaidPercent] = useState<number | null>(null);
@@ -30,11 +33,8 @@ export function AnnouncementBar({ messages, colorClass = "bg-[#ff5959]" }: Annou
     };
   }, [messages]);
 
-  const announcements = messages ?? [
-    "Forever Starts Here",
-    "Refined Until Perfect",
-    prepaidPercent && prepaidPercent > 0 ? `${prepaidPercent}% Off (Prepaid Orders)` : "",
-  ].filter(Boolean);
+  const announcements =
+    messages ?? (rotation ?? DEFAULT_LANDING_CONTENT.homeAnnouncements).map((text) => fillPercent(text, prepaidPercent)).filter(Boolean);
   const rotates = announcements.length > 1;
 
   useEffect(() => {

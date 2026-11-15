@@ -4,25 +4,54 @@ import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
-import { useUploadedMedia } from "@/components/SiteMedia";
+import { useMedia, useUploadedMedia } from "@/components/SiteMedia";
 import { FRAMED_UNAVAILABLE, isOptionSelectable, type OptionMeta } from "@/lib/pricing";
+import { uploadedKey } from "@/lib/site-media-catalog";
 
-const STYLES = [
-  { id: "framed" as const, title: "Framed Portrait", image: "/framestyle/black-frame.png", tagline: "Ready to Hang • Classic Look" },
-  { id: "canvas" as const, title: "Canvas Portrait", image: "/framestyle/canvas-frame.png", tagline: "Gallery Wrapped • Premium" },
-];
+/** Pop-up wording. Configurator pages pass the admin's text; the rest use these defaults. */
+export type StylePreviewCopy = {
+  title: string;
+  framedTitle: string;
+  framedTagline: string;
+  canvasTitle: string;
+  canvasTagline: string;
+  unavailable: string;
+};
+
+const DEFAULT_COPY: StylePreviewCopy = {
+  title: "Framed vs Canvas",
+  framedTitle: "Framed Portrait",
+  framedTagline: "Ready to Hang • Classic Look",
+  canvasTitle: "Canvas Portrait",
+  canvasTagline: "Gallery Wrapped • Premium",
+  unavailable: FRAMED_UNAVAILABLE,
+};
+
+const STYLE_IMAGES = { framed: "/framestyle/black-frame.png", canvas: "/framestyle/canvas-frame.png" } as const;
 
 export function PortraitStyleInfographic({
   open,
   onClose,
   styleOptions,
+  mediaPrefix,
+  copy = DEFAULT_COPY,
 }: {
   open: boolean;
   onClose: () => void;
   styleOptions?: { canvas?: OptionMeta; framed?: OptionMeta };
+  /** Configurator product ("everyday", "multi-pet", "you-pet"): its own infographic and photos win. */
+  mediaPrefix?: string;
+  copy?: StylePreviewCopy;
 }) {
-  const infographic = useUploadedMedia("style-infographic");
+  const media = useMedia();
+  const own = (name: string) => (mediaPrefix ? media(uploadedKey(`${mediaPrefix}-${name}`)) : "");
+  const sharedInfographic = useUploadedMedia("style-infographic");
+  const infographic = own("style-infographic") || sharedInfographic;
   const framedAvailable = isOptionSelectable(styleOptions?.framed);
+  const styles = [
+    { id: "framed" as const, title: copy.framedTitle, image: own("preview-framed") || STYLE_IMAGES.framed, tagline: copy.framedTagline },
+    { id: "canvas" as const, title: copy.canvasTitle, image: own("preview-canvas") || STYLE_IMAGES.canvas, tagline: copy.canvasTagline },
+  ];
 
   useEffect(() => {
     if (!open) return;
@@ -67,23 +96,23 @@ export function PortraitStyleInfographic({
               <div>
                 <img src={infographic} alt="Framed portrait vs canvas portrait" className="block h-auto w-full" />
                 {!framedAvailable && (
-                  <p className="px-5 py-3 text-center text-xs font-medium text-gray-500">{FRAMED_UNAVAILABLE}</p>
+                  <p className="px-5 py-3 text-center text-xs font-medium text-gray-500">{copy.unavailable}</p>
                 )}
               </div>
             ) : (
               <div className="space-y-4 p-5 pt-12">
-                <h3 className="text-center text-lg font-black text-[#1a1a1b]">Framed vs Canvas</h3>
+                <h3 className="text-center text-lg font-black text-[#1a1a1b]">{copy.title}</h3>
                 <div className="grid grid-cols-2 gap-3">
-                  {STYLES.map((style) => {
+                  {styles.map((style) => {
                     const available = isOptionSelectable(styleOptions?.[style.id]);
                     return (
-                      <div key={style.title} className="space-y-2 text-center">
+                      <div key={style.id} className="space-y-2 text-center">
                         <div className={`overflow-hidden rounded-2xl border border-gray-100 bg-[#f6f3ef] ${available ? "" : "opacity-50"}`}>
                           <img src={style.image} alt={style.title} className="aspect-square w-full object-cover" />
                         </div>
                         <p className="text-sm font-black text-[#1a1a1b]">{style.title}</p>
                         <p className="text-[11px] font-medium text-gray-500">
-                          {available ? style.tagline : FRAMED_UNAVAILABLE.replace(/\.$/, "")}
+                          {available ? style.tagline : copy.unavailable.replace(/\.$/, "")}
                         </p>
                       </div>
                     );
