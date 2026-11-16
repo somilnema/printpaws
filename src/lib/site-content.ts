@@ -251,6 +251,8 @@ function publishLanding() {
   revalidateTag(LANDING_TAG);
   revalidatePath("/landing");
   revalidatePath("/");
+  // Product pages show the home announcement bar.
+  revalidatePath("/portraits/[slug]", "page");
 }
 
 export async function saveLandingContent(input: unknown) {

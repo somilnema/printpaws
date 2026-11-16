@@ -341,7 +341,7 @@ export function LandingContentPanel({
     setDraft(clone(result.content));
     setDirty(false);
     setUpdatedAt(result.updatedAt);
-    setMessage("Saved. The landing page and home page show the new text within a minute.");
+    setMessage("Saved. The landing page, home page and product pages show the new text within a minute.");
     onSaved();
   }
 
@@ -365,7 +365,7 @@ export function LandingContentPanel({
   return (
     <Panel
       title="Landing & home page text"
-      note="Every title, description, button, list and on/off switch on /landing, plus the home page announcement bar, breadcrumb and rating row. Prices come from Pricing; photos from the Photos tab and Media."
+      note="Every title, description, button, list and on/off switch on /landing, plus the announcement bar on the home page and product pages, and the home page breadcrumb and rating row. Prices come from Pricing; photos from the Photos tab and Media."
     >
       {!initial.ready && initial.error ? <p className={`${warnClass} mb-4`}>{initial.error}</p> : null}
 
@@ -622,11 +622,12 @@ export function LandingContentPanel({
         <div className="space-y-5">
           <div className="space-y-3">
             <p className="text-sm font-semibold text-[#1a1a1b]">
-              Home page announcement bar <span className="font-normal text-[#6b7280]">· up to {LANDING_LIMITS.homeAnnouncements} messages</span>
+              Announcement bar on the home page and product pages{" "}
+              <span className="font-normal text-[#6b7280]">· up to {LANDING_LIMITS.homeAnnouncements} messages</span>
             </p>
             <Note>
-              {"{percent}"} is the prepaid discount from Pricing; a message with it hides while that discount is 0. Remove every message to
-              hide the bar. Product pages still use the original messages.
+              {"{percent}"} is the prepaid discount from Pricing; a message with it hides while that discount is 0. Every product page shows
+              these messages too. Remove every message to hide the bar on those pages.
             </Note>
             {draft.homeAnnouncements.map((text, index) => (
               <ListRow key={index} columns="sm:grid-cols-[1fr_auto]" {...rowProps("homeAnnouncements", index)}>
