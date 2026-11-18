@@ -71,7 +71,7 @@ async function fetchProductContent(product: ConfiguratorProduct): Promise<Everyd
 }
 
 // The product is part of the cache key (unstable_cache keys on the arguments).
-const loadCachedContent = unstable_cache(fetchProductContent, ["configurator-content-v2"], {
+const loadCachedContent = unstable_cache(fetchProductContent, ["configurator-content-v3"], {
   tags: [CACHE_TAG],
   revalidate: 60,
 });

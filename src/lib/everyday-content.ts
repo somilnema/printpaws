@@ -337,6 +337,8 @@ export type DeskContent = {
   horizontalLabel: string;
   /** Chip on the 2 / 3 pet cards when the extra charge is above zero. {price} is filled in. */
   extraPriceLabel: string;
+  /** On by default. Off = the landing card says Coming soon and the page is not found. */
+  launched: boolean;
   showTwoPets: boolean;
   showThreePets: boolean;
   /** 1..3 */
@@ -402,6 +404,8 @@ export type BundleContent = {
   signatureBadge: string;
   signatureVisible: boolean;
   // Step 2 (EverydayPersonalizeStep is reused)
+  /** On by default. Off = the landing card says Coming soon and the page is not found. */
+  launched: boolean;
   greetingEnabled: boolean;
   greetingEssential: boolean;
   greetingSignature: boolean;
@@ -415,6 +419,8 @@ export type BundleContent = {
   greetingError: string;
   // Step 3
   showPetDetails: boolean;
+  /** Step 1 size cards show a price. Off by default (handoff p3: no price in the configurator). */
+  showSizePrices: boolean;
   /** Inline tips box under the upload tile (tips = Photo guide tips). Empty hides it. */
   guidelinesTitle: string;
   petDetailsHeading: string;
@@ -1085,6 +1091,7 @@ const DEFAULT_DESK: DeskContent = {
   verticalLabel: "Vertical layout",
   horizontalLabel: "Horizontal layout",
   extraPriceLabel: "+ {price}",
+  launched: true,
   showTwoPets: true,
   showThreePets: true,
   defaultPets: 1,
@@ -1150,10 +1157,11 @@ const DEFAULT_BUNDLE: BundleContent = {
   signatureDescription: "Everything in Essential, plus:",
   signatureBadge: "★ Best Value",
   signatureVisible: true,
+  launched: true,
   greetingEnabled: true,
   greetingEssential: true,
   greetingSignature: true,
-  greetingHeading: "4. Add a Personalised Greeting Card",
+  greetingHeading: "",
   greetingTitle: "Add a Personalised Greeting Card",
   greetingDescription: "Include a custom printed card with a heartfelt message for your loved one.",
   greetingPriceLabel: "+ {price}",
@@ -1162,6 +1170,7 @@ const DEFAULT_BUNDLE: BundleContent = {
   greetingMax: 150,
   greetingError: "Please write the message for your greeting card.",
   showPetDetails: true,
+  showSizePrices: false,
   guidelinesTitle: "Photo Guidelines for Best Results",
   petDetailsHeading: "2. Pet Details",
   petTypeLabel: "Pet Type",
@@ -1235,7 +1244,6 @@ export const DEFAULT_MINI_DESK_CONTENT: EverydayContent = (() => {
       "Pet facing the camera",
       "Head and chest visible",
       "No filters or heavy edits",
-      "No shared photo of all your pets? Upload a separate photo for each pet.",
     ],
   };
   content.desk = { ...DEFAULT_DESK, infoPoints: [...DEFAULT_DESK.infoPoints], suggestions: [...DEFAULT_DESK.suggestions] };
@@ -1681,6 +1689,13 @@ export function greetingOffered(content: EverydayContent, tier: BundleTier | "")
 }
 
 /** 1 pet → vertical, 2 or 3 pets → horizontal (automatic, never chosen). */
+/** Desk Portrait / Gift Bundle: the admin's Launch switch (Configurator → product options). */
+export function newProductLaunched(content: EverydayContent | null | undefined) {
+  // On unless the admin switched it off (content saved or cached before the switch existed counts as on).
+  const flag = content?.desk ? content.desk.launched : content?.bundle?.launched;
+  return flag !== false;
+}
+
 export function deskLayout(pets: number): "vertical" | "horizontal" {
   return pets === 1 ? "vertical" : "horizontal";
 }

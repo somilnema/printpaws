@@ -57,4 +57,4 @@ The PDF glyph "■" is **₹**. The written requirements win over the generated 
 7. Whether the greeting card is offered with both tiers.
 8. Upload formats and maximum size (`step3.uploadMaxMb`); pet age ranges.
 9. Upload the photos: Desk Step 1 examples (`mini-desk-pets-1..3`), Bundle tier photos (`gift-bundle-tier-essential|signature`), gallery and landing cards.
-10. Launch each product from Admin → Landing & home → Products. Until then the cards say "Coming soon" and the pages return 404.
+10. Both products are live by default. To hide one again, turn off **Launch** in Admin → Configurator → Desk Portrait options / Bundle options; its card then says "Coming soon" and its page returns 404.

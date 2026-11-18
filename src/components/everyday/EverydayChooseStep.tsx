@@ -30,6 +30,8 @@ type Props = {
   onContinue: () => void;
   /** Keeps Continue disabled (e.g. Gift Bundle until a bundle is chosen). Everyday never sets it. */
   continueDisabled?: boolean;
+  /** Price under each size (Everyday). The Gift Bundle keeps prices out of its configurator. */
+  showSizePrices?: boolean;
   footer?: ReactNode;
   /** Media slot prefix for the style card photos ("multi-pet", "you-pet"). Everyday when omitted. */
   mediaPrefix?: string;
@@ -66,6 +68,7 @@ export function EverydayChooseStep({
   onPreview,
   onContinue,
   continueDisabled = false,
+  showSizePrices = true,
   footer,
   mediaPrefix = "everyday",
   beforeStyle,
@@ -213,9 +216,11 @@ export function EverydayChooseStep({
                   />
                 </span>
                 <span className="mt-3 text-[15px] font-semibold leading-tight text-[#2D2D2D]">{sizeLabel(size)}</span>
-                <span className="mt-1 text-[16px] font-bold text-[#A97659]">
-                  {selectable ? formatRupee(price + petsExtra) : copy.outOfStockLabel}
-                </span>
+                {selectable && !showSizePrices ? null : (
+                  <span className="mt-1 text-[16px] font-bold text-[#A97659]">
+                    {selectable ? formatRupee(price + petsExtra) : copy.outOfStockLabel}
+                  </span>
+                )}
               </button>
             );
           })}

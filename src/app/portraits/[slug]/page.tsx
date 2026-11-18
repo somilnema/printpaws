@@ -25,7 +25,7 @@ import { calculateQuote, formatRupee } from "@/lib/pricing";
 import { SELLABLE_PORTRAITS, portraitBySlug } from "@/lib/portraits";
 import { loadSiteMedia } from "@/lib/site-media";
 import { loadLandingContent, loadProductContent } from "@/lib/site-content";
-import { CONFIGURATOR_MEDIA, configuratorForSlug } from "@/lib/everyday-content";
+import { CONFIGURATOR_MEDIA, configuratorForSlug, newProductLaunched } from "@/lib/everyday-content";
 import { loadPriceCatalog, loadShopCatalog } from "@/lib/store-config";
 import { draftMode } from "next/headers";
 
@@ -55,7 +55,9 @@ export default async function PortraitPage({ params }: PortraitPageProps) {
   const launch = launchProductForSlug(slug);
   // Admins preview an unlaunched Desk Portrait / Gift Bundle page through /api/admin/preview (Next.js draft mode);
   // customers still get 404. Reading cookies here would break this cached page (500), so only draft mode is checked.
-  const unlaunched = Boolean(launch && (!stored || !configuratorLaunched(stored)));
+  // Launched = the Configurator Launch switch, or a launched Landing & home → Products row.
+  const launchContent = launch ? await loadProductContent(launch) : undefined;
+  const unlaunched = Boolean(launch && !newProductLaunched(launchContent) && (!stored || !configuratorLaunched(stored)));
   const adminPreview = unlaunched ? (await draftMode()).isEnabled : false;
   if (unlaunched && !adminPreview) notFound();
   if (stored?.kind === "fixed" && !launch) {
@@ -97,7 +99,7 @@ export default async function PortraitPage({ params }: PortraitPageProps) {
     : stored?.kind === "portrait" && stored.pets
       ? stored
       : portraitBySlug(slug);
-  if (!portrait?.pets || (stored && !adminPreview && !productIsPurchasable(stored))) notFound();
+  if (!portrait?.pets || (stored && !launch && !productIsPurchasable(stored))) notFound();
   // Everyday, Multi-Pet and You & Your Pet share the three-step configurator, each with its own admin content.
   const configurator = configuratorForSlug(portrait.slug);
   const [media, everydayContent, catalog, landing] = await Promise.all([

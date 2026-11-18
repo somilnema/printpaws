@@ -10,7 +10,7 @@ import { PortraitGrid, type PortraitCard } from "@/components/landing/PortraitGr
 import { VideoCarousel } from "@/components/landing/VideoCarousel";
 import { ReviewCarousel } from "@/components/landing/ReviewCarousel";
 import { FinalCta } from "@/components/landing/FinalCta";
-import { configuratorForSlug, sizeHiddenForPets, type ConfiguratorProduct, type EverydayContent } from "@/lib/everyday-content";
+import { configuratorForSlug, newProductLaunched, sizeHiddenForPets, type ConfiguratorProduct, type EverydayContent } from "@/lib/everyday-content";
 import {
   DEFAULT_LANDING_CONTENT,
   FINAL_CTA_FALLBACK_IMAGE,
@@ -83,9 +83,13 @@ export default async function LandingPage() {
     return (style: PortraitStyle, size: string) => sizeHiddenForPets(rules, rule, style, size);
   };
 
-  // Without the table, Desk Portrait / Gift Bundle stay Coming soon: they are launched from Landing & home → Products.
+  // Desk Portrait / Gift Bundle sell once Launch is on in Admin → Configurator (or their Landing & home → Products row is launched).
+  const launchedByContent = (slug: string) => {
+    const product = launchProductForSlug(slug);
+    return product ? newProductLaunched(sizeRules[product]) : false;
+  };
   const source = landingProducts ?? PORTRAITS.map((portrait) => {
-    const gated = Boolean(launchProductForSlug(portrait.slug));
+    const gated = Boolean(launchProductForSlug(portrait.slug)) && !launchedByContent(portrait.slug);
     return {
       slug: portrait.slug,
       name: portrait.name,
@@ -110,7 +114,7 @@ export default async function LandingPage() {
   };
 
   const cards: PortraitCard[] = source.map((product) => {
-    const sellable = productIsPurchasable(product);
+    const sellable = productIsPurchasable(product) || (product.active && launchedByContent(product.slug));
     const price = !sellable
       ? null
       : launchProductForSlug(product.slug)

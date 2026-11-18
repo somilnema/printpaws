@@ -184,6 +184,7 @@ const PRICE_HINT = "{price} is replaced with the price from Pricing.";
 
 /** Desk Portrait copy and switches (content.desk). Prices are in Pricing → Desk Portrait. */
 const DESK_FIELDS: FieldDef[] = [
+  { key: "launched", label: "Launch: sell Desk Portrait on the shop", heading: "Launch", hint: "On by default. Off: the landing card says Coming soon and the page is not found. Prices are in Pricing → Desk Portrait." },
   { key: "showTwoPets", label: "Offer 2 pets", heading: "Step 1 · Number of pets" },
   { key: "showThreePets", label: "Offer 3 pets" },
   { key: "defaultPets", label: "Pets chosen when the page opens", hint: "1–3. A count switched off falls back to 1 pet." },
@@ -227,8 +228,10 @@ const DESK_FIELDS: FieldDef[] = [
 
 /** Signature Gift Bundle copy and switches (content.bundle). Prices are in Pricing → Signature Gift Bundle. */
 const BUNDLE_FIELDS: FieldDef[] = [
+  { key: "launched", label: "Launch: sell the Signature Gift Bundle on the shop", heading: "Launch", hint: "On by default. Off: the landing card says Coming soon and the page is not found. Prices are in Pricing → Signature Gift Bundle." },
   { key: "tierHeading", label: "Bundle section title", heading: "Step 1 · Bundle" },
   { key: "defaultTier", label: "Bundle chosen when the page opens", select: "bundleTier", hint: "Nothing: the shopper picks one (recommended)." },
+  { key: "showSizePrices", label: "Show prices on the Step 1 size cards", hint: "Off by default: the handoff keeps prices out of the configurator (the price at the top updates)." },
   { key: "tierPriceLabel", label: "Bundle price chip", hint: "Leave empty to hide it. {price} is the tier price from Pricing, e.g. + {price}." },
   { key: "tierError", label: "No bundle chosen" },
   { key: "essentialVisible", label: "Offer the Essential bundle", heading: "Essential bundle" },
@@ -1778,7 +1781,7 @@ export function ConfiguratorPanel({
               Preview before launch
             </a>
             <span className="text-xs text-[#6b7280]">
-              Customers see &quot;Coming soon&quot; until it is launched in Landing &amp; home → Products.
+              Live by default. Turn off Launch in this product&apos;s options tab to show &quot;Coming soon&quot; instead.
             </span>
           </>
         ) : null}

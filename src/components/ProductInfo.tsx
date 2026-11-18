@@ -2449,6 +2449,7 @@ export function ProductInfo({
                   onPreview={() => setShowStylePreview(true)}
                   onContinue={handleContinueFromStep1}
                   continueDisabled={isBundle && !bundleTier}
+                  showSizePrices={!isBundle || Boolean(content.bundle?.showSizePrices)}
                   footer={
                     content.step1.showDeliveryEstimate ? (
                       <DeliveryEstimate
