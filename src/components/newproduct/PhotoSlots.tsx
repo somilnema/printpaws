@@ -162,6 +162,9 @@ export function PhotoSlots({
 }) {
   const step3 = content.step3;
   const title = heading ?? (content.desk ? content.desk.uploadHeading : step3.uploadHeading);
+  // Handoffs: "Photo Guidelines for Best Results" sits under the upload tiles (tips are the admin Photo guide tips).
+  const guidelinesTitle = (content.desk?.guidelinesTitle ?? content.bundle?.guidelinesTitle ?? "").trim();
+  const guideTips = content.photoGuide.tips.map((tip) => tip.trim()).filter(Boolean).slice(0, 6);
   const copy: TileCopy = {
     uploadTitle: step3.uploadTitle,
     uploadHint: fill(step3.uploadHint, { max: step3.uploadMaxMb }),
@@ -199,6 +202,21 @@ export function PhotoSlots({
           />
         ))}
       </div>
+      {guidelinesTitle && guideTips.length ? (
+        <div className="rounded-[12px] border border-[#E8D6C8] bg-[#FAF4EC] px-3.5 py-3">
+          <p className="text-[14px] font-semibold text-[#2D2D2D]">{guidelinesTitle}</p>
+          <ul className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
+            {guideTips.map((tip) => (
+              <li key={tip} className="flex min-w-0 items-start gap-1.5 text-[12.5px] leading-snug text-[#6B5E53]">
+                <span className="mt-[1px] inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#4F9A5B] text-[10px] font-bold text-white">
+                  ✓
+                </span>
+                <span className="min-w-0 break-words">{tip}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </div>
   );
 }

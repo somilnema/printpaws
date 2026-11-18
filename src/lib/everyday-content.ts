@@ -360,6 +360,8 @@ export type DeskContent = {
   suggestions: string[];
   // Step 3 (title/description/details/phone/email copy from content.step3)
   uploadHeading: string;
+  /** Inline tips box under the upload tiles (tips = Photo guide tips). Empty hides it. */
+  guidelinesTitle: string;
   /** {count} and {layout} are filled in. */
   selectedLabel: string;
   /** {n} is filled in. */
@@ -413,6 +415,8 @@ export type BundleContent = {
   greetingError: string;
   // Step 3
   showPetDetails: boolean;
+  /** Inline tips box under the upload tile (tips = Photo guide tips). Empty hides it. */
+  guidelinesTitle: string;
   petDetailsHeading: string;
   petTypeLabel: string;
   dogLabel: string;
@@ -1105,6 +1109,7 @@ const DEFAULT_DESK: DeskContent = {
   suggestionsLabel: "Examples:",
   suggestions: ["My Little Sunshine", "Forever in Our Hearts", "Our Furry Family"],
   uploadHeading: "1. Upload Pet Photo(s)",
+  guidelinesTitle: "Photo Guidelines for Best Results",
   selectedLabel: "You selected: {count} ({layout})",
   slotLabel: "Pet {n}",
   slotError: "Please upload a photo for {slot}.",
@@ -1157,6 +1162,7 @@ const DEFAULT_BUNDLE: BundleContent = {
   greetingMax: 150,
   greetingError: "Please write the message for your greeting card.",
   showPetDetails: true,
+  guidelinesTitle: "Photo Guidelines for Best Results",
   petDetailsHeading: "2. Pet Details",
   petTypeLabel: "Pet Type",
   dogLabel: "Dog",
@@ -1244,6 +1250,7 @@ export const DEFAULT_GIFT_BUNDLE_CONTENT: EverydayContent = (() => {
   // Packaging is part of the bundle: no paid gift wrap on top.
   content.cart.showGift = false;
   Object.assign(content.step1, {
+    progressName: "Choose Your Gift Bundle",
     title: "Choose Your Gift Bundle",
     description: "Choose the gift that feels right. Every bundle includes a personalised pet portrait.",
     styleHeading: "2. Select Portrait Style",
@@ -1267,6 +1274,11 @@ export const DEFAULT_GIFT_BUNDLE_CONTENT: EverydayContent = (() => {
     detailsHeading: "3. Your Details",
   });
   content.backgrounds = handoffBackgrounds().map((bg) => (bg.limited ? { ...bg, visible: false } : bg));
+  // Handoff p8 photo guidance.
+  content.photoGuide = {
+    ...content.photoGuide,
+    tips: ["Clear & well-lit photo", "Facing the camera", "Head and chest visible", "No filters or heavy edits"],
+  };
   content.bundle = { ...DEFAULT_BUNDLE };
   content.bundleAges = [...DEFAULT_BUNDLE_AGES];
   content.hiddenSizes = {};

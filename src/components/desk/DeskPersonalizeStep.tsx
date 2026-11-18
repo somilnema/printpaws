@@ -79,7 +79,9 @@ export function DeskPersonalizeStep({
       ) : null}
 
       <div className="space-y-2">
-        <SectionHeading>{desk.namesHeading}</SectionHeading>
+        <SectionHeading>
+          {desk.namesHeading} <span className="text-red-500">*</span>
+        </SectionHeading>
         <div className="relative">
           <input
             id="desk-pet-names"

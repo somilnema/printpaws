@@ -28,6 +28,8 @@ type Props = {
   onSize: (size: string) => void;
   onPreview: () => void;
   onContinue: () => void;
+  /** Keeps Continue disabled (e.g. Gift Bundle until a bundle is chosen). Everyday never sets it. */
+  continueDisabled?: boolean;
   footer?: ReactNode;
   /** Media slot prefix for the style card photos ("multi-pet", "you-pet"). Everyday when omitted. */
   mediaPrefix?: string;
@@ -63,6 +65,7 @@ export function EverydayChooseStep({
   onSize,
   onPreview,
   onContinue,
+  continueDisabled = false,
   footer,
   mediaPrefix = "everyday",
   beforeStyle,
@@ -219,7 +222,7 @@ export function EverydayChooseStep({
         </div>
       </div>
 
-      <PrimaryButton label={copy.continueLabel} onClick={onContinue} />
+      <PrimaryButton label={copy.continueLabel} onClick={onContinue} disabled={continueDisabled} />
 
       {copy.showTrust ? <TrustStrip items={content.trustStep1} /> : null}
       {footer}
