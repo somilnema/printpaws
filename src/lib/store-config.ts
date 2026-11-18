@@ -166,6 +166,20 @@ export function catalogFromRows(rows: PriceRow[]): PriceCatalog {
   if (digital) catalog.digital = { price: digital.amount, compareAt: digital.compare_at ?? 0 };
   if (desk) catalog.desk = { price: desk.amount, compareAt: desk.compare_at ?? 0 };
 
+  // Desk Portrait and Signature Gift Bundle (own keys; none matches the framed_/canvas_ size pattern).
+  const deskBase = byKey.get("deskp_base");
+  const deskTwo = byKey.get("deskp_pets_two");
+  const deskThree = byKey.get("deskp_pets_three");
+  if (deskBase) catalog.miniDesk.price = deskBase.amount;
+  if (deskTwo) catalog.miniDesk.twoPets = deskTwo.amount;
+  if (deskThree) catalog.miniDesk.threePets = deskThree.amount;
+  const bundleEssential = byKey.get("bundle_essential");
+  const bundleSignature = byKey.get("bundle_signature");
+  const bundleGreeting = byKey.get("bundle_greeting_card");
+  if (bundleEssential) catalog.giftBundle.essential = bundleEssential.amount;
+  if (bundleSignature) catalog.giftBundle.signature = bundleSignature.amount;
+  if (bundleGreeting) catalog.giftBundle.greetingCard = bundleGreeting.amount;
+
   const prepaid = byKey.get("rule_prepaid_percent");
   const cod = byKey.get("rule_cod_advance_percent");
   if (prepaid) catalog.prepaidPercent = prepaid.amount;
@@ -208,6 +222,12 @@ export function rowsFromCatalog(catalog: PriceCatalog): PriceRow[] {
     { key: "extra_magnet", amount: catalog.magnet.price, compare_at: catalog.magnet.compareAt },
     { key: "extra_digital", amount: catalog.digital.price, compare_at: catalog.digital.compareAt },
     { key: "extra_desk", amount: catalog.desk.price, compare_at: catalog.desk.compareAt },
+    { key: "deskp_base", amount: catalog.miniDesk.price, compare_at: null },
+    { key: "deskp_pets_two", amount: catalog.miniDesk.twoPets, compare_at: null },
+    { key: "deskp_pets_three", amount: catalog.miniDesk.threePets, compare_at: null },
+    { key: "bundle_essential", amount: catalog.giftBundle.essential, compare_at: null },
+    { key: "bundle_signature", amount: catalog.giftBundle.signature, compare_at: null },
+    { key: "bundle_greeting_card", amount: catalog.giftBundle.greetingCard, compare_at: null },
     { key: "rule_prepaid_percent", amount: catalog.prepaidPercent, compare_at: null },
     { key: "rule_cod_advance_percent", amount: catalog.codAdvancePercent, compare_at: null },
     { key: "pay_custom_a", amount: catalog.customPayments[0], compare_at: null },

@@ -72,8 +72,28 @@ const TRUSTED_FILES = ["review-avatar", "Review bar image 2.jpg.jpeg", "Review b
  * Photos every configurator product has for itself: gallery, preview pop-up, cart, the area under the
  * order form and the reviews. Each one shows today's shared photo until the admin uploads its own.
  */
-function productPageSlots(prefix: string, group: string, subject: string, ownGiftWrap: boolean): MediaSlot[] {
+function productPageSlots(
+  prefix: string,
+  group: string,
+  subject: string,
+  ownGiftWrap: boolean,
+  /** false for products without portrait styles or backgrounds (Desk Portrait): no preview pop-up or cutout photos. */
+  stylePhotos = true
+): MediaSlot[] {
   const optional = { kind: "image" as const, fallbackKey: "", optional: true };
+  const keep = (slot: MediaSlot) =>
+    stylePhotos ||
+    ![`${prefix}-gallery-cutout`, `${prefix}-style-infographic`, `${prefix}-preview-framed`, `${prefix}-preview-canvas`].includes(slot.id);
+  return productPageSlotList(prefix, group, subject, ownGiftWrap, optional).filter(keep);
+}
+
+function productPageSlotList(
+  prefix: string,
+  group: string,
+  subject: string,
+  ownGiftWrap: boolean,
+  optional: { kind: "image"; fallbackKey: string; optional: boolean }
+): MediaSlot[] {
   return [
     ...GALLERY_USES.map((use, i): MediaSlot => ({
       ...optional,
@@ -215,6 +235,13 @@ const PRODUCT_TILES: [string, string][] = [
 /** Limited Edition tiles show their pattern file until a tile photo is uploaded. */
 const TILE_FILES: Record<string, string> = { bg7: "/bg7.png", bg8: "/bg8.png", bg9: "/bg9.png" };
 
+/** Desk Portrait Step 1 pet cards: [pets, card label, layout, original example photo]. */
+const DESK_PET_EXAMPLES: [number, string, string, string][] = [
+  [1, "1 Pet", "vertical", "/no-of-pets/one-pet.png"],
+  [2, "2 Pets", "horizontal", "/no-of-pets/two-pet.png"],
+  [3, "3 Pets", "horizontal", "/no-of-pets/three-pet.png"],
+];
+
 /** Multi-Pet and You & Your Pet photos: the Everyday layout, showing that product's own subjects. */
 function productConfiguratorSlots(prefix: string, group: string, subject: string): MediaSlot[] {
   return [
@@ -292,6 +319,39 @@ export const MEDIA_SLOTS: MediaSlot[] = [
   { id: "you-pet-composition-solo", group: "You & Your Pet configurator", section: S_STEP1, label: "Me & My Pet card", hint: "Small photo on the Me & My Pet choice in Step 1: one person with one pet. Until you upload one, the card shows icons.", kind: "image", fallbackKey: "", maxEdge: 600, optional: true },
   { id: "you-pet-composition-family", group: "You & Your Pet configurator", section: S_STEP1, label: "My Family & Our Pet card", hint: "Small photo on the My Family & Our Pet choice in Step 1: a family with their pet. Until you upload one, the card shows icons.", kind: "image", fallbackKey: "", maxEdge: 600, optional: true },
   ...productPageSlots("you-pet", "You & Your Pet configurator", "a person with their pet", true),
+
+  // Desk Portrait: no style cards or background tiles (one fixed size, colour swatches only).
+  ...DESK_PET_EXAMPLES.map(([n, label, layout, file]): MediaSlot => ({
+    id: `mini-desk-pets-${n}`,
+    group: "Desk Portrait configurator",
+    section: S_STEP1,
+    label: `${label} card`,
+    hint: `Example photo on the ${label} choice in Step 1 (${layout} layout). Until you upload one, the original example photo is shown.`,
+    kind: "image",
+    fallbackKey: "",
+    maxEdge: 900,
+    optional: true,
+    inherits: file,
+  })),
+  ...[1, 2, 3, 4].map((n): MediaSlot => ({
+    id: `mini-desk-guide-${n}`,
+    group: "Desk Portrait configurator",
+    section: S_GUIDE,
+    label: `Photo guide example ${n}`,
+    hint: "Tall 3:4 example photo in the Photo Guide pop-up. Until you upload one, the Everyday example is shown.",
+    kind: "image",
+    fallbackKey: "",
+    maxEdge: 600,
+    optional: true,
+    inherits: `everyday-guide-${n}`,
+  })),
+  ...productPageSlots("mini-desk", "Desk Portrait configurator", "a pet portrait on its wooden desk stand", true, false),
+
+  // Signature Gift Bundle: the Everyday layout (style cards, tiles, guide) plus one photo per bundle tier.
+  ...productConfiguratorSlots("gift-bundle", "Gift Bundle configurator", "a pet portrait gift"),
+  { id: "gift-bundle-tier-essential", group: "Gift Bundle configurator", section: S_STEP1, label: "Essential Gift Bundle card", hint: "Photo on the Essential bundle card in Step 1: the portrait, mug, digital portrait and standard packaging together. Until you upload one, the card shows a gift icon.", kind: "image", fallbackKey: "", maxEdge: 1200, optional: true },
+  { id: "gift-bundle-tier-signature", group: "Gift Bundle configurator", section: S_STEP1, label: "Signature Gift Bundle card", hint: "Photo on the Signature bundle card in Step 1: everything in Essential plus the fridge magnet and premium packaging. Until you upload one, the card shows a gift icon.", kind: "image", fallbackKey: "", maxEdge: 1200, optional: true },
+  ...productPageSlots("gift-bundle", "Gift Bundle configurator", "the pet portrait gift bundle", true),
 
   { id: "unboxing-1", group: "Unboxing videos", label: "Real reaction", hint: "First clip in the unboxing row.", kind: "video", fallbackKey: "IMG_3784 (1).MOV", maxEdge: 0 },
   { id: "unboxing-2", group: "Unboxing videos", label: "Unboxing and reveal", hint: "Second clip in the unboxing row.", kind: "video", fallbackKey: "IMG_6005.MOV", maxEdge: 0 },
@@ -376,12 +436,13 @@ function buildIndex() {
 const index = buildIndex();
 
 /** Backgrounds added in the configurator have no catalog entry, so their tile slots are recognised by name. */
-const BACKGROUND_TILE_SLOT = /^(everyday|multi-pet|you-pet)-bg-[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const BACKGROUND_TILE_SLOT = /^(everyday|multi-pet|you-pet|gift-bundle)-bg-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 const TILE_GROUPS: Record<string, string> = {
   everyday: "Everyday configurator",
   "multi-pet": "Multi-Pet configurator",
   "you-pet": "You & Your Pet configurator",
+  "gift-bundle": "Gift Bundle configurator",
 };
 
 export function mediaSlot(id: string) {

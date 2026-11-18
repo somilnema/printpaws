@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { PawPrint } from "lucide-react";
 import { deleteLandingProductAction, saveLandingProductAction } from "@/app/actions/landingActions";
 import { removeLandingProductPhoto } from "@/app/actions/landingContentActions";
+import { CONFIGURATOR_NAMES, configuratorForSlug, isNewProduct, type NewProduct } from "@/lib/everyday-content";
 import type { LandingProduct } from "@/lib/landing-products";
 import { PORTRAITS, cardPhoto, portraitBySlug, type CardPhotoSource } from "@/lib/portraits";
 import { mediaSlot } from "@/lib/site-media-catalog";
@@ -48,6 +49,17 @@ function fromProduct(product: LandingProduct): Draft {
     price: product.price == null ? "" : String(product.price),
     forSale: product.forSale,
   };
+}
+
+/** Desk Portrait / Signature Gift Bundle: launched here, then sold through their own configurator at Pricing's prices. */
+function launchProduct(slug: string): NewProduct | null {
+  const product = configuratorForSlug(slug.trim());
+  return isNewProduct(product) ? product : null;
+}
+
+/** Same rule as the shop: a launched row is kind 'portrait' (or a 'fixed' row marked for sale). */
+function isLaunched(item: { active?: boolean; kind: "portrait" | "fixed"; forSale: boolean }) {
+  return item.kind === "portrait" || item.forSale;
 }
 
 /** "Photos tab → Landing page → You & Your Pet card", for cards that have a Media slot. */
@@ -120,8 +132,17 @@ export function LandingProductsPanel({
     const form = new FormData(formEl);
     form.set("active", draft.active ? "true" : "false");
     form.set("forSale", draft.forSale ? "true" : "false");
-    form.set("kind", draft.kind);
-    form.set("pets", draft.pets);
+    if (launchProduct(draft.slug)) {
+      // Launched → opens its configurator (portrait, one pet); otherwise Coming soon. The server applies the same rule.
+      const launched = isLaunched(draft);
+      form.set("kind", launched ? "portrait" : "fixed");
+      form.set("pets", "one");
+      form.set("forSale", launched ? "true" : "false");
+      form.delete("price");
+    } else {
+      form.set("kind", draft.kind);
+      form.set("pets", draft.pets);
+    }
     const result = await saveLandingProductAction(form);
     setSaving(false);
     if (!result.ok) {
@@ -179,7 +200,9 @@ export function LandingProductsPanel({
                   <CardThumb url={photo.url} />
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold">{portrait.name}</p>
-                    <p className="text-xs text-[#6b7280]">{portrait.pets ? "Opens the portrait customizer" : "Coming soon"}</p>
+                    <p className="text-xs text-[#6b7280]">
+                      {portrait.pets && !launchProduct(portrait.slug) ? "Opens the portrait customizer" : "Coming soon"}
+                    </p>
                     <p className="mt-0.5 text-xs text-[#9ca3af]">{photoNote(portrait.slug, photo.source, false)}</p>
                   </div>
                   <button type="button" className={ghostButtonClass} onClick={onOpenPhotos}>
@@ -241,6 +264,31 @@ export function LandingProductsPanel({
               ) : null}
             </div>
           ) : null}
+          {launchProduct(draft.slug) ? (
+            <div className="space-y-2 rounded-2xl border border-[#eeeeee] bg-[#fafafa] p-3 md:col-span-2">
+              <label className="flex items-center gap-2 text-sm font-semibold">
+                <input
+                  type="checkbox"
+                  checked={isLaunched(draft)}
+                  onChange={(event) =>
+                    setDraft((current) => ({
+                      ...current,
+                      kind: event.target.checked ? "portrait" : "fixed",
+                      pets: "one",
+                      forSale: event.target.checked,
+                    }))
+                  }
+                />
+                Launch: open the {CONFIGURATOR_NAMES[launchProduct(draft.slug) as NewProduct]} configurator
+              </label>
+              <p className="text-xs text-[#6b7280]">
+                Off: the card says Coming soon and its page is not found. On: the card links to the product page and shows
+                the “From” price from Pricing → {launchProduct(draft.slug) === "mini_desk" ? "Desk Portrait" : "Signature Gift Bundle"}.
+                Its text, switches and photos are in Admin → Configurator → {CONFIGURATOR_NAMES[launchProduct(draft.slug) as NewProduct]}.
+              </p>
+            </div>
+          ) : null}
+          {launchProduct(draft.slug) ? null : (
           <Field label="How it sells">
             <select
               name="kind"
@@ -252,7 +300,8 @@ export function LandingProductsPanel({
               <option value="fixed">Fixed price, set here</option>
             </select>
           </Field>
-          {draft.kind === "portrait" ? (
+          )}
+          {launchProduct(draft.slug) ? null : draft.kind === "portrait" ? (
             <Field label="Customizer opens on">
               <select name="pets" value={draft.pets} onChange={(event) => set("pets", event.target.value as Draft["pets"])} className={inputClass}>
                 <option value="one">One pet</option>
@@ -269,7 +318,7 @@ export function LandingProductsPanel({
             <input type="checkbox" checked={draft.active} onChange={(event) => set("active", event.target.checked)} />
             Show on the landing page
           </label>
-          {draft.kind === "fixed" ? (
+          {draft.kind === "fixed" && !launchProduct(draft.slug) ? (
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={draft.forSale} onChange={(event) => set("forSale", event.target.checked)} />
               For sale
@@ -292,7 +341,7 @@ export function LandingProductsPanel({
 
       <Panel
         title="Products"
-        note="In page order. Card photo: the one uploaded here wins, then the card's photo in Photos tab → Landing page, then a shop photo; with none, the card shows a paw. Signature Gift Bundle and Mini Desk Portrait stay Coming soon until you set a price and mark them for sale."
+        note="In page order. Card photo: the one uploaded here wins, then the card's photo in Photos tab → Landing page, then a shop photo; with none, the card shows a paw. Signature Gift Bundle and Desk Portrait stay Coming soon until you Edit them and tick Launch; they then open their own configurator at the prices in Pricing."
       >
         <ul className="divide-y divide-[#f3f4f6]">
           {products.map((product) => {
@@ -303,7 +352,11 @@ export function LandingProductsPanel({
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold">{product.name}</p>
                   <p className="text-xs text-[#6b7280]">
-                    {product.kind === "portrait"
+                    {launchProduct(product.slug)
+                      ? product.active && isLaunched(product)
+                        ? `Launched · ${CONFIGURATOR_NAMES[launchProduct(product.slug) as NewProduct]} configurator · price from Pricing`
+                        : "Coming soon · Edit → Launch to sell it"
+                      : product.kind === "portrait"
                       ? `Customizer · ${product.pets === "human" ? "person and pet" : product.pets === "two" ? "two pets" : "one pet"}`
                       : product.forSale && product.price
                         ? `For sale · ₹${product.price.toLocaleString("en-IN")}`

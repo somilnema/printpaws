@@ -7,20 +7,24 @@ import { BACKGROUNDS, LIMITED_BACKGROUNDS, optionSlug } from "@/lib/backgrounds"
 import { REVIEWS, REVIEWS_SUMMARY } from "@/lib/reviews";
 
 /** Products built on the Everyday three-step configurator. */
-export type ConfiguratorProduct = "everyday" | "multi_pet" | "you_and_your_pet";
+export type ConfiguratorProduct = "everyday" | "multi_pet" | "you_and_your_pet" | "mini_desk" | "gift_bundle";
 
-export const CONFIGURATOR_PRODUCTS: ConfiguratorProduct[] = ["everyday", "multi_pet", "you_and_your_pet"];
+export const CONFIGURATOR_PRODUCTS: ConfiguratorProduct[] = ["everyday", "multi_pet", "you_and_your_pet", "mini_desk", "gift_bundle"];
 
 export const CONFIGURATOR_SLUGS: Record<ConfiguratorProduct, string> = {
   everyday: "everyday-pet-portrait",
   multi_pet: "multi-pet-portrait",
   you_and_your_pet: "you-and-your-pet",
+  mini_desk: "mini-desk-portrait",
+  gift_bundle: "signature-gift-bundle",
 };
 
 export const CONFIGURATOR_NAMES: Record<ConfiguratorProduct, string> = {
   everyday: "Everyday Pet Portrait",
   multi_pet: "Multi-Pet Portrait",
   you_and_your_pet: "You & Your Pet Portrait",
+  mini_desk: "Desk Portrait",
+  gift_bundle: "Signature Gift Bundle",
 };
 
 /** Media slot prefix and admin group for each product's own photos. */
@@ -28,6 +32,8 @@ export const CONFIGURATOR_MEDIA: Record<ConfiguratorProduct, { prefix: string; g
   everyday: { prefix: "everyday", group: "Everyday configurator" },
   multi_pet: { prefix: "multi-pet", group: "Multi-Pet configurator" },
   you_and_your_pet: { prefix: "you-pet", group: "You & Your Pet configurator" },
+  mini_desk: { prefix: "mini-desk", group: "Desk Portrait configurator" },
+  gift_bundle: { prefix: "gift-bundle", group: "Gift Bundle configurator" },
 };
 
 export function configuratorForSlug(slug: string): ConfiguratorProduct | null {
@@ -37,6 +43,32 @@ export function configuratorForSlug(slug: string): ConfiguratorProduct | null {
 export function isConfiguratorProduct(value: unknown): value is ConfiguratorProduct {
   return CONFIGURATOR_PRODUCTS.includes(value as ConfiguratorProduct);
 }
+
+/** Desk Portrait and Signature Gift Bundle: their own steps, not a Multi-Pet / You & Your Pet flow. */
+export type NewProduct = "mini_desk" | "gift_bundle";
+
+export const NEW_PRODUCTS: NewProduct[] = ["mini_desk", "gift_bundle"];
+
+export function isNewProduct(value: unknown): value is NewProduct {
+  return value === "mini_desk" || value === "gift_bundle";
+}
+
+export type BundleTier = "essential" | "signature";
+
+export const BUNDLE_TIERS: BundleTier[] = ["essential", "signature"];
+
+export function isBundleTier(value: unknown): value is BundleTier {
+  return value === "essential" || value === "signature";
+}
+
+export type DeskPets = 1 | 2 | 3;
+
+export type PetTypeId = "dog" | "cat" | "other";
+
+export const PET_TYPE_IDS: PetTypeId[] = ["dog", "cat", "other"];
+
+/** What every bundle tier contains (fixed in code so nothing is charged twice). */
+export type BundleInclusion = "portrait" | "mug" | "digital" | "magnet" | "standard_packaging" | "premium_packaging";
 
 export const TRUST_ICONS = ["shield", "truck", "heart", "eye", "brush", "star", "refresh", "gift", "clock", "paw"] as const;
 export type TrustIcon = (typeof TRUST_ICONS)[number];
@@ -283,6 +315,127 @@ export type EverydayContent = {
   flow?: FlowContent;
   /** Multi-Pet only: sizes not offered for a pet count, e.g. { four: ['framed:8"x10"'] }. */
   hiddenSizes?: Record<string, string[]>;
+  /** Desk Portrait only: its Step 1–3 copy and switches. */
+  desk?: DeskContent;
+  /** Desk Portrait only: background colour swatches (ids are stored on orders). */
+  deskColours?: DeskColour[];
+  /** Signature Gift Bundle only: tiers, greeting card and pet details copy. */
+  bundle?: BundleContent;
+  /** Signature Gift Bundle only: the pet age choices (may be empty). */
+  bundleAges?: string[];
+};
+
+export type DeskColour = { id: string; label: string; color: string; visible: boolean; custom: boolean };
+
+export type DeskContent = {
+  // Step 1 (title/description/progressName/continueLabel/showTrust come from content.step1 like Everyday)
+  petsHeading: string;
+  onePetLabel: string;
+  /** {count} is filled in. */
+  manyPetsLabel: string;
+  verticalLabel: string;
+  horizontalLabel: string;
+  /** Chip on the 2 / 3 pet cards when the extra charge is above zero. {price} is filled in. */
+  extraPriceLabel: string;
+  showTwoPets: boolean;
+  showThreePets: boolean;
+  /** 1..3 */
+  defaultPets: number;
+  infoTitle: string;
+  infoPoints: string[];
+  standIncludedLabel: string;
+  // Step 2 (title/description/continueLabel from content.step2; no portrait preview)
+  colourHeading: string;
+  defaultColour: string;
+  namesHeading: string;
+  namesPlaceholder: string;
+  namesHelp: string;
+  namesMax: number;
+  namesError: string;
+  subtitleHeading: string;
+  subtitlePlaceholder: string;
+  subtitleMax: number;
+  subtitleDefaultOn: boolean;
+  suggestionsLabel: string;
+  suggestions: string[];
+  // Step 3 (title/description/details/phone/email copy from content.step3)
+  uploadHeading: string;
+  /** {count} and {layout} are filled in. */
+  selectedLabel: string;
+  /** {n} is filled in. */
+  slotLabel: string;
+  /** {slot} is filled in. */
+  slotError: string;
+  uploadsPendingLabel: string;
+  petRemoveConfirm: string;
+  // Cart / order labels
+  petsCartLabel: string;
+  layoutCartLabel: string;
+  colourCartLabel: string;
+  namesCartLabel: string;
+  standCartLabel: string;
+  standCartValue: string;
+  extraPetsCartLabel: string;
+  photosCartLabel: string;
+  /** Fixed size written to orders.size (the desk has no size choice). */
+  productionSize: string;
+};
+
+export type BundleTierCopy = { title: string; description: string; badge: string; visible: boolean };
+
+export type BundleContent = {
+  // Step 1 (EverydayChooseStep is reused for style and size)
+  tierHeading: string;
+  /** "" = nothing preselected. "" | "essential" | "signature" */
+  defaultTier: string;
+  /** "" hides the price chip on the tier cards. {price} is filled in. */
+  tierPriceLabel: string;
+  tierError: string;
+  essentialTitle: string;
+  essentialDescription: string;
+  essentialBadge: string;
+  essentialVisible: boolean;
+  signatureTitle: string;
+  signatureDescription: string;
+  signatureBadge: string;
+  signatureVisible: boolean;
+  // Step 2 (EverydayPersonalizeStep is reused)
+  greetingEnabled: boolean;
+  greetingEssential: boolean;
+  greetingSignature: boolean;
+  greetingHeading: string;
+  greetingTitle: string;
+  greetingDescription: string;
+  greetingPriceLabel: string;
+  greetingMessageLabel: string;
+  greetingPlaceholder: string;
+  greetingMax: number;
+  greetingError: string;
+  // Step 3
+  showPetDetails: boolean;
+  petDetailsHeading: string;
+  petTypeLabel: string;
+  dogLabel: string;
+  catLabel: string;
+  otherLabel: string;
+  breedLabel: string;
+  breedPlaceholder: string;
+  ageLabel: string;
+  agePlaceholder: string;
+  // Cart / order labels
+  tierCartLabel: string;
+  includedHeading: string;
+  includedValue: string;
+  greetingCartLabel: string;
+  greetingMessageCartLabel: string;
+  petDetailsCartLabel: string;
+  // Inclusion labels (cart, staff view, vendor note)
+  itemPortrait: string;
+  itemMug: string;
+  itemDigital: string;
+  itemMagnet: string;
+  itemStandardPackaging: string;
+  itemPremiumPackaging: string;
 };
 
 /**
@@ -920,10 +1073,212 @@ export const DEFAULT_YOU_PET_CONTENT: EverydayContent = (() => {
   return content;
 })();
 
+// Desk Portrait handoff: one fixed size, wooden stand always included, 1 pet vertical / 2–3 pets horizontal.
+const DEFAULT_DESK: DeskContent = {
+  petsHeading: "1. Select Number of Pets",
+  onePetLabel: "1 Pet",
+  manyPetsLabel: "{count} Pets",
+  verticalLabel: "Vertical layout",
+  horizontalLabel: "Horizontal layout",
+  extraPriceLabel: "+ {price}",
+  showTwoPets: true,
+  showThreePets: true,
+  defaultPets: 1,
+  infoTitle: "Good to Know",
+  infoPoints: [
+    "Single pet portraits are created in a vertical layout.",
+    "Two and three pet portraits are created in a horizontal layout.",
+    "A premium wooden stand is included with your desk portrait.",
+  ],
+  standIncludedLabel: "Wooden stand included",
+  colourHeading: "1. Choose a Background Colour",
+  defaultColour: "cream",
+  namesHeading: "2. Add Pet Name(s)",
+  namesPlaceholder: "e.g. Sona",
+  namesHelp: "Enter the name(s) of your pet(s). For multiple pets, separate names with a comma (e.g., Max, Coco & Milo).",
+  namesMax: 30,
+  namesError: "Please enter your pet's name to continue.",
+  subtitleHeading: "3. Add a Subtitle",
+  subtitlePlaceholder: "My Little Sunshine",
+  subtitleMax: 30,
+  subtitleDefaultOn: false,
+  suggestionsLabel: "Examples:",
+  suggestions: ["My Little Sunshine", "Forever in Our Hearts", "Our Furry Family"],
+  uploadHeading: "1. Upload Pet Photo(s)",
+  selectedLabel: "You selected: {count} ({layout})",
+  slotLabel: "Pet {n}",
+  slotError: "Please upload a photo for {slot}.",
+  uploadsPendingLabel: "Please wait until your photos finish uploading.",
+  petRemoveConfirm: "Changing the number of pets removes the photos you added for the pets you're taking out. Continue?",
+  petsCartLabel: "Pets",
+  layoutCartLabel: "Layout",
+  colourCartLabel: "Background colour",
+  namesCartLabel: "Pet name(s)",
+  standCartLabel: "Wooden stand",
+  standCartValue: "Included",
+  extraPetsCartLabel: "Extra pets",
+  photosCartLabel: "Uploaded photos",
+  productionSize: "Desk Portrait (fixed size)",
+};
+
+/** Built-in desk colours. Ids never change: orders store them. */
+export const DEFAULT_DESK_COLOURS: DeskColour[] = [
+  { id: "cream", label: "Cream", color: "#F6EEDF", visible: true, custom: false },
+  { id: "beige", label: "Beige", color: "#EADBC8", visible: true, custom: false },
+  { id: "light-pink", label: "Light Pink", color: "#F7DCDD", visible: true, custom: false },
+  { id: "sage-green", label: "Sage Green", color: "#D6E2CC", visible: true, custom: false },
+  { id: "light-blue", label: "Light Blue", color: "#D8E6F3", visible: true, custom: false },
+  { id: "lavender", label: "Lavender", color: "#E4DDF0", visible: true, custom: false },
+];
+
+// Signature Gift Bundle handoff: Signature is highlighted but NOT preselected; one optional paid greeting card.
+const DEFAULT_BUNDLE: BundleContent = {
+  tierHeading: "1. Choose Your Bundle",
+  defaultTier: "",
+  tierPriceLabel: "",
+  tierError: "Please choose a bundle to continue.",
+  essentialTitle: "Essential Gift Bundle",
+  essentialDescription: "",
+  essentialBadge: "",
+  essentialVisible: true,
+  signatureTitle: "Signature Gift Bundle",
+  signatureDescription: "Everything in Essential, plus:",
+  signatureBadge: "★ Best Value",
+  signatureVisible: true,
+  greetingEnabled: true,
+  greetingEssential: true,
+  greetingSignature: true,
+  greetingHeading: "4. Add a Personalised Greeting Card",
+  greetingTitle: "Add a Personalised Greeting Card",
+  greetingDescription: "Include a custom printed card with a heartfelt message for your loved one.",
+  greetingPriceLabel: "+ {price}",
+  greetingMessageLabel: "Your message",
+  greetingPlaceholder: "Write a heartfelt message for your loved one...",
+  greetingMax: 150,
+  greetingError: "Please write the message for your greeting card.",
+  showPetDetails: true,
+  petDetailsHeading: "2. Pet Details",
+  petTypeLabel: "Pet Type",
+  dogLabel: "Dog",
+  catLabel: "Cat",
+  otherLabel: "Other",
+  breedLabel: "Breed",
+  breedPlaceholder: "e.g., Golden Retriever",
+  ageLabel: "Age",
+  agePlaceholder: "Select age",
+  tierCartLabel: "Bundle",
+  includedHeading: "Included in your bundle",
+  includedValue: "Included",
+  greetingCartLabel: "Personalised Greeting Card",
+  greetingMessageCartLabel: "Card message",
+  petDetailsCartLabel: "Pet details",
+  itemPortrait: "Personalised Pet Portrait",
+  itemMug: "Custom Pet Mug",
+  itemDigital: "High-Resolution Digital Portrait",
+  itemMagnet: "Custom Pet Fridge Magnet",
+  itemStandardPackaging: "Standard Gift Packaging",
+  itemPremiumPackaging: "Premium Gift Packaging",
+};
+
+const DEFAULT_BUNDLE_AGES = ["< 1 year", "1 – 3 years", "4 – 7 years", "8+ years"];
+
+/** Shared by both new products: no priority, no fake discount, no unconfirmed promises. */
+function newProductBase(productName: string): EverydayContent {
+  const content = cloneContent(DEFAULT_EVERYDAY_CONTENT);
+  content.header.productName = productName;
+  content.header.discountPercent = 0;
+  Object.assign(content.step2, {
+    petNameDefaultOn: false,
+    subtitleDefaultOn: false,
+    showPriority: false,
+    priorityDefaultOn: false,
+    priorityDescription: "",
+    priorityInfo: "",
+  });
+  content.step1.showDeliveryEstimate = false;
+  content.below.showTestimonial = false;
+  content.cart.showCompareAt = false;
+  return content;
+}
+
+export const DEFAULT_MINI_DESK_CONTENT: EverydayContent = (() => {
+  const content = newProductBase("Desk Portrait");
+  for (const id of EXTRA_IDS) content.extras[id] = { ...content.extras[id], visible: false };
+  // No unnecessary add-ons: the wooden stand is always included.
+  content.cart.showGift = false;
+  Object.assign(content.step1, {
+    progressName: "Choose Your Portrait",
+    title: "Choose Your Portrait",
+    description: "A personalised desk portrait of your pet, perfect for your home or workspace.",
+  });
+  Object.assign(content.step2, {
+    progressName: "Personalise Your Portrait",
+    title: "Personalise Your Portrait",
+    description: "Choose a background colour and add your pet's name and an optional subtitle.",
+  });
+  Object.assign(content.step3, {
+    title: "Upload Your Photo",
+    description: "Upload clear photo(s) of your pet(s) to create your personalised desk portrait.",
+    detailsHeading: "2. Your Details",
+    photoError: "Please upload the photos we need to continue.",
+  });
+  content.photoGuide = {
+    ...content.photoGuide,
+    tips: [
+      "Clear & well-lit photo",
+      "Pet facing the camera",
+      "Head and chest visible",
+      "No filters or heavy edits",
+      "No shared photo of all your pets? Upload a separate photo for each pet.",
+    ],
+  };
+  content.desk = { ...DEFAULT_DESK, infoPoints: [...DEFAULT_DESK.infoPoints], suggestions: [...DEFAULT_DESK.suggestions] };
+  content.deskColours = DEFAULT_DESK_COLOURS.map((colour) => ({ ...colour }));
+  return content;
+})();
+
+export const DEFAULT_GIFT_BUNDLE_CONTENT: EverydayContent = (() => {
+  const content = newProductBase("Signature Gift Bundle");
+  // Included items are always hidden for their tier anyway; nothing else is sold on top of the bundle by default.
+  for (const id of EXTRA_IDS) content.extras[id] = { ...content.extras[id], visible: false };
+  // Packaging is part of the bundle: no paid gift wrap on top.
+  content.cart.showGift = false;
+  Object.assign(content.step1, {
+    title: "Choose Your Gift Bundle",
+    description: "Choose the gift that feels right. Every bundle includes a personalised pet portrait.",
+    styleHeading: "2. Select Portrait Style",
+    sizeHeading: "3. Choose Your Size",
+  });
+  Object.assign(content.step2, {
+    progressName: "Personalise Your Gift",
+    title: "Personalise Your Gift",
+    description: "Add a personal touch to make this gift truly special.",
+    showFrameColor: false,
+    backgroundHeading: "1. Choose a Portrait Background",
+    petNameHeading: "2. Add Your Pet's Name",
+    petNameMax: 20,
+    subtitleHeading: "3. Add a Subtitle",
+    subtitlePlaceholder: "My Little Sunshine",
+  });
+  Object.assign(content.step3, {
+    title: "Upload Your Photo",
+    description: "Share your pet's photo and a few details to create a perfect, personalised gift.",
+    uploadHeading: "1. Upload Your Pet's Photo",
+    detailsHeading: "3. Your Details",
+  });
+  content.backgrounds = handoffBackgrounds().map((bg) => (bg.limited ? { ...bg, visible: false } : bg));
+  content.bundle = { ...DEFAULT_BUNDLE };
+  content.bundleAges = [...DEFAULT_BUNDLE_AGES];
+  content.hiddenSizes = {};
+  return content;
+})();
+
 /** Defaults for a product before any admin edits. */
 export function defaultContent(product: ConfiguratorProduct): EverydayContent {
   if (product === "multi_pet") return DEFAULT_MULTI_PET_CONTENT;
   if (product === "you_and_your_pet") return DEFAULT_YOU_PET_CONTENT;
+  if (product === "mini_desk") return DEFAULT_MINI_DESK_CONTENT;
+  if (product === "gift_bundle") return DEFAULT_GIFT_BUNDLE_CONTENT;
   return DEFAULT_EVERYDAY_CONTENT;
 }
 
@@ -941,6 +1296,10 @@ export const NUMBER_LIMITS: Record<string, { min: number; max: number }> = {
   "flow.familyMaxPeople": { min: 1, max: 10 },
   "flow.referencesMax": { min: 0, max: 8 },
   "flow.instructionsMax": { min: 50, max: 500 },
+  "desk.defaultPets": { min: 1, max: 3 },
+  "desk.namesMax": { min: 10, max: 80 },
+  "desk.subtitleMax": { min: 10, max: 80 },
+  "bundle.greetingMax": { min: 50, max: 500 },
 };
 
 const MAX_TEXT = 600;
@@ -1137,10 +1496,11 @@ export function mergeEverydayContent(raw: unknown, base: EverydayContent = DEFAU
 /** Pet counts the Multi-Pet size rules can mention. */
 export const SIZE_RULE_PETS = ["two", "three", "four"] as const;
 
-/** Size rules: Multi-Pet per pet count, You & Your Pet per composition. */
+/** Size rules: Multi-Pet per pet count, You & Your Pet per composition, Gift Bundle per tier. */
 export const SIZE_RULE_KEYS: Partial<Record<ConfiguratorProduct, readonly string[]>> = {
   multi_pet: SIZE_RULE_PETS,
   you_and_your_pet: ["solo", "family"],
+  gift_bundle: BUNDLE_TIERS,
 };
 
 /** 'framed' + '8"x10"' → 'framed:8"x10"' (sizes of both styles can share dimensions). */
@@ -1164,18 +1524,163 @@ function mergeHiddenSizes(raw: unknown, keys: readonly string[]): Record<string,
   return out;
 }
 
+const MAX_LIST_ITEMS = 10;
+
+/** Admin string list: trimmed, empty entries dropped, capped. An empty saved list stays empty. */
+function mergeStringList(raw: unknown, defaults: string[], maxLength: number, unique = false): string[] {
+  if (!Array.isArray(raw)) return [...defaults];
+  const items = raw
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim().slice(0, maxLength))
+    .filter(Boolean);
+  return (unique ? [...new Set(items)] : items).slice(0, MAX_LIST_ITEMS);
+}
+
+function mergeDesk(raw: unknown, d: DeskContent, colours: DeskColour[]): DeskContent {
+  const source = isRecord(raw) ? raw : {};
+  const { infoPoints, suggestions, ...flatDefaults } = d;
+  const flat = mergeFlat(flatDefaults, source, "desk");
+  if (flat.defaultColour && !colours.some((colour) => colour.id === flat.defaultColour)) flat.defaultColour = d.defaultColour;
+  flat.productionSize = flat.productionSize.trim().slice(0, 80) || d.productionSize;
+  // `...d` first keeps the default key order (the admin compares saved and default content as JSON).
+  return {
+    ...d,
+    ...flat,
+    infoPoints: mergeStringList(source.infoPoints, infoPoints, 120),
+    suggestions: mergeStringList(source.suggestions, suggestions, 120),
+  };
+}
+
+/** Every built-in colour once, in saved order, plus valid custom ones (like the frames). */
+function mergeDeskColours(raw: unknown, defaults: DeskColour[]): DeskColour[] {
+  const out: DeskColour[] = [];
+  const seen = new Set<string>();
+  if (Array.isArray(raw)) {
+    for (const entry of raw) {
+      if (out.length >= MAX_OPTIONS) break;
+      if (!isRecord(entry) || typeof entry.id !== "string" || seen.has(entry.id)) continue;
+      const id = entry.id;
+      const visible = typeof entry.visible === "boolean" ? entry.visible : true;
+      const base = defaults.find((colour) => colour.id === id);
+      if (base) {
+        out.push({ ...base, label: cleanLabel(entry.label, base.label), visible, color: normalizeHex(entry.color, base.color) });
+      } else if (entry.custom === true && id.length <= 40 && OPTION_ID.test(id)) {
+        out.push({ id, label: cleanLabel(entry.label, id), visible, color: normalizeHex(entry.color, NEUTRAL_COLOR), custom: true });
+      } else {
+        continue;
+      }
+      seen.add(id);
+    }
+  }
+  for (const colour of defaults) {
+    if (!seen.has(colour.id)) out.push({ ...colour });
+  }
+  // At least one colour must stay on, or the server would refuse every desk order.
+  if (out.length && !out.some((colour) => colour.visible)) out[0] = { ...out[0], visible: true };
+  return out;
+}
+
+function mergeBundle(raw: unknown, d: BundleContent): BundleContent {
+  const bundle = mergeFlat(d, raw, "bundle");
+  // At least one tier must stay on, or the server would refuse every bundle order.
+  if (!bundle.essentialVisible && !bundle.signatureVisible) bundle.essentialVisible = true;
+  if (bundle.defaultTier !== "" && !isBundleTier(bundle.defaultTier)) bundle.defaultTier = d.defaultTier;
+  // A hidden tier can't be preselected.
+  if (
+    (bundle.defaultTier === "essential" && !bundle.essentialVisible) ||
+    (bundle.defaultTier === "signature" && !bundle.signatureVisible)
+  ) {
+    bundle.defaultTier = "";
+  }
+  return bundle;
+}
+
 /** Saved JSON → full content for any configurator product (Everyday keeps its exact old shape). */
 export function mergeProductContent(product: ConfiguratorProduct, raw: unknown): EverydayContent {
   const base = defaultContent(product);
   const merged = mergeEverydayContent(raw, base);
-  if (!base.flow) return merged;
   const source = isRecord(raw) ? raw : {};
-  merged.flow = mergeFlat(base.flow, source.flow, "flow");
-  // At least one photo method must stay on, or the shop and the server would refuse every order.
-  if (!merged.flow.groupEnabled && !merged.flow.separateEnabled && !merged.flow.mixedEnabled) merged.flow.groupEnabled = true;
+  if (base.desk) {
+    const deskColours = mergeDeskColours(source.deskColours, base.deskColours || DEFAULT_DESK_COLOURS);
+    merged.desk = mergeDesk(source.desk, base.desk, deskColours);
+    merged.deskColours = deskColours;
+  }
+  if (base.bundle) {
+    merged.bundle = mergeBundle(source.bundle, base.bundle);
+    merged.bundleAges = mergeStringList(source.bundleAges, base.bundleAges || DEFAULT_BUNDLE_AGES, 40, true);
+  }
+  if (base.flow) {
+    merged.flow = mergeFlat(base.flow, source.flow, "flow");
+    // At least one photo method must stay on, or the shop and the server would refuse every order.
+    if (!merged.flow.groupEnabled && !merged.flow.separateEnabled && !merged.flow.mixedEnabled) merged.flow.groupEnabled = true;
+  }
+  if (!base.flow && !base.bundle) return merged;
   const ruleKeys = SIZE_RULE_KEYS[product];
   if (ruleKeys) merged.hiddenSizes = mergeHiddenSizes(source.hiddenSizes, ruleKeys);
   return merged;
+}
+
+/** Fixed, non-admin rule: what each bundle tier contains. */
+export function bundleInclusions(tier: BundleTier): BundleInclusion[] {
+  return tier === "signature"
+    ? ["portrait", "mug", "digital", "magnet", "premium_packaging"]
+    : ["portrait", "mug", "digital", "standard_packaging"];
+}
+
+/** Add-ons a tier already includes: never offered or charged on top. */
+export function bundleIncludedExtras(tier: BundleTier): ExtraId[] {
+  return tier === "signature" ? ["mug", "digital", "magnet"] : ["mug", "digital"];
+}
+
+/** Admin label of an inclusion id (cart, staff view, vendor note). Unknown ids come back as they are. */
+export function bundleInclusionLabel(content: EverydayContent, id: string): string {
+  const bundle = content.bundle || DEFAULT_BUNDLE;
+  const labels: Record<BundleInclusion, keyof BundleContent> = {
+    portrait: "itemPortrait",
+    mug: "itemMug",
+    digital: "itemDigital",
+    magnet: "itemMagnet",
+    standard_packaging: "itemStandardPackaging",
+    premium_packaging: "itemPremiumPackaging",
+  };
+  if (!Object.prototype.hasOwnProperty.call(labels, id)) return id;
+  const field = labels[id as BundleInclusion];
+  return String(bundle[field] || DEFAULT_BUNDLE[field]);
+}
+
+/** Title, description, badge and switch of one tier card. */
+export function bundleTierCopy(content: EverydayContent, tier: BundleTier): BundleTierCopy {
+  const bundle = content.bundle || DEFAULT_BUNDLE;
+  return tier === "signature"
+    ? { title: bundle.signatureTitle, description: bundle.signatureDescription, badge: bundle.signatureBadge, visible: bundle.signatureVisible }
+    : { title: bundle.essentialTitle, description: bundle.essentialDescription, badge: bundle.essentialBadge, visible: bundle.essentialVisible };
+}
+
+/** Tiers the admin keeps on sale (copy switch only; prices are checked against Pricing elsewhere). */
+export function visibleBundleTiers(content: EverydayContent): BundleTier[] {
+  return BUNDLE_TIERS.filter((tier) => bundleTierCopy(content, tier).visible);
+}
+
+/** Whether the paid greeting card is offered with this tier. */
+export function greetingOffered(content: EverydayContent, tier: BundleTier | ""): boolean {
+  const bundle = content.bundle;
+  if (!bundle || !bundle.greetingEnabled || !tier) return false;
+  return tier === "signature" ? bundle.greetingSignature : bundle.greetingEssential;
+}
+
+/** 1 pet → vertical, 2 or 3 pets → horizontal (automatic, never chosen). */
+export function deskLayout(pets: number): "vertical" | "horizontal" {
+  return pets === 1 ? "vertical" : "horizontal";
+}
+
+export function visibleDeskColours(content: EverydayContent): DeskColour[] {
+  return (content.deskColours || []).filter((colour) => colour.visible);
+}
+
+/** "1 Pet" / "3 Pets" from the admin labels. */
+export function deskPetsLabel(content: EverydayContent, n: number): string {
+  const desk = content.desk || DEFAULT_DESK;
+  return n === 1 ? desk.onePetLabel : fill(desk.manyPetsLabel, { count: n });
 }
 
 /** Sizes the admin keeps off sale for a rule: a pet count (Multi-Pet) or a composition (You & Your Pet). */

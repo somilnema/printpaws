@@ -1,5 +1,13 @@
 import { isOptionSelectable, sizeOptionMeta, sizesForStyle, type PortraitStyle, type PriceCatalog } from "@/lib/pricing";
 import { resolveMediaUrl } from "@/lib/site-media-catalog";
+import {
+  BUNDLE_TIERS,
+  CONFIGURATOR_SLUGS,
+  sizeHiddenForPets,
+  visibleBundleTiers,
+  type BundleTier,
+  type EverydayContent,
+} from "@/lib/everyday-content";
 
 export type PetPreset = "one" | "two" | "human";
 
@@ -54,7 +62,8 @@ export const PORTRAITS: Portrait[] = [
     description: "A special gift made for someone who loves their pet.",
     imageSlot: "landing-gift-bundle",
     fallbackImage: "",
-    pets: null,
+    // Its own configurator (Signature Gift Bundle); the order form preset only marks it sellable.
+    pets: "one",
   },
   {
     slug: "mini-desk-portrait",
@@ -62,7 +71,8 @@ export const PORTRAITS: Portrait[] = [
     description: "Your little companion, always by your side.",
     imageSlot: "landing-mini-desk",
     fallbackImage: "",
-    pets: null,
+    // Its own configurator (Desk Portrait); the order form preset only marks it sellable.
+    pets: "one",
   },
 ];
 
@@ -85,6 +95,12 @@ export function portraitForPets(pets?: string) {
  * composition). With nothing on sale it falls back to the cheapest canvas, as before.
  */
 export function startingPrice(catalog: PriceCatalog, pets: PetPreset, hidden?: (style: PortraitStyle, size: string) => boolean) {
+  const cheapest = cheapestSizePrice(catalog, hidden);
+  return (cheapest ?? Math.min(...Object.values(catalog.canvas))) + (catalog.pets[pets] ?? 0);
+}
+
+/** Cheapest style + size on sale in Pricing (minus `hidden`), or null when nothing is on sale. */
+function cheapestSizePrice(catalog: PriceCatalog, hidden?: (style: PortraitStyle, size: string) => boolean): number | null {
   let cheapest: number | null = null;
   for (const style of ["framed", "canvas"] as const) {
     if (!isOptionSelectable(catalog.options.styles[style])) continue;
@@ -94,7 +110,37 @@ export function startingPrice(catalog: PriceCatalog, pets: PetPreset, hidden?: (
       if (cheapest === null || prices[size] < cheapest) cheapest = prices[size];
     }
   }
-  return (cheapest ?? Math.min(...Object.values(catalog.canvas))) + (catalog.pets[pets] ?? 0);
+  return cheapest;
+}
+
+/** Desk Portrait / Gift Bundle prices in Pricing. Read defensively: older saved catalogs may not have them. */
+type NewProductCatalog = PriceCatalog & {
+  miniDesk?: { price?: number };
+  giftBundle?: Partial<Record<BundleTier, number>>;
+};
+
+/**
+ * "From" price of the Desk Portrait and Signature Gift Bundle cards (null for other slugs, and when the product
+ * has nothing on sale). Desk: its one price. Bundle: the cheapest visible tier priced at least ₹1, plus the
+ * cheapest size on sale that the tier doesn't hide.
+ */
+export function productStartingPrice(slug: string, catalog: PriceCatalog, content?: EverydayContent): number | null {
+  const prices = catalog as NewProductCatalog;
+  if (slug === CONFIGURATOR_SLUGS.mini_desk) {
+    const price = prices.miniDesk?.price ?? 0;
+    return Number.isFinite(price) && price >= 1 ? price : null;
+  }
+  if (slug !== CONFIGURATOR_SLUGS.gift_bundle) return null;
+  const tiers = content ? visibleBundleTiers(content) : BUNDLE_TIERS;
+  let best: number | null = null;
+  for (const tier of tiers) {
+    const tierPrice = prices.giftBundle?.[tier] ?? 0;
+    if (!Number.isFinite(tierPrice) || tierPrice < 1) continue;
+    const size = cheapestSizePrice(catalog, content ? (style, size) => sizeHiddenForPets(content, tier, style, size) : undefined);
+    if (size === null) continue;
+    if (best === null || tierPrice + size < best) best = tierPrice + size;
+  }
+  return best;
 }
 
 export type CardPhotoSource = "upload" | "media" | "shop" | "none";

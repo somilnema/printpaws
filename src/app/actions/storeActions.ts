@@ -111,6 +111,24 @@ function validateCatalog(input: PriceCatalog): { ok: true; catalog: PriceCatalog
     checks.push(whole(item.compareAt, `${label} crossed-out price`));
   }
 
+  // Desk Portrait / Signature Gift Bundle: 0 is allowed (0 = not on sale; the shop and server refuse it).
+  catalog.miniDesk = {
+    price: Math.round(Number(catalog.miniDesk.price)),
+    twoPets: Math.round(Number(catalog.miniDesk.twoPets)),
+    threePets: Math.round(Number(catalog.miniDesk.threePets)),
+  };
+  catalog.giftBundle = {
+    essential: Math.round(Number(catalog.giftBundle.essential)),
+    signature: Math.round(Number(catalog.giftBundle.signature)),
+    greetingCard: Math.round(Number(catalog.giftBundle.greetingCard)),
+  };
+  checks.push(whole(catalog.miniDesk.price, "Desk Portrait price"));
+  checks.push(whole(catalog.miniDesk.twoPets, "Desk Portrait extra for 2 pets"));
+  checks.push(whole(catalog.miniDesk.threePets, "Desk Portrait extra for 3 pets"));
+  checks.push(whole(catalog.giftBundle.essential, "Essential Gift Bundle price"));
+  checks.push(whole(catalog.giftBundle.signature, "Signature Gift Bundle price"));
+  checks.push(whole(catalog.giftBundle.greetingCard, "Personalised Greeting Card price"));
+
   catalog.prepaidPercent = Math.round(Number(catalog.prepaidPercent));
   catalog.codAdvancePercent = Math.round(Number(catalog.codAdvancePercent));
   if (catalog.prepaidPercent < 0 || catalog.prepaidPercent > 100) {

@@ -2,6 +2,7 @@ import "server-only";
 
 import { revalidatePath } from "next/cache";
 import sharp from "sharp";
+import { configuratorForSlug, isNewProduct, type NewProduct } from "@/lib/everyday-content";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { IMAGE_UPLOAD_LIMIT } from "@/lib/site-media-catalog";
 import { isMissingTable } from "@/lib/store-config";
@@ -81,7 +82,26 @@ export function landingSlug(value: string) {
     .slice(0, 60);
 }
 
+/**
+ * Desk Portrait / Signature Gift Bundle: configurator products whose landing row starts as "Coming soon" (kind
+ * 'fixed', not for sale). Their price always comes from Pricing, never from the row.
+ */
+export function launchProductForSlug(slug: string): NewProduct | null {
+  const product = configuratorForSlug(slug);
+  return isNewProduct(product) ? product : null;
+}
+
+/**
+ * A launch-gated product is on sale once the admin launches it in Landing & home → Products (the row switches to
+ * kind 'portrait' with pets 'one'). A 'fixed' row marked for sale also counts, but its price is ignored.
+ */
+export function configuratorLaunched(product: Pick<LandingProduct, "active" | "kind" | "pets" | "forSale">) {
+  if (!product.active) return false;
+  return product.kind === "portrait" ? Boolean(product.pets) : product.forSale;
+}
+
 export function productIsPurchasable(product: LandingProduct) {
+  if (launchProductForSlug(product.slug)) return configuratorLaunched(product);
   if (!product.active) return false;
   if (product.kind === "portrait") return Boolean(product.pets);
   return product.forSale && product.price != null && product.price > 0;
@@ -96,6 +116,26 @@ function validate(input: LandingProductInput): { ok: true; value: LandingProduct
   if (!description) return { ok: false, error: "Add the short description." };
   const sortOrder = Math.round(Number(input.sortOrder));
   if (!Number.isInteger(sortOrder)) return { ok: false, error: "Order must be a whole number." };
+
+  if (launchProductForSlug(slug)) {
+    // Launched: opens its own configurator (kind 'portrait', pets 'one'). Not launched: "Coming soon" (kind 'fixed',
+    // not for sale). Both satisfy the table's checks; the price is always Pricing's, so none is stored.
+    const launched = input.kind === "portrait" || Boolean(input.forSale);
+    return {
+      ok: true,
+      value: {
+        ...input,
+        slug,
+        name,
+        description,
+        sortOrder,
+        kind: launched ? "portrait" : "fixed",
+        pets: launched ? "one" : null,
+        price: null,
+        forSale: launched,
+      },
+    };
+  }
 
   if (input.kind === "portrait") {
     if (input.pets !== "one" && input.pets !== "two" && input.pets !== "human") {
@@ -176,6 +216,8 @@ export async function getSellableFixedOffer(id: string) {
   if (!read.ok) return null;
   const product = read.products.find((item) => item.id === id);
   if (!product || !productIsPurchasable(product) || product.kind !== "fixed" || product.price == null) return null;
+  // Desk Portrait / Gift Bundle are sold through their configurator at Pricing's price, never as a fixed offer.
+  if (launchProductForSlug(product.slug)) return null;
   return product;
 }
 

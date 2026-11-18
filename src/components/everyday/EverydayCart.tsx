@@ -5,14 +5,19 @@ import {
   ArrowRight,
   Camera,
   CaseSensitive,
+  Check,
+  ClipboardList,
   Expand,
   FileText,
+  Frame,
   SquareSquare,
   Gift,
   Image as ImageIcon,
+  LayoutTemplate,
   MessageSquareText,
   Minus,
   Paintbrush,
+  Palette,
   PawPrint,
   Plus,
   ShoppingBag,
@@ -43,7 +48,12 @@ export type CartDetailIcon =
   | "halo"
   | "method"
   | "photos"
-  | "note";
+  | "note"
+  | "colour"
+  | "layout"
+  | "stand"
+  | "gift"
+  | "petdetails";
 
 /** One line of the product card. Callers pass only filled-in details, so empty ones stay hidden. */
 export type CartDetail = { icon: CartDetailIcon; label: string; value: string; thumb?: string };
@@ -62,6 +72,11 @@ const DETAIL_ICON: Record<CartDetailIcon, typeof ImageIcon> = {
   method: Camera,
   photos: Camera,
   note: MessageSquareText,
+  colour: Palette,
+  layout: LayoutTemplate,
+  stand: Frame,
+  gift: Gift,
+  petdetails: ClipboardList,
 };
 
 function DetailCell({ detail }: { detail: CartDetail }) {
@@ -126,6 +141,14 @@ export type EverydayCartProps = {
   summaryLine?: string;
   /** Product details to list instead of the Everyday set (Multi-Pet / You & Your Pet). */
   details?: CartDetail[];
+  /** Items that come with the product at no charge (Gift Bundle), listed inside the product card. */
+  included?: { heading: string; value: string; items: string[] };
+  /** Paid lines shown after the product card (e.g. the greeting card with its message). `price` is per unit. */
+  extraLines?: { id: string; label: string; price: number; note?: string }[];
+  /** Hides the Additional Products block entirely. */
+  hideExtras?: boolean;
+  /** Hides the gift wrapping block. */
+  hideGift?: boolean;
 };
 
 function Detail({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
@@ -303,6 +326,25 @@ export function EverydayCart(props: EverydayCartProps) {
               </div>
               )}
 
+              {props.included && props.included.items.length > 0 ? (
+                <div className="border-t border-[#EBD6C8] px-4 py-3">
+                  {props.included.heading ? (
+                    <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[#A97659]">{props.included.heading}</p>
+                  ) : null}
+                  <ul className={`space-y-1.5 ${props.included.heading ? "mt-2" : ""}`}>
+                    {props.included.items.map((item, index) => (
+                      <li key={`${item}-${index}`} className="flex items-start gap-2 text-[13px] leading-snug">
+                        <Check size={14} strokeWidth={2.5} className="mt-[3px] shrink-0 text-[#2E7D32]" aria-hidden />
+                        <span className="min-w-0 flex-1 break-words text-[#2D2D2D]">{item}</span>
+                        {props.included?.value ? (
+                          <span className="shrink-0 text-[12px] font-semibold text-[#2E7D32]">{props.included.value}</span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
               <div className="flex items-center justify-between border-t border-[#EBD6C8] px-4 py-3">
                 <div className="flex h-9 items-center overflow-hidden rounded-[8px] border border-[#E3D9CF] bg-white">
                   <button
@@ -336,7 +378,26 @@ export function EverydayCart(props: EverydayCartProps) {
               </div>
             </div>
 
-            {visibleExtras.length > 0 ? (
+            {props.extraLines && props.extraLines.length > 0 ? (
+              <div className="divide-y divide-[#EBD6C8] rounded-[12px] border border-[#EBD6C8] bg-white">
+                {props.extraLines.map((line) => (
+                  <div key={line.id} className="flex items-start gap-3 px-4 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="break-words text-[14px] font-semibold leading-tight text-[#2D2D2D]">{line.label}</p>
+                      {line.note ? (
+                        <p className="mt-1 line-clamp-2 break-words text-[12px] leading-snug text-[#6B5E53]">{line.note}</p>
+                      ) : null}
+                    </div>
+                    <p className="shrink-0 text-right text-[15px] font-bold leading-tight text-[#A97659]">
+                      {formatRupee(line.price)}
+                      {props.qty > 1 ? <span className="text-[12px] font-semibold text-[#6B5E53]"> × {props.qty}</span> : null}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            {!props.hideExtras && visibleExtras.length > 0 ? (
               <div className="space-y-2 rounded-[12px] bg-[#A97659] p-3">
                 <div className="flex items-center justify-between px-1 pb-1 pt-0.5">
                   <h4 className="font-inter! text-[13px] font-semibold! uppercase tracking-[0.08em] text-white">
@@ -360,7 +421,7 @@ export function EverydayCart(props: EverydayCartProps) {
               </div>
             ) : null}
 
-            {copy.showGift ? (
+            {copy.showGift && !props.hideGift ? (
               <div className="space-y-3 rounded-[12px] border border-[#EBD6C8] bg-white p-3">
                 <div className="flex items-center justify-between px-1 pt-0.5">
                   <h4 className="font-inter! text-[13px] font-semibold! uppercase tracking-[0.08em] text-[#A97659]">

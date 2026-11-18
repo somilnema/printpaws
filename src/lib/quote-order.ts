@@ -1,7 +1,7 @@
 import { getSellableFixedOffer } from "@/lib/landing-products";
-import { limitedBackgroundIds } from "@/lib/everyday-content";
+import { isNewProduct, limitedBackgroundIds } from "@/lib/everyday-content";
 import { calculateOriginalAmount, calculateQuote, portraitOptionProblem, type PriceCatalog, type PricingInput } from "@/lib/pricing";
-import { configuratorPricingProblem, isFlowProduct } from "@/lib/product-order";
+import { configuratorPricingProblem, isFlowProduct, newProductPricingProblem } from "@/lib/product-order";
 import { loadProductContent } from "@/lib/site-content";
 import { loadPriceCatalog, resolveCoupon } from "@/lib/store-config";
 
@@ -15,6 +15,8 @@ function portraitInputProblem(input: PricingInput, catalog: PriceCatalog) {
   const copies = Number(input.cartQty ?? 1);
   if (!Number.isInteger(copies) || copies < 1 || copies > 99) return "Please choose a quantity between 1 and 99.";
   if (!isFlowProduct(input.configurator) && (input.tribute || input.composition)) return "This portrait option is not available.";
+  // Gift Bundle fields belong to the bundle only.
+  if (input.configurator !== "gift_bundle" && (input.bundleTier || input.greetingCard)) return "This portrait option is not available.";
   return null;
 }
 
@@ -27,11 +29,30 @@ export async function quoteCheckout(input: PricingInput, customerEmail?: string)
   }
 
   const { catalog } = await loadPriceCatalog();
-  const unavailable = portraitOptionProblem(priced, catalog);
-  if (unavailable) throw new Error(unavailable);
+  const isPortrait = (priced.productType || "portrait") === "portrait";
+  // Desk Portrait / Gift Bundle fields are never accepted on anything else.
+  if (!(isPortrait && isNewProduct(priced.configurator)) && (priced.bundleTier || priced.greetingCard)) {
+    throw new Error("This portrait option is not available.");
+  }
 
-  if ((priced.productType || "portrait") === "portrait") {
+  // Desk Portrait: one fixed size and its own pet counts, so the Everyday style / size / pets checks do not apply.
+  const desk = isPortrait && priced.configurator === "mini_desk";
+  if (!desk) {
+    const unavailable = portraitOptionProblem(priced, catalog);
+    if (unavailable) throw new Error(unavailable);
+  }
+
+  if (isPortrait && !desk) {
     const problem = portraitInputProblem(priced, catalog);
+    if (problem) throw new Error(problem);
+  }
+
+  // Desk Portrait / Signature Gift Bundle: their own content and prices decide what may be sold (price < ₹1 = not on sale).
+  if (isPortrait && isNewProduct(priced.configurator)) {
+    const product = priced.configurator;
+    const content = await loadProductContent(product);
+    catalog.limitedBackgrounds = product === "mini_desk" ? [] : limitedBackgroundIds(content);
+    const problem = newProductPricingProblem({ ...priced, configurator: product }, product, content, catalog);
     if (problem) throw new Error(problem);
   }
 

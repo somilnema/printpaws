@@ -43,7 +43,7 @@ import { OrderConfiguration } from "@/components/OrderConfiguration";
 import { ADMIN_SECTIONS, CONFIGURATOR_PATH, sectionTabClass } from "@/components/admin/DeskSwitch";
 import { buttonClass, dangerButtonClass, DeskLogo, errorClass, ghostButtonClass, inputClass, okClass, Panel, warnClass } from "@/components/admin/ui";
 import { orderInRange, rangeBounds, type DateRange } from "@/lib/admin-analytics";
-import { adminCanAssign, adminCanCancel, adminCanHold, artworkIsOpen, maximumDueAt, safeTrackingUrl, stageLabel } from "@/lib/fulfillment";
+import { adminCanAssign, adminCanCancel, adminCanHold, artworkIsOpen, maximumDueAt, readableAddon, safeTrackingUrl, stageLabel } from "@/lib/fulfillment";
 import { isWatermarkedProof, storedPetPhotoUrl } from "@/lib/pet-photo";
 
 type Section = Exclude<(typeof ADMIN_SECTIONS)[number]["id"], "configurator">;
@@ -657,7 +657,7 @@ function OrderDetail({
         </p>
         {(order.addon || order.gift_wrap) && (
           <p className="text-[#6b7280]">
-            {order.addon ? `Add-on: ${order.addon}` : ""}
+            {order.addon ? `Add-on: ${readableAddon(order.addon)}` : ""}
             {order.addon && order.gift_wrap ? " · " : ""}
             {order.gift_wrap ? "Gift wrap" : ""}
           </p>

@@ -344,6 +344,57 @@ export function PricingPanel({
         </div>
       </Panel>
 
+      <Panel
+        title="Desk Portrait"
+        note="The Desk Portrait product page (one fixed size, wooden stand always included, never a paid add-on). Customer pays the base price, plus the extra for 2 or 3 pets. Keep a placeholder until Peternity approves the prices."
+      >
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <Money
+            label="Base price (1 pet)"
+            value={catalog.miniDesk.price}
+            onChange={(price) => patch({ miniDesk: { ...catalog.miniDesk, price } })}
+          />
+          <Money
+            label="Extra for 2 pets"
+            value={catalog.miniDesk.twoPets}
+            onChange={(twoPets) => patch({ miniDesk: { ...catalog.miniDesk, twoPets } })}
+            hint="Added to the base price. 0 = no extra charge."
+          />
+          <Money
+            label="Extra for 3 pets"
+            value={catalog.miniDesk.threePets}
+            onChange={(threePets) => patch({ miniDesk: { ...catalog.miniDesk, threePets } })}
+            hint="Added to the base price. 0 = no extra charge."
+          />
+        </div>
+      </Panel>
+
+      <Panel
+        title="Signature Gift Bundle"
+        note="Each bundle tier price is added to the portrait's style × size price above (Framed / Canvas sizes). The mug, digital file, magnet and packaging included in a tier are never charged again. Keep placeholders until Peternity approves the prices."
+      >
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <Money
+            label="Essential tier price"
+            value={catalog.giftBundle.essential}
+            onChange={(essential) => patch({ giftBundle: { ...catalog.giftBundle, essential } })}
+            hint="Added to the portrait's style × size price."
+          />
+          <Money
+            label="Signature tier price"
+            value={catalog.giftBundle.signature}
+            onChange={(signature) => patch({ giftBundle: { ...catalog.giftBundle, signature } })}
+            hint="Added to the portrait's style × size price."
+          />
+          <Money
+            label="Personalised Greeting Card"
+            value={catalog.giftBundle.greetingCard}
+            onChange={(greetingCard) => patch({ giftBundle: { ...catalog.giftBundle, greetingCard } })}
+            hint="Optional paid card. It can only be added while this is above ₹0."
+          />
+        </div>
+      </Panel>
+
       <Panel title="Extras">
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="space-y-3">
@@ -359,8 +410,17 @@ export function PricingPanel({
             <Money label="Digital file crossed-out" value={catalog.digital.compareAt} onChange={(compareAt) => patch({ digital: { ...catalog.digital, compareAt } })} />
           </div>
           <div className="space-y-3">
-            <Money label="Desk Portrait price" value={catalog.desk.price} onChange={(price) => patch({ desk: { ...catalog.desk, price } })} />
-            <Money label="Desk Portrait crossed-out" value={catalog.desk.compareAt} onChange={(compareAt) => patch({ desk: { ...catalog.desk, compareAt } })} />
+            <Money
+              label="Desk Portrait add-on (Everyday cart) price"
+              value={catalog.desk.price}
+              onChange={(price) => patch({ desk: { ...catalog.desk, price } })}
+              hint="The add-on in the cart. The Desk Portrait product page is priced in its own panel above."
+            />
+            <Money
+              label="Desk Portrait add-on (Everyday cart) crossed-out"
+              value={catalog.desk.compareAt}
+              onChange={(compareAt) => patch({ desk: { ...catalog.desk, compareAt } })}
+            />
           </div>
         </div>
       </Panel>

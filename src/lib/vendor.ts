@@ -1,4 +1,5 @@
-import { safeTrackingUrl } from "@/lib/fulfillment";
+import { newProductName, newProductSummaryLines, newProductWorkItems, safeTrackingUrl } from "@/lib/fulfillment";
+import { orderDetailsFor } from "@/lib/order-details";
 import { OPERATIONS_MESSAGE, recordEvent, tableMissing, type VendorAttempt } from "@/lib/portal-db";
 import { recordShipmentLink } from "@/lib/shipment-desk";
 import { supabaseAdmin } from "@/lib/supabase-admin";
@@ -148,6 +149,20 @@ export async function sendOrderToVendor(input: { orderId: string; actor: string 
     .eq("id", workflow.approved_update_id)
     .maybeSingle();
 
+  // Desk Portrait / Gift Bundle: the stand and bundle inclusions are not paid add-ons, but the vendor still has to
+  // make and pack them, so they travel as readable work items + notes. Every other order's payload is unchanged.
+  const workItems = newProductWorkItems(order.addon);
+  const configuration = workItems.length ? ((await orderDetailsFor([String(order.id)])).get(String(order.id)) ?? null) : null;
+  const productName = workItems.length ? newProductName(order.addon, configuration) : "";
+  const newProduct = workItems.length
+    ? {
+        productName,
+        workItems,
+        notes: [...newProductSummaryLines(configuration), ...workItems.map((item) => `Work item: ${item}`)].join("\n"),
+        details: configuration,
+      }
+    : {};
+
   const payload = {
     orderId: order.id,
     petName: order.pet_name || "",
@@ -169,6 +184,7 @@ export async function sendOrderToVendor(input: { orderId: string; actor: string 
       addon: order.addon || "",
       giftWrap: Boolean(order.gift_wrap),
       memorialText: order.memorial_text || "",
+      ...newProduct,
     },
     payment: {
       mode: order.payment_mode || "",

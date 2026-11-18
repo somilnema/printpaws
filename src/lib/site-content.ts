@@ -19,6 +19,8 @@ const CONTENT_FILES: Record<ConfiguratorProduct, string> = {
   everyday: "content/everyday.json",
   multi_pet: "content/multi-pet.json",
   you_and_your_pet: "content/you-and-your-pet.json",
+  mini_desk: "content/mini-desk.json",
+  gift_bundle: "content/gift-bundle.json",
 };
 const CACHE_TAG = "site-content";
 

@@ -1,3 +1,4 @@
+import type { BundleTier, EverydayContent, NewProduct } from "@/lib/everyday-content";
 import { saveOfferRule } from "@/lib/save-offer";
 
 export type ProductType =
@@ -57,6 +58,10 @@ export type PriceCatalog = {
   magnet: { price: number; compareAt: number };
   digital: { price: number; compareAt: number };
   desk: { price: number; compareAt: number };
+  /** Desk Portrait (its own product; NOT the Everyday "desk" add-on above). twoPets / threePets are extras over 1 pet. */
+  miniDesk: { price: number; twoPets: number; threePets: number };
+  /** Signature Gift Bundle: tier price (added to the style/size price) and the optional greeting card. 0 = not on sale. */
+  giftBundle: { essential: number; signature: number; greetingCard: number };
   prepaidPercent: number;
   codAdvancePercent: number;
   customPayments: number[];
@@ -160,7 +165,11 @@ export type PricingInput = {
   customPaymentAmount?: number;
   digitalDownloadAmount?: number;
   /** Which three-step configurator built this portrait. Multi-Pet and You & Your Pet add their own rules. */
-  configurator?: "everyday" | "multi_pet" | "you_and_your_pet";
+  configurator?: "everyday" | "multi_pet" | "you_and_your_pet" | "mini_desk" | "gift_bundle";
+  /** Signature Gift Bundle tier (gift_bundle only). */
+  bundleTier?: BundleTier;
+  /** Signature Gift Bundle: the optional paid greeting card (gift_bundle only). */
+  greetingCard?: boolean;
   /** You & Your Pet composition. "family" adds the flat family upgrade. */
   composition?: "solo" | "family";
   /** Multi-Pet halo (A Special Tribute). */
@@ -255,6 +264,8 @@ export const DEFAULT_CATALOG: PriceCatalog = {
   magnet: { price: 200, compareAt: 299 },
   digital: { price: 300, compareAt: 399 },
   desk: { price: 999, compareAt: 1299 },
+  miniDesk: { price: 999, twoPets: 149, threePets: 249 },
+  giftBundle: { essential: 999, signature: 1499, greetingCard: 199 },
   prepaidPercent: 4,
   codAdvancePercent: 40,
   customPayments: [500, 600],
@@ -445,6 +456,8 @@ export function cloneCatalog(catalog: PriceCatalog = DEFAULT_CATALOG): PriceCata
     magnet: { ...catalog.magnet },
     digital: { ...catalog.digital },
     desk: { ...(catalog.desk || DEFAULT_CATALOG.desk) },
+    miniDesk: { ...DEFAULT_CATALOG.miniDesk, ...(catalog.miniDesk || {}) },
+    giftBundle: { ...DEFAULT_CATALOG.giftBundle, ...(catalog.giftBundle || {}) },
     prepaidPercent: catalog.prepaidPercent,
     codAdvancePercent: catalog.codAdvancePercent,
     customPayments: [...catalog.customPayments],
@@ -506,6 +519,70 @@ export function tributeAmount(input: Pick<PricingInput, "configurator" | "tribut
   return input.configurator === "multi_pet" && input.tribute ? Math.max(0, catalog.multiPetHalo ?? 0) : 0;
 }
 
+/** Desk Portrait: the extra for 2 or 3 pets (over the 1-pet base). 0 for one pet or anything else. */
+export function deskExtraPetAmount(catalog: PriceCatalog, numPets: string | undefined): number {
+  const desk = catalog.miniDesk || DEFAULT_CATALOG.miniDesk;
+  if (numPets === "two") return Math.max(0, Math.round(Number(desk.twoPets) || 0));
+  if (numPets === "three") return Math.max(0, Math.round(Number(desk.threePets) || 0));
+  return 0;
+}
+
+/** Desk Portrait price for one copy: base price plus the extra-pet charge. */
+export function deskUnitPrice(catalog: PriceCatalog, numPets: string | undefined): number {
+  const desk = catalog.miniDesk || DEFAULT_CATALOG.miniDesk;
+  return Math.max(0, Math.round(Number(desk.price) || 0)) + deskExtraPetAmount(catalog, numPets);
+}
+
+/** Signature Gift Bundle tier price (added to the portrait style/size price). 0 when no tier. */
+export function bundleTierAmount(catalog: PriceCatalog, tier: BundleTier | undefined): number {
+  const bundle = catalog.giftBundle || DEFAULT_CATALOG.giftBundle;
+  if (tier === "essential") return Math.max(0, Math.round(Number(bundle.essential) || 0));
+  if (tier === "signature") return Math.max(0, Math.round(Number(bundle.signature) || 0));
+  return 0;
+}
+
+/** Greeting card price for this order (0 unless it is a gift bundle with the card chosen). */
+export function greetingCardAmount(catalog: PriceCatalog, input: Pick<PricingInput, "configurator" | "greetingCard">): number {
+  if (input.configurator !== "gift_bundle" || !input.greetingCard) return 0;
+  const bundle = catalog.giftBundle || DEFAULT_CATALOG.giftBundle;
+  return Math.max(0, Math.round(Number(bundle.greetingCard) || 0));
+}
+
+function tierVisible(content: EverydayContent | undefined, tier: BundleTier) {
+  const bundle = content?.bundle;
+  if (!bundle) return true;
+  return tier === "essential" ? bundle.essentialVisible !== false : bundle.signatureVisible !== false;
+}
+
+/**
+ * Landing "From ₹" for the new products. Null when nothing is on sale (a product price below ₹1 means "not on sale").
+ * Desk: the 1-pet price. Bundle: the cheapest visible tier priced ≥ ₹1 plus the cheapest selectable size it allows.
+ */
+export function newProductStartingPrice(product: NewProduct, catalog: PriceCatalog, content?: EverydayContent): number | null {
+  if (product === "mini_desk") {
+    const base = Math.round(Number((catalog.miniDesk || DEFAULT_CATALOG.miniDesk).price) || 0);
+    return base >= 1 ? deskUnitPrice(catalog, "one") : null;
+  }
+  let best: number | null = null;
+  for (const tier of ["essential", "signature"] as const) {
+    const tierPrice = bundleTierAmount(catalog, tier);
+    if (tierPrice < 1 || !tierVisible(content, tier)) continue;
+    for (const style of ["framed", "canvas"] as const) {
+      if (!isOptionSelectable(catalog.options.styles[style])) continue;
+      for (const size of sizesForStyle(style, catalog)) {
+        if (!isOptionSelectable(sizeOptionMeta(catalog, style, size))) continue;
+        // Same rule as sizeHiddenForPets(content, tier, style, size) (kept inline: no runtime import cycle).
+        if (content?.hiddenSizes?.[tier]?.includes(`${style}:${size}`)) continue;
+        const sizePrice = catalog[style][size];
+        if (!Number.isFinite(sizePrice)) continue;
+        const total = tierPrice + sizePrice;
+        if (best == null || total < best) best = total;
+      }
+    }
+  }
+  return best;
+}
+
 /**
  * The checkout payload's `addon` is also the order's add-on list ("priority_preview, custom_mug").
  * Only the legacy single add-ons are priced from it; everything listed below has its own field.
@@ -519,6 +596,16 @@ const LISTED_ADDONS = new Set([
   "digital_download",
   "desk_portrait",
   "halo_tribute",
+  // Desk Portrait / Signature Gift Bundle: server-derived tokens, priced by their own fields (never the legacy ₹100).
+  "wooden_stand",
+  "bundle_essential",
+  "bundle_signature",
+  "bundle_mug",
+  "bundle_digital",
+  "bundle_magnet",
+  "packaging_standard",
+  "packaging_premium",
+  "greeting_card",
 ]);
 
 function addonTokens(addon?: string) {
@@ -533,7 +620,92 @@ export function pricedAddonTokens(addon?: string) {
   return addonTokens(addon).filter((token) => token === "halo_effect" || !LISTED_ADDONS.has(token));
 }
 
+/** Desk Portrait / Signature Gift Bundle quote. Shared by getPortraitBreakdown and calculatePortraitBasePrice. */
+function newProductBreakdown(input: PricingInput, catalog: PriceCatalog) {
+  const qty = Math.max(1, input.cartQty || 1);
+  const extras = extraProductLines(input, catalog);
+  const extrasAmount = extras.reduce((sum, line) => sum + line.price, 0);
+  const portraitLines: PriceLine[] = [];
+
+  if (input.configurator === "mini_desk") {
+    // One fixed size: never the framed/canvas size price, pets upgrade, halo, family, tribute or premium background.
+    const base = deskUnitPrice(catalog, "one");
+    const extraPets = deskExtraPetAmount(catalog, input.numPets);
+    const priority = input.priorityPreview ? (catalog.priorityPreview ?? DEFAULT_CATALOG.priorityPreview) : 0;
+    const wrap = input.giftWrap ? catalog.giftWrap : 0;
+    portraitLines.push({ id: "desk_base", label: "Desk Portrait", price: base * qty });
+    if (extraPets > 0) {
+      portraitLines.push({ id: "desk_pets", label: `${PET_COUNT_LABELS[input.numPets || "one"] || "Pets"} extra`, price: extraPets * qty });
+    }
+    if (priority > 0) portraitLines.push({ id: "priority", label: "Priority Preview", price: priority * qty });
+    if (wrap > 0) portraitLines.push({ id: "wrap", label: "Gift Wrap", price: wrap * qty });
+    return {
+      style: "framed" as PortraitStyle,
+      size: input.size || "",
+      sizePrice: 0,
+      family: 0,
+      petUpgrade: 0,
+      halo: 0,
+      tribute: 0,
+      priority: priority * qty,
+      wrap: wrap * qty,
+      premiumBg: 0,
+      deskBase: base * qty,
+      deskExtraPets: extraPets * qty,
+      bundleTier: 0,
+      greeting: 0,
+      extras,
+      extrasAmount,
+      portraitLines,
+      portraitSubtotal: (base + extraPets + priority + wrap) * qty,
+    };
+  }
+
+  // Gift bundle: tier + the live style/size price + the optional greeting card. No pets upgrade, premium bg, priority,
+  // halo or gift wrap (packaging is included); the server refuses those for bundles.
+  const style: PortraitStyle = input.portraitStyle === "canvas" ? "canvas" : "framed";
+  const size = input.size || (style === "canvas" ? '8"x12"' : '8"x10"');
+  const sizePrice =
+    style === "framed"
+      ? (catalog.framed[size] ?? catalog.framed['8"x10"'] ?? 0)
+      : (catalog.canvas[size] ?? catalog.canvas['8"x12"'] ?? 0);
+  const tierPrice = bundleTierAmount(catalog, input.bundleTier);
+  const greeting = greetingCardAmount(catalog, input);
+  const tierLabel = input.bundleTier === "signature" ? "Signature Gift Bundle" : "Essential Gift Bundle";
+  portraitLines.push({
+    id: "bundle",
+    label: `${tierLabel} · ${PORTRAIT_STYLE_LABELS[style]} · ${size}`,
+    price: (tierPrice + sizePrice) * qty,
+  });
+  if (greeting > 0) portraitLines.push({ id: "greeting", label: "Personalised Greeting Card", price: greeting * qty });
+  return {
+    style,
+    size,
+    sizePrice: sizePrice * qty,
+    family: 0,
+    petUpgrade: 0,
+    halo: 0,
+    tribute: 0,
+    priority: 0,
+    wrap: 0,
+    premiumBg: 0,
+    deskBase: 0,
+    deskExtraPets: 0,
+    bundleTier: tierPrice * qty,
+    greeting: greeting * qty,
+    extras,
+    extrasAmount,
+    portraitLines,
+    portraitSubtotal: (tierPrice + sizePrice + greeting) * qty,
+  };
+}
+
+function isNewProductInput(input: PricingInput) {
+  return input.configurator === "mini_desk" || input.configurator === "gift_bundle";
+}
+
 export function getPortraitBreakdown(input: PricingInput, catalog: PriceCatalog = DEFAULT_CATALOG) {
+  if (isNewProductInput(input)) return newProductBreakdown(input, catalog);
   const style: PortraitStyle = input.portraitStyle === "canvas" ? "canvas" : "framed";
   const size = input.size || (style === "canvas" ? '8"x12"' : '8"x10"');
   const sizePrice =
@@ -579,6 +751,10 @@ export function getPortraitBreakdown(input: PricingInput, catalog: PriceCatalog 
     priority: priority * qty,
     wrap: wrap * qty,
     premiumBg: premiumBg * qty,
+    deskBase: 0,
+    deskExtraPets: 0,
+    bundleTier: 0,
+    greeting: 0,
     extras,
     extrasAmount: extras.reduce((sum, line) => sum + line.price, 0),
     portraitLines,
@@ -600,6 +776,12 @@ export function getCoupon(code?: string | null) {
 }
 
 export function calculatePortraitBasePrice(input: PricingInput, catalog: PriceCatalog = DEFAULT_CATALOG) {
+  // New products: exactly the breakdown (portrait part × qty, extras once), so the charge and coupon base agree.
+  // Their `addon` text is never priced (the server derives those tokens).
+  if (isNewProductInput(input)) {
+    const breakdown = newProductBreakdown(input, catalog);
+    return breakdown.portraitSubtotal + breakdown.extrasAmount;
+  }
   const style: PortraitStyle = input.portraitStyle === "canvas" ? "canvas" : "framed";
   const size = input.size || (style === "canvas" ? '8"x12"' : '8"x10"');
   let price =

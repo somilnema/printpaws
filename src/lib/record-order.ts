@@ -1,9 +1,17 @@
 import { ensureWorkflow, isUuid, recordEvent } from "@/lib/portal-db";
 import { notifyOrderConfirmed } from "@/lib/notifications";
-import { limitedBackgroundIds } from "@/lib/everyday-content";
+import { isNewProduct, limitedBackgroundIds } from "@/lib/everyday-content";
 import { petPhotoIsReachable, storedPetPhotoUrl } from "@/lib/pet-photo";
 import { pricedAddonTokens, type Quote } from "@/lib/pricing";
-import { buildOrderDetails, isFlowProduct, orderDetailsSummary, type BuiltOrderDetails } from "@/lib/product-order";
+import {
+  buildNewProductDetails,
+  buildOrderDetails,
+  isFlowProduct,
+  newProductAddonTokens,
+  orderDetailsSummary,
+  type BuiltNewProductDetails,
+  type BuiltOrderDetails,
+} from "@/lib/product-order";
 import { paymentAlreadyRecorded, verifyRazorpaySignature } from "@/lib/razorpay";
 import { loadProductContent } from "@/lib/site-content";
 import { loadPriceCatalog } from "@/lib/store-config";
@@ -58,7 +66,32 @@ async function flowOrderDetails(body: CheckoutBody, productType: string): Promis
   return buildOrderDetails(body, body.configurator, content, catalog, supabaseHostName());
 }
 
+/**
+ * Desk Portrait / Signature Gift Bundle: the structured order record (checked again on the server). Null for other
+ * products. With `quote`, the recomputed price must equal what was quoted, so the price snapshot is what was charged.
+ */
+async function newProductOrderDetails(
+  body: CheckoutBody,
+  productType: string,
+  quote: Quote | null = null
+): Promise<BuiltNewProductDetails | null> {
+  if (productType !== "portrait" || !isNewProduct(body.configurator)) return null;
+  const product = body.configurator;
+  const [content, { catalog }] = await Promise.all([loadProductContent(product), loadPriceCatalog()]);
+  catalog.limitedBackgrounds = product === "mini_desk" ? [] : limitedBackgroundIds(content);
+  return buildNewProductDetails(body, product, content, catalog, quote, supabaseHostName());
+}
+
 export async function photoProblem(body: CheckoutBody, productType: string) {
+  // Desk Portrait / Gift Bundle: every pet photo slot must be saved and readable.
+  const built = await newProductOrderDetails(body, productType);
+  if (built) {
+    if (!built.ok) return built.error;
+    const reachable = await Promise.all(built.photoUrls.map((url) => petPhotoIsReachable(url)));
+    if (reachable.some((ok) => !ok)) return "One of your photos was not saved. Please upload it again before paying.";
+    return "";
+  }
+
   // Configurator products: every photo the chosen method needs must be saved and readable.
   const flow = await flowOrderDetails(body, productType);
   if (flow) {
@@ -91,7 +124,49 @@ function backgroundColumn(id: string, label: string) {
   return id ? `${name} (${id.slice(0, 40)})` : name;
 }
 
-function orderFields(body: CheckoutBody, quote: Quote, razorpayOrderId: string, flow: BuiltOrderDetails | null = null) {
+/**
+ * Desk Portrait / Gift Bundle columns. Built from the server-checked record; if that failed after payment the
+ * tokens still come from the quote-validated body (never the browser's `addon` text) and gift wrap stays off.
+ */
+function newProductFields(body: CheckoutBody, quote: Quote, built: BuiltNewProductDetails | null) {
+  if (quote.productType !== "portrait" || !isNewProduct(body.configurator)) return null;
+  const product = body.configurator;
+  if (built && built.ok) {
+    const columns = built.columns;
+    return {
+      size: columns.size,
+      frame_style: columns.frame_style,
+      portrait_style: columns.portrait_style,
+      num_pets: columns.num_pets,
+      background: backgroundColumn(columns.background, columns.background_label),
+      addon: columns.addon.join(", ") || "none",
+      pet_name: columns.pet_name || quote.productLabel,
+      memorial_text: columns.memorial_text,
+      photo_url: columns.photo_url,
+      gift_wrap: columns.gift_wrap,
+      order_details: built.details,
+    };
+  }
+  return {
+    addon: newProductAddonTokens(product, body).join(", ") || "none",
+    frame_style: product === "mini_desk" ? "desk_stand" : text(body, "frameStyle") || quote.productType,
+    gift_wrap: product === "gift_bundle" ? false : !!body.giftWrap,
+  };
+}
+
+function orderFields(
+  body: CheckoutBody,
+  quote: Quote,
+  razorpayOrderId: string,
+  flow: BuiltOrderDetails | null = null,
+  built: BuiltNewProductDetails | null = null
+) {
+  const fields = flowOrderFields(body, quote, razorpayOrderId, flow);
+  const extra = newProductFields(body, quote, built);
+  return extra ? { ...fields, ...extra } : fields;
+}
+
+function flowOrderFields(body: CheckoutBody, quote: Quote, razorpayOrderId: string, flow: BuiltOrderDetails | null = null) {
   const supabaseHost = supabaseHostName();
   const configured = flow && flow.ok ? flow : null;
   // Built from what was priced, never copied from the browser: staff and the print vendor act on this list.
@@ -180,8 +255,11 @@ async function insertOrderRow(row: OrderRow, columns: string, allowFallback: boo
 export async function insertPendingOrder(body: CheckoutBody, quote: Quote, razorpayOrderId: string) {
   const flow = await flowOrderDetails(body, quote.productType);
   if (flow && !flow.ok) return { ok: false as const, error: flow.error };
+  // Desk Portrait / Gift Bundle: refused before payment unless the full record (and its column) can be saved.
+  const built = await newProductOrderDetails(body, quote.productType, quote);
+  if (built && !built.ok) return { ok: false as const, error: built.error };
   const row = {
-    ...orderFields(body, quote, razorpayOrderId, flow),
+    ...orderFields(body, quote, razorpayOrderId, flow, built),
     status: "pending",
     created_at: new Date().toISOString(),
   };
@@ -282,8 +360,10 @@ export async function insertPaidOrder(body: CheckoutBody, quote: Quote, razorpay
   // The payment is already verified: a configurator problem is logged, never a reason to drop the order.
   const flow = await flowOrderDetails(body, quote.productType).catch(() => null);
   if (flow && !flow.ok) console.error(`Paid order ${razorpayPaymentId} saved without configurator details: ${flow.error}`);
+  const built = await newProductOrderDetails(body, quote.productType, quote).catch(() => null);
+  if (built && !built.ok) console.error(`Paid order ${razorpayPaymentId} saved without product details: ${built.error}`);
   const row = {
-    ...orderFields(body, quote, razorpayOrderId, flow),
+    ...orderFields(body, quote, razorpayOrderId, flow, built),
     status,
     razorpay_payment_id: razorpayPaymentId,
     created_at: new Date().toISOString(),

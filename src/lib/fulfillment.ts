@@ -1,3 +1,5 @@
+import type { BundleOrderDetails, DeskOrderDetails } from "@/lib/product-order";
+
 export const MAX_REVISION_ROUNDS = 2;
 export const SLA_HOURS = 48;
 export const SLA_LIMIT_HOURS = 72;
@@ -197,4 +199,117 @@ export function safeTrackingUrl(value?: string | null) {
 
 export function latestPreview(updates: OrderUpdate[]) {
   return [...updates].reverse().find((update) => update.kind === "preview" && update.image_url) || null;
+}
+
+/**
+ * Work items for the server-derived Desk Portrait / Signature Gift Bundle tokens in `orders.addon`
+ * (contract section 6). Bundle inclusions are not charged as add-ons, but production still has to make them.
+ */
+export const NEW_PRODUCT_ADDON_LABELS: Record<string, string> = {
+  wooden_stand: "Wooden stand (included)",
+  bundle_essential: "Essential Gift Bundle",
+  bundle_signature: "Signature Gift Bundle",
+  bundle_mug: "Included: Custom Pet Mug",
+  bundle_digital: "Included: Hi-Res Digital Download",
+  bundle_magnet: "Included: Custom Fridge Magnet",
+  packaging_standard: "Included: Standard Gift Packaging",
+  packaging_premium: "Included: Premium Gift Packaging",
+  greeting_card: "Personalised Greeting Card",
+};
+
+function newProductAddonLabel(token: string) {
+  return Object.prototype.hasOwnProperty.call(NEW_PRODUCT_ADDON_LABELS, token) ? NEW_PRODUCT_ADDON_LABELS[token] : null;
+}
+
+function addonTokenList(addon: string | null | undefined) {
+  return String(addon || "")
+    .split(",")
+    .map((token) => token.trim())
+    .filter(Boolean);
+}
+
+/** True when the add-on list carries a Desk Portrait / Gift Bundle token. */
+export function hasNewProductAddon(addon: string | null | undefined) {
+  return addonTokenList(addon).some((token) => newProductAddonLabel(token) !== null);
+}
+
+/**
+ * Staff/vendor text for `orders.addon`. Only the Desk Portrait / Gift Bundle tokens are relabelled; any other
+ * add-on list comes back exactly as stored, so existing orders read the same as before.
+ */
+export function readableAddon(addon: string | null | undefined) {
+  const raw = String(addon || "");
+  if (!hasNewProductAddon(raw)) return raw;
+  return addonTokenList(raw)
+    .map((token) => newProductAddonLabel(token) || token)
+    .join(", ");
+}
+
+/** One readable work item per token, for the Desk Portrait / Gift Bundle only (empty for every other order). */
+export function newProductWorkItems(addon: string | null | undefined) {
+  if (!hasNewProductAddon(addon)) return [] as string[];
+  return addonTokenList(addon).map((token) => newProductAddonLabel(token) || token);
+}
+
+function productTypeOf(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as { product_type?: unknown }).product_type : undefined;
+}
+
+/** The stored Desk Portrait details, or null for any other order. */
+export function deskOrderDetails(value: unknown): DeskOrderDetails | null {
+  return productTypeOf(value) === "mini_desk" ? (value as DeskOrderDetails) : null;
+}
+
+/** The stored Signature Gift Bundle details, or null for any other order. */
+export function bundleOrderDetails(value: unknown): BundleOrderDetails | null {
+  return productTypeOf(value) === "gift_bundle" ? (value as BundleOrderDetails) : null;
+}
+
+/** "Desk Portrait" / "Signature Gift Bundle" from the stored details or the add-on tokens; "" for every other order. */
+export function newProductName(addon: string | null | undefined, details?: unknown) {
+  if (deskOrderDetails(details)) return "Desk Portrait";
+  if (bundleOrderDetails(details)) return "Signature Gift Bundle";
+  const tokens = addonTokenList(addon);
+  if (tokens.includes("bundle_essential") || tokens.includes("bundle_signature")) return "Signature Gift Bundle";
+  if (tokens.includes("wooden_stand")) return "Desk Portrait";
+  return "";
+}
+
+/** Plain-text production lines for a Desk Portrait / Gift Bundle (vendor notes). Empty for every other order. */
+export function newProductSummaryLines(details: unknown): string[] {
+  const desk = deskOrderDetails(details);
+  if (desk) {
+    const count = Number(desk.pet_count) || 1;
+    const colour = desk.background_colour;
+    return [
+      `Desk Portrait: ${count} ${count === 1 ? "pet" : "pets"}, ${desk.layout_orientation === "horizontal" ? "horizontal" : "vertical"} layout`,
+      colour ? `Background colour: ${[colour.label || colour.id, colour.hex].filter(Boolean).join(" ")}` : "",
+      desk.pet_names ? `Pet name(s): ${desk.pet_names}` : "",
+      desk.subtitle_enabled && desk.subtitle ? `Subtitle: ${desk.subtitle}` : "",
+      "Wooden stand: Included",
+      desk.production_size ? `Production size: ${desk.production_size}` : "",
+      desk.quantity > 1 ? `Quantity: ${desk.quantity}` : "",
+    ].filter(Boolean);
+  }
+  const bundle = bundleOrderDetails(details);
+  if (bundle) {
+    const items = Array.isArray(bundle.included_items) ? bundle.included_items : [];
+    const card = bundle.greeting_card;
+    const portrait = [
+      bundle.portrait_style === "canvas" ? "Canvas" : "Framed",
+      bundle.size,
+      bundle.portrait_style === "canvas" ? "" : bundle.frame ? `${bundle.frame} frame` : "",
+    ].filter(Boolean);
+    return [
+      `Signature Gift Bundle: ${bundle.bundle_label || bundle.bundle_tier}`,
+      `Portrait: ${portrait.join(", ")}`,
+      bundle.background ? `Background: ${bundle.background.label || bundle.background.id}` : "",
+      bundle.pet_name_enabled && bundle.pet_name ? `Pet name: ${bundle.pet_name}` : "",
+      bundle.subtitle_enabled && bundle.subtitle ? `Subtitle: ${bundle.subtitle}` : "",
+      items.length ? `Included (make and pack): ${items.map((item) => item.label || item.id).join(", ")}` : "",
+      card?.selected ? `Personalised Greeting Card message: ${card.message}` : "Personalised Greeting Card: Not selected",
+      bundle.quantity > 1 ? `Quantity: ${bundle.quantity}` : "",
+    ].filter(Boolean);
+  }
+  return [];
 }

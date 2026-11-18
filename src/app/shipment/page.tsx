@@ -15,7 +15,7 @@ import { OrderTimeline } from "@/components/OrderTimeline";
 import { PasswordInput } from "@/components/PasswordInput";
 import { sectionTabClass } from "@/components/admin/DeskSwitch";
 import { buttonClass, DeskLogo, errorClass, ghostButtonClass, inputClass, okClass, warnClass } from "@/components/admin/ui";
-import { safeTrackingUrl, shipperCanAddTracking, shipperCanMarkDelivered, stageLabel } from "@/lib/fulfillment";
+import { readableAddon, safeTrackingUrl, shipperCanAddTracking, shipperCanMarkDelivered, stageLabel } from "@/lib/fulfillment";
 import { isWatermarkedProof, storedPetPhotoUrl } from "@/lib/pet-photo";
 
 type Section = "overview" | "orders";
@@ -427,7 +427,7 @@ function ShipmentCard({
               </p>
               <p className="break-words">{address || "No shipping address saved"}</p>
               <p className="text-[#6b7280]">
-                {[order.size, order.frame_style, order.addon, order.gift_wrap ? "Gift wrap" : ""].filter(Boolean).join(" · ")}
+                {[order.size, order.frame_style, readableAddon(order.addon), order.gift_wrap ? "Gift wrap" : ""].filter(Boolean).join(" · ")}
               </p>
               {Number(order.cod_due) > 0 ? <p>Cash on delivery due ₹{Math.round(Number(order.cod_due)).toLocaleString("en-IN")}</p> : <p>Prepaid</p>}
               {order.memorial_text ? <p className="break-words">Memorial text: {order.memorial_text}</p> : null}

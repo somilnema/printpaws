@@ -20,8 +20,8 @@ import {
   slotUrl,
   type LandingAnnouncement,
 } from "@/lib/landing-content";
-import { listPublicLandingProducts, productIsPurchasable } from "@/lib/landing-products";
-import { PORTRAITS, cardPhoto, startingPrice, type PetPreset } from "@/lib/portraits";
+import { launchProductForSlug, listPublicLandingProducts, productIsPurchasable } from "@/lib/landing-products";
+import { PORTRAITS, cardPhoto, productStartingPrice, startingPrice, type PetPreset } from "@/lib/portraits";
 import { formatRupee, type PortraitStyle } from "@/lib/pricing";
 import { loadLandingContent, loadProductContent } from "@/lib/site-content";
 import { loadSiteMedia } from "@/lib/site-media";
@@ -54,7 +54,7 @@ async function liveAnnouncements(messages: LandingAnnouncement[]) {
 
 export default async function LandingPage() {
   const content = loadLandingContent();
-  const [media, { catalog }, copy, announcements, landingProducts, multiPet, youPet] = await Promise.all([
+  const [media, { catalog }, copy, announcements, landingProducts, multiPet, youPet, miniDesk, giftBundle] = await Promise.all([
     loadSiteMedia(),
     loadPriceCatalog(),
     content,
@@ -62,39 +62,60 @@ export default async function LandingPage() {
     listPublicLandingProducts(),
     loadProductContent("multi_pet"),
     loadProductContent("you_and_your_pet"),
+    loadProductContent("mini_desk"),
+    loadProductContent("gift_bundle"),
   ]);
   const resolve = (key: string) => resolveMediaUrl(key, media);
 
   // Multi-Pet keeps some sizes off sale per pet count, You & Your Pet per composition: "From" skips them.
-  const sizeRules: Partial<Record<ConfiguratorProduct, EverydayContent>> = { multi_pet: multiPet, you_and_your_pet: youPet };
+  const sizeRules: Partial<Record<ConfiguratorProduct, EverydayContent>> = {
+    multi_pet: multiPet,
+    you_and_your_pet: youPet,
+    mini_desk: miniDesk,
+    gift_bundle: giftBundle,
+  };
   const hiddenSizes = (slug: string, pets: PetPreset) => {
     const product = configuratorForSlug(slug);
-    const rules = product ? sizeRules[product] : undefined;
+    const rules = product && product !== "mini_desk" && product !== "gift_bundle" ? sizeRules[product] : undefined;
     if (!rules) return undefined;
     // The card opens Multi-Pet on its pet count and You & Your Pet on Me & My Pet.
     const rule = pets === "human" ? "solo" : pets;
     return (style: PortraitStyle, size: string) => sizeHiddenForPets(rules, rule, style, size);
   };
 
-  const source = landingProducts ?? PORTRAITS.map((portrait) => ({
-    slug: portrait.slug,
-    name: portrait.name,
-    description: portrait.description,
-    imageUrl: "",
-    active: true,
-    kind: "portrait" as const,
-    pets: portrait.pets,
-    price: null,
-    forSale: Boolean(portrait.pets),
-    id: portrait.slug,
-    sortOrder: 0,
-  }));
+  // Without the table, Desk Portrait / Gift Bundle stay Coming soon: they are launched from Landing & home → Products.
+  const source = landingProducts ?? PORTRAITS.map((portrait) => {
+    const gated = Boolean(launchProductForSlug(portrait.slug));
+    return {
+      slug: portrait.slug,
+      name: portrait.name,
+      description: portrait.description,
+      imageUrl: "",
+      active: true,
+      kind: gated ? ("fixed" as const) : ("portrait" as const),
+      pets: gated ? null : portrait.pets,
+      price: null,
+      forSale: gated ? false : Boolean(portrait.pets),
+      id: portrait.slug,
+      sortOrder: 0,
+    };
+  });
+
+  /** Desk Portrait / Gift Bundle "From" price: their own Pricing panels (and admin hides), never the row's price. */
+  const launchPrice = (slug: string) => {
+    const product = launchProductForSlug(slug);
+    if (!product) return null;
+    const value = productStartingPrice(slug, catalog, sizeRules[product]);
+    return value != null && value > 0 ? formatRupee(value) : null;
+  };
 
   const cards: PortraitCard[] = source.map((product) => {
     const sellable = productIsPurchasable(product);
     const price = !sellable
       ? null
-      : product.kind === "fixed" && product.price
+      : launchProductForSlug(product.slug)
+        ? launchPrice(product.slug)
+        : product.kind === "fixed" && product.price
         ? formatRupee(product.price)
         : product.pets
           ? formatRupee(startingPrice(catalog, product.pets, hiddenSizes(product.slug, product.pets)))

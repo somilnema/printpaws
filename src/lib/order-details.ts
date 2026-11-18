@@ -1,11 +1,15 @@
 import "server-only";
 
-import { readOrderDetails, type OrderDetails } from "@/lib/product-order";
+import { readOrderDetails, type AnyOrderDetails } from "@/lib/product-order";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
-/** Multi-Pet / You & Your Pet details per order. Empty until supabase/configurator-orders.sql has been run. */
-export async function orderDetailsFor(ids: string[]): Promise<Map<string, OrderDetails>> {
-  const out = new Map<string, OrderDetails>();
+/**
+ * Structured details per order: Multi-Pet / You & Your Pet (OrderDetails), Desk Portrait (DeskOrderDetails) or
+ * Signature Gift Bundle (BundleOrderDetails); narrow with isFlowOrderDetails / isDeskOrderDetails / isBundleOrderDetails.
+ * Empty until supabase/configurator-orders.sql has been run.
+ */
+export async function orderDetailsFor(ids: string[]): Promise<Map<string, AnyOrderDetails>> {
+  const out = new Map<string, AnyOrderDetails>();
   const unique = [...new Set(ids.filter(Boolean))];
   if (!unique.length) return out;
   const { data, error } = await supabaseAdmin

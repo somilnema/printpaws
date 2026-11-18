@@ -20,20 +20,22 @@ import { Footer } from "@/components/Footer";
 import { SiteMediaProvider } from "@/components/SiteMedia";
 import { ViewContentPixel } from "@/components/ViewContentPixel";
 import { OfferCheckout } from "@/components/landing/OfferCheckout";
-import { getLandingProduct, productIsPurchasable } from "@/lib/landing-products";
+import { configuratorLaunched, getLandingProduct, launchProductForSlug, productIsPurchasable } from "@/lib/landing-products";
 import { calculateQuote, formatRupee } from "@/lib/pricing";
 import { SELLABLE_PORTRAITS, portraitBySlug } from "@/lib/portraits";
 import { loadSiteMedia } from "@/lib/site-media";
 import { loadLandingContent, loadProductContent } from "@/lib/site-content";
 import { CONFIGURATOR_MEDIA, configuratorForSlug } from "@/lib/everyday-content";
 import { loadPriceCatalog, loadShopCatalog } from "@/lib/store-config";
+import { getAdminSession } from "@/lib/admin-auth";
 
 type PortraitPageProps = { params: Promise<{ slug: string }> };
 
 export const dynamicParams = true;
 
 export function generateStaticParams() {
-  return SELLABLE_PORTRAITS.map(({ slug }) => ({ slug }));
+  // Desk Portrait / Gift Bundle stay "Coming soon" until launched in Admin → Landing & home → Products: rendered on request.
+  return SELLABLE_PORTRAITS.filter(({ slug }) => !launchProductForSlug(slug)).map(({ slug }) => ({ slug }));
 }
 
 export async function generateMetadata({ params }: PortraitPageProps): Promise<Metadata> {
@@ -48,7 +50,14 @@ export async function generateMetadata({ params }: PortraitPageProps): Promise<M
 export default async function PortraitPage({ params }: PortraitPageProps) {
   const slug = (await params).slug;
   const stored = await getLandingProduct(slug);
-  if (stored?.kind === "fixed") {
+  // Desk Portrait / Signature Gift Bundle open their configurator only once the admin launches the stored row (a row
+  // seeded as 'fixed' counts once marked for sale). Never sold as a fixed-price offer; no row or not launched → 404.
+  const launch = launchProductForSlug(slug);
+  // A signed-in admin can preview an unlaunched Desk Portrait / Gift Bundle page; customers still get 404.
+  const unlaunched = Boolean(launch && (!stored || !configuratorLaunched(stored)));
+  const adminPreview = unlaunched ? Boolean(await getAdminSession()) : false;
+  if (unlaunched && !adminPreview) notFound();
+  if (stored?.kind === "fixed" && !launch) {
     if (!productIsPurchasable(stored) || stored.price == null) notFound();
     const [{ catalog }, landing] = await Promise.all([loadPriceCatalog(), loadLandingContent()]);
     const base = {
@@ -82,8 +91,12 @@ export default async function PortraitPage({ params }: PortraitPageProps) {
     );
   }
 
-  const portrait = stored?.kind === "portrait" && stored.pets ? stored : portraitBySlug(slug);
-  if (!portrait?.pets || (stored && !productIsPurchasable(stored))) notFound();
+  const portrait = launch
+    ? { slug, name: stored?.name || portraitBySlug(slug)?.name || slug, pets: "one" as const }
+    : stored?.kind === "portrait" && stored.pets
+      ? stored
+      : portraitBySlug(slug);
+  if (!portrait?.pets || (stored && !adminPreview && !productIsPurchasable(stored))) notFound();
   // Everyday, Multi-Pet and You & Your Pet share the three-step configurator, each with its own admin content.
   const configurator = configuratorForSlug(portrait.slug);
   const [media, everydayContent, catalog, landing] = await Promise.all([

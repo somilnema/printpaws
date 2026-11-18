@@ -38,6 +38,9 @@ import {
   displaySizeLabel,
   extraProductLines,
   extrasTotal,
+  bundleTierAmount,
+  deskExtraPetAmount,
+  greetingCardAmount,
   firstAvailablePets,
   firstAvailableSize,
   firstAvailableStyle,
@@ -74,11 +77,21 @@ import {
   defaultContent,
   fill,
   isConfiguratorProduct,
+  isNewProduct,
   limitedBackgroundIds,
   sizeHiddenForPets,
+  bundleIncludedExtras,
+  bundleInclusions,
+  deskLayout,
+  greetingOffered,
+  visibleDeskColours,
+  type BundleTier,
   type ConfiguratorProduct,
+  type DeskPets,
   type EverydayContent,
   type ExtraId,
+  type NewProduct,
+  type PetTypeId,
 } from "@/lib/everyday-content";
 import {
   enabledMethods,
@@ -93,6 +106,8 @@ import {
   type Composition,
   type FlowProduct,
   type PhotoMethod,
+  newProductSlotKeys,
+  type NewProductPayload,
 } from "@/lib/product-order";
 import { CompositionCards, PetCountCards } from "@/components/everyday/ProductChoice";
 import { NamesSection, TributeSection } from "@/components/everyday/ProductPersonalize";
@@ -103,6 +118,12 @@ import { EverydayUploadStep } from "@/components/everyday/EverydayUploadStep";
 import { SaveOfferModal } from "@/components/SaveOfferModal";
 import { SAVE_OFFER_STORAGE_KEY, SAVE_WHEEL, pickSaveOfferIndex, saveOfferRule } from "@/lib/save-offer";
 import { DeliveryEstimate } from "@/components/DeliveryEstimate";
+import { DeskChooseStep } from "@/components/desk/DeskChooseStep";
+import { DeskPersonalizeStep } from "@/components/desk/DeskPersonalizeStep";
+import { PhotoSlots, type PhotoSlotSpec } from "@/components/newproduct/PhotoSlots";
+import { BundleTierCards } from "@/components/bundle/BundleTierCards";
+import { GreetingCardSection } from "@/components/bundle/GreetingCardSection";
+import { PetDetailsSection } from "@/components/bundle/PetDetailsSection";
 import { PortraitStyleInfographic } from "@/components/PortraitStylePreview";
 
 
@@ -146,7 +167,7 @@ function cartGroup(owner: CartOwner) {
 
 /** Which configurator owns a saved cart. Older carts only saved the pet choice. */
 function cartProductOf(saved: SavedCart): CartOwner {
-  if (saved.cartProduct === "standard" || isConfiguratorProduct(saved.cartProduct)) {
+  if (saved.cartProduct === "standard" || isConfiguratorProduct(saved.cartProduct) || isNewProduct(saved.cartProduct)) {
     return saved.cartProduct as ConfiguratorProduct | "standard";
   }
   const pets = String(saved.selectedPets || "");
@@ -184,9 +205,25 @@ function foreignCartPath(page: CartOwner): string | null {
   }
 }
 
-/** Multi-Pet / You & Your Pet keep their unfinished choices here, whichever page owns the cart. */
-function draftKey(product: FlowProduct) {
+/** Multi-Pet / You & Your Pet / Desk Portrait / Gift Bundle keep their unfinished choices here, whichever page owns the cart. */
+function draftKey(product: FlowProduct | NewProduct) {
   return `peternity_draft_${product}`;
+}
+
+const DESK_PET_IDS = ["one", "two", "three"] as const;
+
+/** Desk Portrait pet count from a stored / admin number (1..3). */
+function clampDeskPets(value: unknown): DeskPets {
+  const n = Math.round(Number(value));
+  return n === 2 ? 2 : n === 3 ? 3 : 1;
+}
+
+function isBundleTierId(value: unknown): value is BundleTier {
+  return value === "essential" || value === "signature";
+}
+
+function isPetTypeId(value: unknown): value is PetTypeId {
+  return value === "dog" || value === "cat" || value === "other";
 }
 
 function FieldError({ message }: { message?: string }) {
@@ -219,14 +256,22 @@ export function ProductInfo({
   const flowProduct: FlowProduct | null = flow === "multi_pet" || flow === "you_and_your_pet" ? flow : null;
   const isMulti = flowProduct === "multi_pet";
   const isYouPet = flowProduct === "you_and_your_pet";
+  // Desk Portrait / Signature Gift Bundle: Everyday design with their own steps (never FlowProducts).
+  const isDesk = flow === "mini_desk";
+  const isBundle = flow === "gift_bundle";
+  const newProduct: NewProduct | null = isDesk ? "mini_desk" : isBundle ? "gift_bundle" : null;
   const content = everydayContent ?? (configurator ? defaultContent(configurator) : DEFAULT_EVERYDAY_CONTENT);
+  const deskCopy = isDesk ? content.desk : undefined;
+  const bundleCopy = isBundle ? content.bundle : undefined;
   const flowCopy = flowProduct ? content.flow : undefined;
   const mediaPrefix = configurator ? CONFIGURATOR_MEDIA[configurator].prefix : "everyday";
   /** Pets value each product prices with: Everyday one pet, You & Your Pet "human", Multi-Pet the chosen count. */
   const productPets = (pets: string) =>
-    flow === "everyday"
+    flow === "everyday" || isBundle
       ? "one"
-      : isYouPet
+      : isDesk
+        ? DESK_PET_IDS[deskPets - 1] || "one"
+        : isYouPet
         ? "human"
         : isMulti
           ? (MULTI_PET_COUNTS as readonly string[]).includes(pets)
@@ -274,7 +319,9 @@ export function ProductInfo({
   const [giftWrap, setGiftWrap] = useState(false);
   const [priorityPreview, setPriorityPreview] = useState(everyday && content.step2.showPriority && content.step2.priorityDefaultOn);
   const [includePetName, setIncludePetName] = useState(everyday && content.step2.petNameDefaultOn);
-  const [includeSubtitle, setIncludeSubtitle] = useState(everyday && content.step2.subtitleDefaultOn);
+  const [includeSubtitle, setIncludeSubtitle] = useState(
+    isDesk ? Boolean(content.desk?.subtitleDefaultOn) : everyday && content.step2.subtitleDefaultOn
+  );
   const [subtitle, setSubtitle] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderStatus, setOrderStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -326,6 +373,21 @@ export function ProductInfo({
   const [photoMethod, setPhotoMethod] = useState<PhotoMethod>("group");
   const [confirmGroup, setConfirmGroup] = useState(false);
   const [artistNote, setArtistNote] = useState("");
+  // Desk Portrait / Signature Gift Bundle only.
+  const deskColourList = isDesk ? visibleDeskColours(content) : [];
+  const deskColourDefault =
+    deskColourList.find((colour) => colour.id === content.desk?.defaultColour)?.id || deskColourList[0]?.id || "";
+  const [deskPets, setDeskPets] = useState<DeskPets>(() => clampDeskPets(content.desk?.defaultPets));
+  const [deskColour, setDeskColour] = useState(deskColourDefault);
+  const [deskNames, setDeskNames] = useState("");
+  const [bundleTier, setBundleTier] = useState<BundleTier | "">(() =>
+    isBundleTierId(content.bundle?.defaultTier) ? (content.bundle?.defaultTier as BundleTier) : ""
+  );
+  const [greetingCard, setGreetingCard] = useState(false);
+  const [greetingMessage, setGreetingMessage] = useState("");
+  const [petType, setPetType] = useState<PetTypeId | "">("");
+  const [petBreed, setPetBreed] = useState("");
+  const [petAge, setPetAge] = useState("");
   // Path of the page whose portrait is already in the cart, when this page can't show it.
   const foreignCartRef = useRef<string | null>(null);
   const pageOwner: CartOwner = configurator ?? "standard";
@@ -352,12 +414,52 @@ export function ProductInfo({
   const groupConfirmNeeded = Boolean(flowCopy && flowShape && needsGroupConfirm(flowCopy, flowShape));
   const tributeOn = isMulti && tribute && Boolean(flowCopy?.showTribute);
   // Size rules: Multi-Pet per pet count, You & Your Pet per composition.
-  const sizeRule = isMulti ? pricedPets : isYouPet ? composition : "";
+  const sizeRule = isMulti ? pricedPets : isYouPet ? composition : isBundle ? bundleTier : "";
   const haloPetName = haloPet ? (nameList[haloPet - 1] || "").trim() : "";
   // A named pet is easy to find; otherwise the customer says which one gets the halo.
   // A name alone does not show which animal it is in a group photo (handoff p11), so ask whenever a halo pet is chosen.
   // Blanking the label in the admin turns the question off (the server then stops requiring it too).
   const haloNoteNeeded = tributeOn && Boolean(haloPet) && Boolean(flowCopy?.tributeNoteLabel.trim());
+  // Desk Portrait / Gift Bundle photos live in `uploads` too (keys "pet-1".."pet-N").
+  const deskPetsLabel = deskCopy
+    ? deskPets === 1
+      ? deskCopy.onePetLabel
+      : fill(deskCopy.manyPetsLabel, { count: deskPets })
+    : "";
+  const deskLayoutLabel = deskCopy
+    ? deskLayout(deskPets) === "vertical"
+      ? deskCopy.verticalLabel
+      : deskCopy.horizontalLabel
+    : "";
+  const deskNameParts = deskNames
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
+  const bundlePhotoLabel = (() => {
+    const text = content.step3.uploadHeading.replace(/^\s*\d+\.\s*/, "").replace(/^upload\s+/i, "").trim();
+    return text ? text.charAt(0).toUpperCase() + text.slice(1) : "Your pet's photo";
+  })();
+  const newSlotKeys = newProduct ? newProductSlotKeys(newProduct, { numPets: pricedPets }) : [];
+  const newSlotSpecs: PhotoSlotSpec[] = newSlotKeys.map((key, index) => ({
+    key,
+    label: isDesk
+      ? `${fill(deskCopy?.slotLabel || "Pet {n}", { n: index + 1 })}${
+          deskNameParts.length === deskPets && deskNameParts[index] ? ` · ${deskNameParts[index]}` : ""
+        }`
+      : bundlePhotoLabel,
+  }));
+  const newSlotError = deskCopy?.slotError || content.step3.photoError;
+  const newUploading = newSlotKeys.some((key) => uploads.slots[key]?.status === "uploading");
+  // Before a bundle is chosen, prices show the first bundle on offer.
+  const quoteTier: BundleTier =
+    bundleTier || (bundleCopy && !bundleCopy.essentialVisible && bundleCopy.signatureVisible ? "signature" : "essential");
+  const greetingPrice = isBundle ? greetingCardAmount(catalog, { configurator: "gift_bundle", greetingCard: true }) : 0;
+  const greetingIsOffered = isBundle && greetingOffered(content, bundleTier) && greetingPrice >= 1;
+  const greetingOn = greetingIsOffered && greetingCard;
+  const deskExtraAmount = isDesk ? deskExtraPetAmount(catalog, pricedPets) : 0;
+  const deskColourLabel = deskColourList.find((colour) => colour.id === deskColour)?.label || deskColour;
+  const deskProductionSize = deskCopy?.productionSize || "Desk Portrait (fixed size)";
+  const bundleIncluded: ExtraId[] = isBundle ? bundleIncludedExtras(quoteTier) : [];
 
   useEffect(() => {
     const today = new Date();
@@ -462,6 +564,20 @@ export function ProductInfo({
       if (typeof src.includePetName === "boolean") setIncludePetName(src.includePetName);
       if (typeof src.includeSubtitle === "boolean") setIncludeSubtitle(src.includeSubtitle);
       if (typeof src.subtitle === "string" && src.subtitle) setSubtitle(src.subtitle);
+      if (newProduct) {
+        if (src.deskPets !== undefined) setDeskPets(clampDeskPets(src.deskPets));
+        if (typeof src.deskColour === "string" && src.deskColour) setDeskColour(src.deskColour);
+        if (typeof src.deskNames === "string") setDeskNames(src.deskNames);
+        if (src.bundleTier === "" || isBundleTierId(src.bundleTier)) setBundleTier(src.bundleTier as BundleTier | "");
+        if (typeof src.greetingCard === "boolean") setGreetingCard(src.greetingCard);
+        if (typeof src.greetingMessage === "string") setGreetingMessage(src.greetingMessage);
+        if (src.petType === "" || isPetTypeId(src.petType)) setPetType(src.petType as PetTypeId | "");
+        if (typeof src.petBreed === "string") setPetBreed(src.petBreed);
+        if (typeof src.petAge === "string") setPetAge(src.petAge);
+        if (typeof src.petName === "string" && src.petName) setPetName(src.petName);
+        if (src.flowPhotos && typeof src.flowPhotos === "object") uploads.restore(src.flowPhotos as Record<string, SavedSlot>);
+        return;
+      }
       if (!flowProduct) return;
       if (src.composition === "solo" || src.composition === "family") setComposition(src.composition);
       if (Array.isArray(src.nameList)) setNameList(src.nameList.slice(0, 4).map((name: unknown) => String(name ?? "")));
@@ -512,9 +628,10 @@ export function ProductInfo({
           if (parsed.memorialText) setMemorialText(parsed.memorialText);
         }
       }
-      // Multi-Pet / You & Your Pet: unfinished work survives a visit to another product page.
-      if (flowProduct && !restoredOwnChoices) {
-        const draft = localStorage.getItem(draftKey(flowProduct));
+      // Multi-Pet / You & Your Pet / Desk / Bundle: unfinished work survives a visit to another product page.
+      const draftProduct = flowProduct ?? newProduct;
+      if (draftProduct && !restoredOwnChoices) {
+        const draft = localStorage.getItem(draftKey(draftProduct));
         if (draft) {
           applyChoices(JSON.parse(draft) as SavedCart);
           restoredOwnChoices = true;
@@ -528,6 +645,9 @@ export function ProductInfo({
       if (!cartHasPortrait) setSelectedPets("one");
     } else if (flowProduct) {
       if (!restoredOwnChoices) setSelectedPets(isYouPet ? "human" : "two");
+    } else if (newProduct) {
+      // Desk pets live in deskPets; the bundle is always one pet.
+      setSelectedPets("one");
     } else if (presetPets && !cartHasPortrait) {
       setSelectedPets(presetPets);
     }
@@ -589,12 +709,26 @@ export function ProductInfo({
             flowPhotos: uploads.savedSlots(),
           }
         : {}),
+      ...(newProduct
+        ? {
+            deskPets,
+            deskColour,
+            deskNames,
+            bundleTier,
+            greetingCard,
+            greetingMessage,
+            petType,
+            petBreed,
+            petAge,
+            flowPhotos: uploads.savedSlots(),
+          }
+        : {}),
     };
     try {
       localStorage.setItem('peternity_cart', JSON.stringify(cartState));
       
       const count = addedToCart
-        ? (1 + (addMagnet ? 1 : 0) + (addMug ? 1 : 0) + (addDigitalDownload ? 1 : 0) + (addDesk ? 1 : 0) + (giftWrap ? 1 : 0))
+        ? (1 + (addMagnet ? 1 : 0) + (addMug ? 1 : 0) + (addDigitalDownload ? 1 : 0) + (addDesk ? 1 : 0) + (giftWrap ? 1 : 0) + (greetingOn ? 1 : 0))
         : 0;
       window.dispatchEvent(new CustomEvent('cartBadgeUpdated', { detail: count }));
     } catch (e) {
@@ -648,14 +782,52 @@ export function ProductInfo({
     confirmGroup,
     artistNote,
     uploads.slots,
+    deskPets,
+    deskColour,
+    deskNames,
+    bundleTier,
+    greetingCard,
+    greetingMessage,
+    greetingOn,
+    petType,
+    petBreed,
+    petAge,
   ]);
 
-  // Multi-Pet / You & Your Pet draft, kept whichever page owns the cart (photos are saved links, never files).
+  // Multi-Pet / You & Your Pet / Desk / Bundle draft, kept whichever page owns the cart (photos are saved links, never files).
   useEffect(() => {
-    if (!flowProduct) return;
+    const draftProduct = flowProduct ?? newProduct;
+    if (!draftProduct) return;
     try {
+      if (newProduct) {
+        localStorage.setItem(
+          draftKey(newProduct),
+          JSON.stringify({
+            portraitStyle,
+            selectedSize,
+            selectedFrame,
+            selectedPets: pricedPets,
+            selectedBg,
+            includePetName,
+            includeSubtitle,
+            subtitle,
+            petName,
+            deskPets,
+            deskColour,
+            deskNames,
+            bundleTier,
+            greetingCard,
+            greetingMessage,
+            petType,
+            petBreed,
+            petAge,
+            flowPhotos: uploads.savedSlots(),
+          })
+        );
+        return;
+      }
       localStorage.setItem(
-        draftKey(flowProduct),
+        draftKey(draftProduct),
         JSON.stringify({
           portraitStyle,
           selectedSize,
@@ -703,6 +875,17 @@ export function ProductInfo({
     confirmGroup,
     artistNote,
     uploads.slots,
+    newProduct,
+    petName,
+    deskPets,
+    deskColour,
+    deskNames,
+    bundleTier,
+    greetingCard,
+    greetingMessage,
+    petType,
+    petBreed,
+    petAge,
   ]);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -738,10 +921,11 @@ export function ProductInfo({
 
   const pricingInput: PricingInput = {
     productType,
-    portraitStyle,
-    size: selectedSize,
+    // Desk Portrait has one fixed size and no style (the server ignores both for its price).
+    portraitStyle: isDesk ? "framed" : portraitStyle,
+    size: isDesk ? deskProductionSize : selectedSize,
     numPets: everyday ? pricedPets : selectedPets,
-    background: selectedBg,
+    background: isDesk ? deskColour : selectedBg,
     addon: everyday ? "none" : selectedAddOn,
     giftWrap,
     priorityPreview: everyday ? priorityPreview : false,
@@ -762,9 +946,20 @@ export function ProductInfo({
           tribute: isMulti ? tributeOn : undefined,
         }
       : {}),
+    ...(newProduct
+      ? {
+          configurator: newProduct,
+          bundleTier: isBundle ? quoteTier : undefined,
+          greetingCard: isBundle ? greetingOn : undefined,
+        }
+      : {}),
   };
-  // Multi-Pet / You & Your Pet charge Limited Edition for their own background list.
-  const quoteCatalog: PriceCatalog = flowProduct ? { ...catalog, limitedBackgrounds: limitedBackgroundIds(content) } : catalog;
+  // Multi-Pet / You & Your Pet / Gift Bundle charge Limited Edition for their own background list; Desk has none.
+  const quoteCatalog: PriceCatalog = isDesk
+    ? { ...catalog, limitedBackgrounds: [] }
+    : flowProduct || isBundle
+      ? { ...catalog, limitedBackgrounds: limitedBackgroundIds(content) }
+      : catalog;
 
   // Names exactly as the order needs them: one per pet (Multi-Pet), or the chosen composition (You & Your Pet).
   const orderNames = isMulti
@@ -775,7 +970,9 @@ export function ProductInfo({
         : [familyNames.trim()]
       : [];
   const flowNamesText = (isYouPet && composition === "solo" ? orderNames.filter(Boolean).join(" & ") : orderNames.filter(Boolean).join(", "));
-  const effectivePetName = flowProduct
+  const effectivePetName = isDesk
+    ? deskNames.trim()
+    : flowProduct
     ? includePetName
       ? flowNamesText
       : ""
@@ -863,6 +1060,42 @@ export function ProductInfo({
     if (isMulti && !flowCopy?.showTribute && tribute) setTribute(false);
   }, [isMulti, flowCopy?.showTribute, tribute]);
 
+  // Desk Portrait: a colour the admin has hidden falls back to the default / first one on show.
+  const deskColourIds = deskColourList.map((colour) => colour.id).join("|");
+  useEffect(() => {
+    if (!isDesk || addedToCart) return;
+    const ids = deskColourIds.split("|").filter(Boolean);
+    if (ids.length && !ids.includes(deskColour)) setDeskColour(deskColourDefault);
+  }, [isDesk, deskColourIds, deskColour, deskColourDefault, addedToCart]);
+
+  // Desk Portrait: a pet count the admin hides moves back to one pet (its extra photos go with it).
+  const deskTwoOn = deskCopy?.showTwoPets !== false;
+  const deskThreeOn = deskCopy?.showThreePets !== false;
+  useEffect(() => {
+    if (!isDesk) return;
+    if ((deskPets === 2 && !deskTwoOn) || (deskPets === 3 && !deskThreeOn)) {
+      setDeskPets(1);
+      uploads.removeMany(Object.keys(uploads.slots).filter((key) => /^pet-[2-9]$/.test(key)));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDesk, deskPets, deskTwoOn, deskThreeOn]);
+
+  // Gift Bundle: the greeting card goes when it is no longer offered with this bundle.
+  useEffect(() => {
+    if (isBundle && !greetingIsOffered && greetingCard) setGreetingCard(false);
+  }, [isBundle, greetingIsOffered, greetingCard]);
+
+  // Gift Bundle: what the bundle already includes is never added again as a paid extra.
+  const bundleIncludedIds = bundleIncluded.join("|");
+  useEffect(() => {
+    if (!isBundle) return;
+    const ids = bundleIncludedIds.split("|");
+    if (ids.includes("mug")) setAddMug(false);
+    if (ids.includes("magnet")) setAddMagnet(false);
+    if (ids.includes("digital")) setAddDigitalDownload(false);
+    if (ids.includes("desk")) setAddDesk(false);
+  }, [isBundle, bundleIncludedIds, addMug, addMagnet, addDigitalDownload, addDesk]);
+
   const backgroundLabel = (id: string) =>
     content.backgrounds.find((bg) => bg.id === id)?.label || backgroundById(id)?.label || id;
 
@@ -942,6 +1175,11 @@ export function ProductInfo({
       errors.pets = content.step1.unavailableLabel;
       setWarningMessage(errors.pets);
     }
+    // Gift Bundle: a bundle must be chosen (nothing is preselected).
+    if (isBundle && !bundleTier) {
+      errors.tier = bundleCopy?.tierError || content.step1.unavailableLabel;
+      setWarningMessage(errors.tier);
+    }
     // Only sizes the admin offers for this many pets / this composition may continue.
     if (sizeRule && sizeHiddenForPets(content, sizeRule, portraitStyle, selectedSize)) {
       errors.size = flowCopy
@@ -965,6 +1203,15 @@ export function ProductInfo({
       errors.haloPet = flowCopy?.tributeError || "Choose the pet who should have the halo.";
     } else if (haloNoteNeeded && !haloNote.trim()) {
       errors.haloNote = flowCopy?.tributeNoteError || "Please tell us which pet should have the halo.";
+    }
+    // Desk Portrait: a colour on show and the pet name(s) are required.
+    if (isDesk) {
+      if (!deskColourList.some((colour) => colour.id === deskColour)) errors.colour = content.step1.unavailableLabel;
+      if (!deskNames.trim()) errors.names = deskCopy?.namesError || "Please enter your pet's name to continue.";
+    }
+    // Gift Bundle: the greeting card needs its message.
+    if (greetingOn && !greetingMessage.trim()) {
+      errors.greeting = bundleCopy?.greetingError || "Please write the message for your greeting card.";
     }
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
@@ -990,6 +1237,13 @@ export function ProductInfo({
         }
       }
       if (groupConfirmNeeded && !confirmGroup) errors.confirmGroup = flowCopy.confirmGroupError;
+    }
+    if (newProduct) {
+      for (const spec of newSlotSpecs) {
+        const state = uploads.slots[spec.key];
+        if (state?.status === "error") errors[`photo:${spec.key}`] = state.error || content.step3.uploadFailedLabel;
+        else if (!state) errors[`photo:${spec.key}`] = fill(newSlotError, { slot: spec.label });
+      }
     }
     if (!customerName.trim()) {
       errors.customerName = everyday ? content.step3.nameError : "Please enter your full name to continue.";
@@ -1031,6 +1285,44 @@ export function ProductInfo({
     if (customerEmail.trim() && !isValidEmail(customerEmail)) return content.step3.emailError;
     return "";
   })();
+  // Desk Portrait / Gift Bundle: same rule, for their "pet-N" photos.
+  const newBlocker = (() => {
+    if (!newProduct) return "";
+    if (newUploading) return deskCopy?.uploadsPendingLabel || content.flow?.uploadsPendingLabel || content.step3.photoError;
+    for (const spec of newSlotSpecs) {
+      const state = uploads.slots[spec.key];
+      if (state?.status === "error") return state.error || content.step3.uploadFailedLabel;
+      if (state?.status !== "saved") return fill(newSlotError, { slot: spec.label });
+    }
+    if (!customerName.trim()) return content.step3.nameError;
+    if (!isValidIndianMobile(customerPhone)) return content.step3.phoneError;
+    if (customerEmail.trim() && !isValidEmail(customerEmail)) return content.step3.emailError;
+    return "";
+  })();
+  const cartBlocker = flowProduct ? flowBlocker : newBlocker;
+  const newPreviewUrl = newSlotKeys.map((key) => uploads.slots[key]?.previewUrl || "").find(Boolean) || "";
+
+  /** Desk Portrait / Gift Bundle: waits for every slot photo; returns the first photo and all saved links. */
+  const ensureNewPhotos = async () => {
+    const urls = await uploads.ensure(newSlotKeys);
+    const missing = newSlotSpecs.find((spec) => !urls[spec.key]);
+    if (missing) throw new Error(fill(newSlotError, { slot: missing.label }));
+    return { primary: urls[newSlotKeys[0]] || "", urls };
+  };
+
+  /** Desk Portrait pet count. Photos for pets taken out go after a confirmation. */
+  const chooseDeskPets = (next: DeskPets) => {
+    if (!isDesk || next === deskPets) return;
+    const removedSlots = Object.keys(uploads.slots).filter((key) => {
+      const petSlot = /^pet-(\d+)$/.exec(key);
+      return petSlot ? Number(petSlot[1]) > next : false;
+    });
+    if (removedSlots.length && deskCopy?.petRemoveConfirm && !window.confirm(deskCopy.petRemoveConfirm)) return;
+    setDeskPets(next);
+    uploads.removeMany(removedSlots);
+    for (const key of removedSlots) clearFieldError(`photo:${key}`);
+  };
+
   const flowPrimaryKey =
     slotList.find((spec) => spec.role === "group" && uploads.slots[spec.key])?.key ||
     slotList.find((spec) => uploads.slots[spec.key])?.key ||
@@ -1133,6 +1425,16 @@ export function ProductInfo({
         }));
         return;
       }
+    } else if (newProduct) {
+      try {
+        await ensureNewPhotos();
+      } catch (err) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          photo: err instanceof Error ? err.message : content.step3.photoError,
+        }));
+        return;
+      }
     } else if (everyday && (productType === "portrait" || productType === "digital_download")) {
       try {
         const url = await ensurePhotoUploaded();
@@ -1173,13 +1475,36 @@ export function ProductInfo({
     });
   };
 
+  // Desk Portrait / Gift Bundle: the structured order the server rebuilds and checks (contract §4).
+  const newProductPayload = (urls?: Record<string, string>): NewProductPayload | null =>
+    newProduct
+      ? {
+          configurator: newProduct,
+          photos: newSlotKeys
+            .map((key) => ({ key, url: urls?.[key] || uploads.slots[key]?.url || "" }))
+            .filter((photo) => photo.url),
+          names: isDesk ? deskNames.trim() : includePetName ? petName.trim() : "",
+          namesEnabled: isDesk ? true : includePetName,
+          subtitleEnabled: includeSubtitle,
+          subtitle: includeSubtitle ? subtitle.trim() : "",
+          colour: isDesk ? deskColour : undefined,
+          bundleTier: isBundle && bundleTier ? bundleTier : undefined,
+          greetingCard: isBundle ? greetingOn : undefined,
+          greetingMessage: isBundle ? (greetingOn ? greetingMessage.trim() : "") : undefined,
+          petType: isBundle ? petType : undefined,
+          petBreed: isBundle ? petBreed.trim().slice(0, 40) : undefined,
+          petAge: isBundle ? ((content.bundleAges ?? []).includes(petAge) ? petAge : "") : undefined,
+        }
+      : null;
+
   const checkoutPayload = (photoUrl = "", flowUrls?: Record<string, string>) => ({
     ...pricingInput,
-    size: productType === "portrait" ? selectedSize : PRODUCT_LABELS[productType],
-    frameStyle: productType === "portrait" ? selectedFrame : productType,
+    size: productType === "portrait" ? (isDesk ? deskProductionSize : selectedSize) : PRODUCT_LABELS[productType],
+    frameStyle: productType === "portrait" ? (isDesk ? "desk_stand" : selectedFrame) : productType,
     numPets: productType === "portrait" ? (everyday ? pricedPets : selectedPets) : "one",
-    background: productType === "portrait" ? selectedBg : "",
-    backgroundLabel: productType === "portrait" && everyday ? backgroundLabel(selectedBg) : "",
+    background: productType === "portrait" ? (isDesk ? deskColour : selectedBg) : "",
+    backgroundLabel:
+      productType === "portrait" && everyday ? (isDesk ? deskColourLabel : backgroundLabel(selectedBg)) : "",
     addon: productType === "portrait"
       ? [
           everyday ? "" : selectedAddOn !== "none" ? selectedAddOn : "",
@@ -1191,10 +1516,10 @@ export function ProductInfo({
           everyday && addDesk ? "desk_portrait" : "",
         ].filter(Boolean).join(", ") || "none"
       : productType,
-    petName: effectivePetName || (flowProduct ? content.header.productName : PRODUCT_LABELS[productType]),
+    petName: effectivePetName || (flowProduct || newProduct ? content.header.productName : PRODUCT_LABELS[productType]),
     memorialText: everyday ? effectiveSubtitle : memorialText,
     giftWrap,
-    portraitStyle: productType === "portrait" ? portraitStyle : productType,
+    portraitStyle: productType === "portrait" ? (isDesk ? "framed" : portraitStyle) : productType,
     customerName,
     customerPhone,
     customerEmail,
@@ -1222,6 +1547,7 @@ export function ProductInfo({
           confirmGroup: groupConfirmNeeded ? confirmGroup : undefined,
         }
       : {}),
+    ...(newProductPayload(flowUrls) ?? {}),
   });
 
   const showPhotoUploadFail = (title: string, message: string) => {
@@ -1313,6 +1639,10 @@ export function ProductInfo({
         const ensured = await ensureFlowPhotos().catch(() => null);
         publicUrl = ensured?.primary || "";
         flowUrls = ensured?.urls;
+      } else if (newProduct) {
+        const ensured = await ensureNewPhotos().catch(() => null);
+        publicUrl = ensured?.primary || "";
+        flowUrls = ensured?.urls;
       } else {
         publicUrl = await ensurePhotoUploaded().catch(() => uploadedPhotoUrlRef.current);
       }
@@ -1334,6 +1664,7 @@ export function ProductInfo({
         setOrderStatus('success');
         localStorage.removeItem('peternity_cart');
         if (flowProduct) localStorage.removeItem(draftKey(flowProduct));
+        if (newProduct) localStorage.removeItem(draftKey(newProduct));
         window.location.assign(`/checkout/success?orderId=${encodeURIComponent(result.orderId)}`);
         return;
       }
@@ -1507,6 +1838,10 @@ export function ProductInfo({
         const ensured = await ensureFlowPhotos();
         photoUrl = ensured.primary;
         flowUrls = ensured.urls;
+      } else if (newProduct) {
+        const ensured = await ensureNewPhotos();
+        photoUrl = ensured.primary;
+        flowUrls = ensured.urls;
       } else {
         if (photoRequired || selectedFile) {
           photoUrl = await ensurePhotoUploaded();
@@ -1675,6 +2010,97 @@ export function ProductInfo({
             : null,
         ].filter(Boolean) as CartDetail[])
       : undefined;
+
+  // Desk Portrait / Gift Bundle cart card: only filled-in details are listed.
+  const newPhotoValue = newSlotSpecs
+    .filter((spec) => uploads.slots[spec.key])
+    .map((spec) => uploads.slots[spec.key]?.fileName || spec.label)
+    .join(", ");
+  const bundleTierTitle = (tier: BundleTier | "") =>
+    !bundleCopy || !tier ? "" : tier === "signature" ? bundleCopy.signatureTitle : bundleCopy.essentialTitle;
+  const petTypeLabel = !bundleCopy
+    ? ""
+    : petType === "dog"
+      ? bundleCopy.dogLabel
+      : petType === "cat"
+        ? bundleCopy.catLabel
+        : petType === "other"
+          ? bundleCopy.otherLabel
+          : "";
+  const petDetailsValue = [petTypeLabel, petBreed.trim(), petAge].filter(Boolean).join(" · ");
+  const inclusionLabel = (item: ReturnType<typeof bundleInclusions>[number]) => {
+    if (!bundleCopy) return item;
+    switch (item) {
+      case "portrait":
+        return bundleCopy.itemPortrait;
+      case "mug":
+        return bundleCopy.itemMug;
+      case "digital":
+        return bundleCopy.itemDigital;
+      case "magnet":
+        return bundleCopy.itemMagnet;
+      case "standard_packaging":
+        return bundleCopy.itemStandardPackaging;
+      case "premium_packaging":
+        return bundleCopy.itemPremiumPackaging;
+      default:
+        return String(item);
+    }
+  };
+  const newCartDetails: CartDetail[] | undefined =
+    isDesk && deskCopy
+      ? ([
+          { icon: "pets", label: deskCopy.petsCartLabel, value: deskPetsLabel },
+          { icon: "layout", label: deskCopy.layoutCartLabel, value: deskLayoutLabel },
+          { icon: "colour", label: deskCopy.colourCartLabel, value: deskColourLabel },
+          deskNames.trim() ? { icon: "name", label: deskCopy.namesCartLabel, value: deskNames.trim() } : null,
+          effectiveSubtitle ? { icon: "subtitle", label: content.cart.subtitleLabel, value: effectiveSubtitle } : null,
+          { icon: "stand", label: deskCopy.standCartLabel, value: deskCopy.standCartValue },
+          deskExtraAmount > 0
+            ? { icon: "pets", label: deskCopy.extraPetsCartLabel, value: `+${formatRupee(deskExtraAmount)}` }
+            : null,
+          { icon: "photos", label: deskCopy.photosCartLabel, value: newPhotoValue || "—", thumb: newPreviewUrl },
+        ].filter(Boolean) as CartDetail[])
+      : isBundle && bundleCopy
+        ? ([
+            { icon: "style", label: content.cart.styleLabel, value: cartStyleLabel },
+            { icon: "size", label: content.cart.sizeLabel, value: cartSizeLabel },
+            { icon: "background", label: content.cart.backgroundLabel, value: backgroundLabel(selectedBg) },
+            effectivePetName ? { icon: "name", label: content.cart.petNameLabel, value: effectivePetName } : null,
+            effectiveSubtitle ? { icon: "subtitle", label: content.cart.subtitleLabel, value: effectiveSubtitle } : null,
+            petDetailsValue ? { icon: "petdetails", label: bundleCopy.petDetailsCartLabel, value: petDetailsValue } : null,
+            { icon: "photos", label: content.cart.photoLabel, value: newPhotoValue || "—", thumb: newPreviewUrl },
+          ].filter(Boolean) as CartDetail[])
+        : undefined;
+  const newSummaryLine = isDesk
+    ? [deskPetsLabel, deskLayoutLabel].filter(Boolean).join(" · ")
+    : isBundle
+      ? [bundleTierTitle(bundleTier), cartStyleLabel, cartSizeLabel].filter(Boolean).join(" · ")
+      : "";
+  const bundleIncludedCard =
+    isBundle && bundleCopy && bundleTier
+      ? {
+          heading: bundleCopy.includedHeading,
+          value: bundleCopy.includedValue,
+          items: bundleInclusions(bundleTier).map(inclusionLabel),
+        }
+      : undefined;
+  // The greeting card is its own paid line, so the bundle line leaves its price out (totals still add up).
+  const greetingLineAmount = greetingOn ? Math.max(0, breakdown.greeting || 0) : 0;
+  const newExtraLines =
+    greetingOn && bundleCopy
+      ? [
+          {
+            id: "greeting_card",
+            label: bundleCopy.greetingCartLabel,
+            price: greetingLineAmount,
+            note: greetingMessage.trim() ? `${bundleCopy.greetingMessageCartLabel}: ${greetingMessage.trim()}` : undefined,
+          },
+        ]
+      : undefined;
+  const newVisibleExtras = (["mug", "magnet", "digital", "desk"] as ExtraId[]).filter(
+    (id) => content.extras[id].visible && !bundleIncluded.includes(id)
+  );
 
   const choosePortraitStyle = (style: PortraitStyle) => {
     // Tapping the style that is already chosen keeps the size and frame the customer picked.
@@ -1859,6 +2285,11 @@ export function ProductInfo({
               : ""}
           </p>
         ) : null}
+        {productType === "portrait" && isDesk && deskCopy && deskExtraAmount > 0 ? (
+          <p className="mt-1 text-[12px] font-medium text-[#8B7B6B]">
+            {`+${formatRupee(deskExtraAmount)} · ${deskPetsLabel}`}
+          </p>
+        ) : null}
         {productType === "portrait" && everyday && ((breakdown.priority || 0) + breakdown.premiumBg + (breakdown.tribute || 0) > 0) ? (
           <p className="mt-1 text-[12px] font-medium text-[#8B7B6B]">
             {[
@@ -1955,11 +2386,24 @@ export function ProductInfo({
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
-              {everyday ? (
+              {isDesk ? (
+                <DeskChooseStep
+                  content={content}
+                  catalog={catalog}
+                  mediaPrefix={mediaPrefix}
+                  petCount={deskPets}
+                  onPetCount={chooseDeskPets}
+                  onContinue={handleContinueFromStep1}
+                />
+              ) : everyday ? (
                 <EverydayChooseStep
                   content={content}
                   catalog={catalog}
-                  petsExtra={(catalog.pets[everyday ? pricedPets : selectedPets] ?? 0) + (isYouPet && composition === "family" ? Math.max(0, catalog.familyUpgrade) : 0)}
+                  petsExtra={
+                    isBundle
+                      ? bundleTierAmount(catalog, bundleTier || quoteTier)
+                      : (catalog.pets[everyday ? pricedPets : selectedPets] ?? 0) + (isYouPet && composition === "family" ? Math.max(0, catalog.familyUpgrade) : 0)
+                  }
                   mediaPrefix={mediaPrefix}
                   beforeStyle={
                     isYouPet ? (
@@ -1968,6 +2412,18 @@ export function ProductInfo({
                         catalog={catalog}
                         composition={composition}
                         onComposition={(next) => setComposition(next)}
+                      />
+                    ) : isBundle ? (
+                      <BundleTierCards
+                        content={content}
+                        catalog={catalog}
+                        mediaPrefix={mediaPrefix}
+                        tier={bundleTier}
+                        onTier={(next) => {
+                          setBundleTier(next);
+                          clearFieldError("tier");
+                        }}
+                        error={fieldErrors.tier}
                       />
                     ) : undefined
                   }
@@ -2146,7 +2602,32 @@ export function ProductInfo({
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
-              {everyday ? (
+              {isDesk ? (
+                <DeskPersonalizeStep
+                  content={content}
+                  colours={deskColourList}
+                  colour={deskColour}
+                  onColour={(id) => {
+                    setDeskColour(id);
+                    clearFieldError("colour");
+                  }}
+                  names={deskNames}
+                  onNames={(v) => {
+                    setDeskNames(v);
+                    clearFieldError("names");
+                  }}
+                  namesError={fieldErrors.names}
+                  includeSubtitle={includeSubtitle}
+                  onIncludeSubtitle={setIncludeSubtitle}
+                  subtitle={subtitle}
+                  onSubtitle={(v) => {
+                    setSubtitle(v);
+                    clearFieldError("subtitle");
+                  }}
+                  onContinue={() => void handleContinueFromStep2()}
+                  continueDisabled={!deskNames.trim() || !deskColourList.some((colour) => colour.id === deskColour)}
+                />
+              ) : everyday ? (
                 <EverydayPersonalizeStep
                   content={content}
                   portraitStyle={portraitStyle}
@@ -2245,7 +2726,29 @@ export function ProductInfo({
                             />
                           ),
                         }
-                      : undefined
+                      : isBundle && bundleCopy && greetingIsOffered
+                        ? {
+                            heading: bundleCopy.greetingHeading,
+                            render: (heading) => (
+                              <GreetingCardSection
+                                content={content}
+                                heading={heading}
+                                price={greetingPrice}
+                                on={greetingCard}
+                                onToggle={() => {
+                                  setGreetingCard(!greetingCard);
+                                  clearFieldError("greeting");
+                                }}
+                                message={greetingMessage}
+                                onMessage={(v) => {
+                                  setGreetingMessage(v);
+                                  clearFieldError("greeting");
+                                }}
+                                error={fieldErrors.greeting}
+                              />
+                            ),
+                          }
+                        : undefined
                   }
                 />
               ) : (
@@ -2616,13 +3119,41 @@ export function ProductInfo({
                         />
                         {fieldErrors.photo ? <p className="text-[12px] font-semibold text-red-500">{fieldErrors.photo}</p> : null}
                       </div>
+                    ) : newProduct ? (
+                      <div className="space-y-3">
+                        <PhotoSlots
+                          specs={newSlotSpecs}
+                          uploads={uploads}
+                          content={content}
+                          note={deskCopy ? fill(deskCopy.selectedLabel, { count: deskPetsLabel, layout: deskLayoutLabel }) : undefined}
+                          errors={fieldErrors}
+                          onChange={(key) => {
+                            clearFieldError(`photo:${key}`);
+                            clearFieldError("photo");
+                          }}
+                        />
+                        {fieldErrors.photo ? <p className="text-[12px] font-semibold text-red-500">{fieldErrors.photo}</p> : null}
+                      </div>
                     ) : undefined
                   }
                   beforeDetails={
-                    flowProduct ? <ArtistNote content={content} value={artistNote} onValue={setArtistNote} /> : undefined
+                    flowProduct ? (
+                      <ArtistNote content={content} value={artistNote} onValue={setArtistNote} />
+                    ) : isBundle && bundleCopy?.showPetDetails ? (
+                      <PetDetailsSection
+                        content={content}
+                        ages={content.bundleAges ?? []}
+                        petType={petType}
+                        onPetType={setPetType}
+                        breed={petBreed}
+                        onBreed={setPetBreed}
+                        age={petAge}
+                        onAge={setPetAge}
+                      />
+                    ) : undefined
                   }
-                  addToCartDisabled={Boolean(flowProduct && flowBlocker)}
-                  addToCartHint={flowBlocker}
+                  addToCartDisabled={Boolean((flowProduct || newProduct) && cartBlocker)}
+                  addToCartHint={cartBlocker}
                 />
               ) : (
               <>
@@ -2906,10 +3437,20 @@ export function ProductInfo({
                   mediaPrefix={mediaPrefix}
                   hasItem={hasCustomizedItem}
                   onClose={() => setShowCart(false)}
-                  photoUrl={flowProduct ? flowPreviewUrl : photoPreviewUrl}
-                  photoBusy={flowProduct ? flowUploading : photoStatus === "uploading"}
-                  summaryLine={flowProduct ? [cartStyleLabel, flowChoiceLabel, cartSizeLabel].filter(Boolean).join(" · ") : undefined}
-                  details={flowCartDetails}
+                  photoUrl={newProduct ? newPreviewUrl : flowProduct ? flowPreviewUrl : photoPreviewUrl}
+                  photoBusy={newProduct ? newUploading : flowProduct ? flowUploading : photoStatus === "uploading"}
+                  summaryLine={
+                    newProduct
+                      ? newSummaryLine
+                      : flowProduct
+                        ? [cartStyleLabel, flowChoiceLabel, cartSizeLabel].filter(Boolean).join(" · ")
+                        : undefined
+                  }
+                  details={newProduct ? newCartDetails : flowCartDetails}
+                  included={bundleIncludedCard}
+                  extraLines={newExtraLines}
+                  hideExtras={newProduct ? newVisibleExtras.length === 0 : undefined}
+                  hideGift={newProduct ? !content.cart.showGift : undefined}
                   fileName={selectedFile?.name || ""}
                   styleLabel={portraitStyle === "framed" ? content.step1.framedTitle : content.step1.canvasTitle}
                   sizeLabel={selectedSize.replace(/\s*x\s*/i, " × ")}
@@ -2922,7 +3463,7 @@ export function ProductInfo({
                   petName={effectivePetName}
                   subtitle={effectiveSubtitle}
                   priority={priorityPreview}
-                  itemPrice={Math.max(0, portraitBaseAmount - breakdown.wrap)}
+                  itemPrice={Math.max(0, portraitBaseAmount - breakdown.wrap - greetingLineAmount)}
                   qty={cartQty}
                   onQty={setCartQty}
                   onRemove={() => {
@@ -2949,7 +3490,7 @@ export function ProductInfo({
                   couponMessage={couponMessage}
                   onApplyCoupon={applyCoupon}
                   onRemoveCoupon={removeCoupon}
-                  itemCount={cartQty + extraLines.length}
+                  itemCount={cartQty + extraLines.length + (greetingLineAmount > 0 ? 1 : 0)}
                   subtotal={quote.originalAmount}
                   discount={displayQuote.couponDiscount}
                   total={cartTotal}

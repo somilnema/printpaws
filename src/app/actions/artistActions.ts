@@ -1,7 +1,7 @@
 "use server";
 
 import { orderDetailsFor } from "@/lib/order-details";
-import type { OrderDetails } from "@/lib/product-order";
+import type { readOrderDetails } from "@/lib/product-order";
 import { randomUUID } from "crypto";
 import { createOriginalUploadUrl, readOriginalArtwork, removeArtworkFiles, saveCustomerProof } from "@/lib/artwork-files";
 import { buildWatermarkedPreview } from "@/lib/artwork-preview";
@@ -27,6 +27,9 @@ import {
 } from "@/lib/portal-db";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
+/** Multi-Pet / You & Your Pet, Desk Portrait or Gift Bundle details, as stored in orders.order_details. */
+type StaffConfiguration = NonNullable<ReturnType<typeof readOrderDetails>>;
+
 export type ArtistOrder = {
   id: string;
   pet_name?: string | null;
@@ -43,7 +46,7 @@ export type ArtistOrder = {
   updates: OrderUpdate[];
   teamNotes: TeamNote[];
   /** Multi-Pet / You & Your Pet: every photo with what it shows, names, halo target, artist note. */
-  configuration?: OrderDetails | null;
+  configuration?: StaffConfiguration | null;
 };
 
 export type ArtistPortal = {

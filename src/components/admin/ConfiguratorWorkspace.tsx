@@ -23,6 +23,60 @@ type View = "text" | "photos";
 /** What the Photos tab asks the admin to check for one product, from its saved text and switches. */
 function photoChecklist(product: ConfiguratorProduct, content: EverydayContent): MediaChecklist[] {
   const prefix = CONFIGURATOR_MEDIA[product].prefix;
+  const sharedPlaces = {
+    title: "Places still showing the shared (single-pet) photo",
+    note: "Until this product has its own photo there, customers see the Everyday / shared one.",
+    items: [
+      ...Array.from({ length: content.gallery.photoCount }, (_, i) => ({ slotId: `${prefix}-gallery-${i + 1}`, label: `Gallery ${i + 1}` })),
+      ...[1, 2, 3, 4].map((n) => ({ slotId: `${prefix}-guide-${n}`, label: `Photo guide ${n}` })),
+    ],
+  };
+  if (product === "mini_desk") {
+    // Desk Portrait: no style cards or background tiles, only the Step 1 pet-count cards.
+    const desk = content.desk;
+    const counts = [1, 2, 3].filter((n) => n === 1 || (n === 2 ? desk?.showTwoPets !== false : desk?.showThreePets !== false));
+    return [
+      {
+        title: "Step 1 pet-count cards on show",
+        note: "A card without its own photo shows the shared example photo.",
+        items: counts.map((n) => ({ slotId: `${prefix}-pets-${n}`, label: n === 1 ? "1 pet card" : `${n} pets card` })),
+      },
+      sharedPlaces,
+    ];
+  }
+  if (product === "gift_bundle") {
+    const bundle = content.bundle;
+    const tiers = (["essential", "signature"] as const).filter((tier) =>
+      tier === "essential" ? bundle?.essentialVisible !== false : bundle?.signatureVisible !== false
+    );
+    const limitedOn = !content.flow || content.flow.showLimited;
+    return [
+      {
+        title: "Step 1 bundle cards on show",
+        note: "A bundle card without its own photo shows a plain gift tile.",
+        items: tiers.map((tier) => ({
+          slotId: `${prefix}-tier-${tier}`,
+          label: tier === "essential" ? bundle?.essentialTitle || "Essential" : bundle?.signatureTitle || "Signature",
+        })),
+      },
+      {
+        title: "Step 2 background tiles on show",
+        note: "A tile without its own photo shows the plain background colour.",
+        items: content.backgrounds
+          .filter((bg) => bg.visible && (limitedOn || !bg.limited))
+          .map((bg) => ({ slotId: backgroundTileSlot(bg.id, prefix), label: bg.label })),
+      },
+      {
+        ...sharedPlaces,
+        items: [
+          ...sharedPlaces.items,
+          { slotId: `${prefix}-style-framed`, label: "Framed card" },
+          { slotId: `${prefix}-style-canvas`, label: "Canvas card" },
+          { slotId: `${prefix}-style-infographic`, label: "Preview infographic" },
+        ],
+      },
+    ];
+  }
   // Limited Edition tiles only show on Multi-Pet / You & Your Pet once switched on (Product options).
   const limitedOn = !content.flow || content.flow.showLimited;
   const tiles = content.backgrounds.filter((bg) => bg.visible && (limitedOn || !bg.limited));

@@ -1,7 +1,7 @@
 "use server";
 
 import { orderDetailsFor } from "@/lib/order-details";
-import type { OrderDetails } from "@/lib/product-order";
+import type { readOrderDetails } from "@/lib/product-order";
 import { randomUUID } from "crypto";
 import { headers } from "next/headers";
 import { getAdminSession } from "@/lib/admin-auth";
@@ -49,6 +49,9 @@ import { acceptLatestForShipment } from "@/app/actions/trackActions";
 import { removeArtworkFiles } from "@/lib/artwork-files";
 import { storedPetPhotoUrl } from "@/lib/pet-photo";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+
+/** Multi-Pet / You & Your Pet, Desk Portrait or Gift Bundle details, as stored in orders.order_details. */
+type StaffConfiguration = NonNullable<ReturnType<typeof readOrderDetails>>;
 
 export type AdminOrder = {
   id?: string;
@@ -335,7 +338,7 @@ export type AdminOrderDetails = {
   teamNotes: TeamNote[];
   vendor: VendorAttempt | null;
   /** Multi-Pet / You & Your Pet: photos with roles and pet ids, names, halo, artist note. */
-  configuration: OrderDetails | null;
+  configuration: StaffConfiguration | null;
 };
 
 export async function getAdminDashboard(): Promise<AdminDashboard | null> {

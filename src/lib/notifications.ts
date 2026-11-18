@@ -10,6 +10,8 @@ import {
   sendShipmentQueuedEmail,
   sendArtistAssignedEmail,
 } from "@/lib/mailer";
+import { bundleOrderDetails, deskOrderDetails, hasNewProductAddon, newProductName, readableAddon } from "@/lib/fulfillment";
+import { orderDetailsFor } from "@/lib/order-details";
 import { emailByKey, findArtistById, saveEmailLog } from "@/lib/portal-db";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
@@ -279,6 +281,37 @@ export async function notifyOverdue(input: {
   });
 }
 
+/**
+ * Desk Portrait / Gift Bundle confirmation emails: the product name, the included items (as readable lines, never
+ * as charged add-ons) and the greeting card read sensibly. Any other order is passed through untouched.
+ */
+async function emailReadyOrder<T extends { id?: unknown; addon?: unknown; [key: string]: unknown }>(order: T): Promise<T> {
+  const addon = typeof order.addon === "string" ? order.addon : "";
+  if (!hasNewProductAddon(addon)) return order;
+  let details: unknown = order.order_details;
+  if (!deskOrderDetails(details) && !bundleOrderDetails(details) && order.id) {
+    details = (await orderDetailsFor([String(order.id)]).catch(() => new Map())).get(String(order.id)) ?? null;
+  }
+  const name = newProductName(addon, details);
+  const desk = deskOrderDetails(details);
+  const bundle = bundleOrderDetails(details);
+  const lines = readableAddon(addon)
+    .split(", ")
+    .filter(Boolean)
+    .map((line) =>
+      line === "Personalised Greeting Card" && bundle?.greeting_card?.selected && bundle.greeting_card.message
+        ? `Personalised Greeting Card: \u201c${bundle.greeting_card.message}\u201d`
+        : line
+    );
+  const size = typeof order.size === "string" ? order.size : "";
+  return {
+    ...order,
+    size: [name, desk?.production_size || size].filter(Boolean).join(" · "),
+    ...(desk || order.frame_style === "desk_stand" ? { frame_style: "Wooden stand (included)" } : {}),
+    addon: lines.join(", "),
+  };
+}
+
 export async function notifyOrderConfirmed(order: { id?: string; customer_email?: string; [key: string]: unknown }) {
   const orderId = String(order.id || "");
   const to = String(order.customer_email || "");
@@ -289,7 +322,7 @@ export async function notifyOrderConfirmed(order: { id?: string; customer_email?
     eventType: "order_confirmed",
     to,
     subject,
-    send: () => sendOrderEmail(order),
+    send: async () => sendOrderEmail(await emailReadyOrder(order)),
   });
 }
 
@@ -331,7 +364,7 @@ export async function retryEmail(eventKey: string) {
       eventType: row.event_type,
       to: row.recipient,
       subject: row.subject,
-      send: () => sendOrderEmail(order),
+      send: async () => sendOrderEmail(await emailReadyOrder(order)),
     });
   }
 
