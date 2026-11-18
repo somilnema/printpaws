@@ -27,7 +27,7 @@ import { loadSiteMedia } from "@/lib/site-media";
 import { loadLandingContent, loadProductContent } from "@/lib/site-content";
 import { CONFIGURATOR_MEDIA, configuratorForSlug } from "@/lib/everyday-content";
 import { loadPriceCatalog, loadShopCatalog } from "@/lib/store-config";
-import { getAdminSession } from "@/lib/admin-auth";
+import { draftMode } from "next/headers";
 
 type PortraitPageProps = { params: Promise<{ slug: string }> };
 
@@ -53,9 +53,10 @@ export default async function PortraitPage({ params }: PortraitPageProps) {
   // Desk Portrait / Signature Gift Bundle open their configurator only once the admin launches the stored row (a row
   // seeded as 'fixed' counts once marked for sale). Never sold as a fixed-price offer; no row or not launched → 404.
   const launch = launchProductForSlug(slug);
-  // A signed-in admin can preview an unlaunched Desk Portrait / Gift Bundle page; customers still get 404.
+  // Admins preview an unlaunched Desk Portrait / Gift Bundle page through /api/admin/preview (Next.js draft mode);
+  // customers still get 404. Reading cookies here would break this cached page (500), so only draft mode is checked.
   const unlaunched = Boolean(launch && (!stored || !configuratorLaunched(stored)));
-  const adminPreview = unlaunched ? Boolean(await getAdminSession()) : false;
+  const adminPreview = unlaunched ? (await draftMode()).isEnabled : false;
   if (unlaunched && !adminPreview) notFound();
   if (stored?.kind === "fixed" && !launch) {
     if (!productIsPurchasable(stored) || stored.price == null) notFound();

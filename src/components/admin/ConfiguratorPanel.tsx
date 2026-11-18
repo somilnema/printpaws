@@ -1768,7 +1768,19 @@ export function ConfiguratorPanel({
           Open the page
         </a>
         {product === "mini_desk" || product === "gift_bundle" ? (
-          <span className="text-xs text-[#6b7280]">Not found until launched in Landing &amp; home → Products.</span>
+          <>
+            <a
+              href={`/api/admin/preview?slug=${CONFIGURATOR_SLUGS[product]}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm font-medium text-primary"
+            >
+              Preview before launch
+            </a>
+            <span className="text-xs text-[#6b7280]">
+              Customers see &quot;Coming soon&quot; until it is launched in Landing &amp; home → Products.
+            </span>
+          </>
         ) : null}
         {dirty ? <span className="text-xs text-[#8a5a00]">Unsaved changes</span> : null}
       </div>
