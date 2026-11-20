@@ -63,7 +63,7 @@ export function BundleTierCards({
   return (
     <div className="space-y-3">
       <SectionHeading>{bundle.tierHeading}</SectionHeading>
-      <div className="space-y-3" role="radiogroup" aria-label={bundle.tierHeading || "Bundle"}>
+      <div className="space-y-2.5 sm:space-y-3" role="radiogroup" aria-label={bundle.tierHeading || "Bundle"}>
         {cards.map((card) => {
           const selected = tier === card.id;
           return (
@@ -73,7 +73,7 @@ export function BundleTierCards({
               role="radio"
               aria-checked={selected}
               onClick={() => onTier(card.id)}
-              className={`relative flex w-full min-w-0 items-stretch gap-3 rounded-[14px] p-2.5 text-left transition-all ${
+              className={`relative flex w-full min-w-0 items-stretch gap-2.5 rounded-[12px] p-2 text-left transition-all sm:gap-3 sm:rounded-[14px] sm:p-2.5 ${
                 card.badge ? "bg-[#FFF9F2]" : "bg-[#FEFAF6]"
               } ${
                 selected
@@ -83,25 +83,25 @@ export function BundleTierCards({
                     : "border border-[#E3DCD5] hover:border-[#C9B9A8]"
               }`}
             >
-              <span className="relative block w-[92px] shrink-0 self-start overflow-hidden rounded-[10px] bg-[#F1E7DC] min-[375px]:w-[104px]">
+              <span className="relative block w-[76px] shrink-0 self-start overflow-hidden rounded-[8px] bg-[#F1E7DC] min-[375px]:w-[88px] sm:w-[104px] sm:rounded-[10px]">
                 <span className="block aspect-square w-full">
                   <TierArt prefix={mediaPrefix} tier={card.id} alt={card.title} />
                 </span>
               </span>
-              <span className="flex min-w-0 flex-1 flex-col gap-1.5 pr-7 pt-0.5">
+              <span className="flex min-w-0 flex-1 flex-col gap-1 pr-7 pt-0.5 sm:gap-1.5">
                 {card.badge ? (
-                  <span className="w-max max-w-full rounded-full bg-[#A97659] px-2.5 py-0.5 text-[11px] font-bold uppercase leading-[1.3] tracking-wide text-white">
+                  <span className="w-max max-w-full rounded-full bg-[#A97659] px-2 py-0.5 text-[10px] font-bold uppercase leading-[1.3] tracking-wide text-white sm:px-2.5 sm:text-[11px]">
                     {card.badge}
                   </span>
                 ) : null}
-                <span className="break-words text-[16px] font-semibold leading-tight text-[#2D2D2D]">{card.title}</span>
+                <span className="break-words text-[14px] font-semibold leading-tight text-[#2D2D2D] sm:text-[16px]">{card.title}</span>
                 {card.description ? (
-                  <span className="break-words text-[13px] font-medium leading-snug text-[#6B5E53]">{card.description}</span>
+                  <span className="break-words text-[12px] font-medium leading-snug text-[#6B5E53] sm:text-[13px]">{card.description}</span>
                 ) : null}
                 {card.items.length ? (
                   <span className="flex flex-col gap-1">
                     {card.items.map((item) => (
-                      <span key={item} className="flex items-start gap-1.5 text-[13px] leading-snug text-[#2D2D2D]">
+                      <span key={item} className="flex items-start gap-1.5 text-[12px] leading-snug text-[#2D2D2D] sm:text-[13px]">
                         <Check size={14} strokeWidth={2.5} className="mt-[3px] shrink-0 text-[#A97659]" aria-hidden />
                         <span className="min-w-0 break-words">{item}</span>
                       </span>
@@ -110,13 +110,13 @@ export function BundleTierCards({
                 ) : null}
                 {card.price ? (
                   <span className="mt-auto pt-1">
-                    <span className="inline-flex min-h-[22px] items-center rounded-full bg-[#F9EFE4] px-2.5 text-[12px] font-semibold leading-tight text-[#A97659]">
+                    <span className="inline-flex min-h-[20px] items-center rounded-full bg-[#F9EFE4] px-2 text-[11px] font-semibold leading-tight text-gray-500 sm:min-h-[22px] sm:px-2.5 sm:text-[12px]">
                       {card.price}
                     </span>
                   </span>
                 ) : null}
               </span>
-              <CornerMark selected={selected} size={22} className="absolute right-2.5 top-2.5" />
+              <CornerMark selected={selected} size={20} className="absolute right-2 top-2 sm:right-2.5 sm:top-2.5" />
             </button>
           );
         })}

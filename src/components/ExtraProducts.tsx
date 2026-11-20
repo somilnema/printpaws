@@ -54,7 +54,7 @@ function ExtraCard({
           {hasDiscount ? (
             <span className="text-[#6B5E53] line-through mr-1.5">Rs. {product.compareAt}</span>
           ) : null}
-          <span className="font-bold text-[#A97659]">Rs. {product.price}</span>
+          <span className="font-bold text-gray-500">Rs. {product.price}</span>
         </p>
       </div>
       <span className="flex-shrink-0 flex items-center pl-2" aria-hidden>

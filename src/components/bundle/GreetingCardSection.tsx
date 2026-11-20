@@ -56,7 +56,7 @@ export function GreetingCardSection({
               <p className="mt-0.5 break-words text-[13px] leading-snug text-[#6B5E53]">{bundle.greetingDescription}</p>
             ) : null}
             {priceLabel ? (
-              <span className="mt-1.5 inline-flex min-h-[22px] items-center rounded-full bg-[#F9EFE4] px-2.5 text-[12px] font-semibold leading-tight text-[#A97659]">
+              <span className="mt-1.5 inline-flex min-h-[22px] items-center rounded-full bg-[#F9EFE4] px-2.5 text-[12px] font-semibold leading-tight text-gray-500">
                 {priceLabel}
               </span>
             ) : null}

@@ -69,7 +69,7 @@ function CardBody({ card, comingSoon }: { card: PortraitCard; comingSoon: string
         <div className="mt-auto flex items-center justify-between gap-2 pt-3">
           {card.price ? (
             <>
-              <span className="text-[13px] font-bold text-terracotta md:text-base">{card.price}</span>
+              <span className="text-[13px] font-bold text-gray-500 md:text-base">{card.price}</span>
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-terracotta text-white transition-transform group-hover:translate-x-0.5">
                 <ArrowRight aria-hidden size={16} />
               </span>

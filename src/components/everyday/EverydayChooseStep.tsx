@@ -15,7 +15,23 @@ import {
 } from "@/lib/pricing";
 import type { EverydayContent } from "@/lib/everyday-content";
 import { useMedia, useUploadedMedia } from "@/components/SiteMedia";
-import { CornerMark, PrimaryButton, SectionHeading, StepIntro, TrustStrip } from "@/components/everyday/ui";
+import {
+  CornerMark,
+  PrimaryButton,
+  SectionHeading,
+  StepIntro,
+  TrustStrip,
+  optionGridGapClass,
+  optionLabelClass,
+  optionPriceClass,
+  optionTileClass,
+  styleCardBodyClass,
+  styleCardImageClass,
+  styleCardShellClass,
+  styleCardTitleClass,
+  styleGridClass,
+  stylePreviewClass,
+} from "@/components/everyday/ui";
 
 type Props = {
   content: EverydayContent;
@@ -96,14 +112,14 @@ export function EverydayChooseStep({
   const tallest = Math.max(...sizes.map((row) => sizeDims(row.size).h), 1);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <StepIntro title={copy.title} description={copy.description} />
 
       {beforeStyle}
 
-      <div className="space-y-3">
+      <div className="space-y-2.5 sm:space-y-3">
         <SectionHeading>{copy.styleHeading}</SectionHeading>
-        <div className="grid grid-cols-2 gap-3">
+        <div className={styleGridClass}>
           {styles.map((style) => {
             const meta = catalog.options.styles[style];
             const selectable = isOptionSelectable(meta);
@@ -113,7 +129,7 @@ export function EverydayChooseStep({
             return (
               <div
                 key={style}
-                className={`relative flex flex-col overflow-hidden rounded-[14px] bg-[#FEFAF6] transition-all ${
+                className={`${styleCardShellClass} ${
                   !selectable
                     ? "border border-[#E3DCD5] opacity-60"
                     : selected
@@ -126,9 +142,9 @@ export function EverydayChooseStep({
                   disabled={!selectable}
                   aria-pressed={selected}
                   onClick={() => onStyle(style)}
-                  className="flex w-full flex-col p-1 text-center disabled:cursor-not-allowed"
+                  className="flex w-full flex-col p-0.5 text-center disabled:cursor-not-allowed sm:p-1"
                 >
-                  <span className="relative block aspect-[2/3] w-full overflow-hidden rounded-[10px] bg-[#F1E7DC]">
+                  <span className={styleCardImageClass}>
                     <Image
                       src={styleImage(style)}
                       alt={title}
@@ -136,29 +152,31 @@ export function EverydayChooseStep({
                       sizes="(max-width: 640px) 50vw, 300px"
                       className="object-cover"
                     />
-                    {selectable ? <CornerMark selected={selected} size={28} className="absolute right-2 top-2" /> : null}
+                    {selectable ? (
+                      <CornerMark selected={selected} size={22} className="absolute right-1.5 top-1.5 sm:right-2 sm:top-2" />
+                    ) : null}
                     {meta.badge ? (
-                      <span className="absolute left-2 top-2 rounded-full bg-[#A97659] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                      <span className="absolute left-1.5 top-1.5 max-w-[calc(100%-2.5rem)] rounded-full bg-[#A97659] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white sm:left-2 sm:top-2 sm:px-2 sm:text-[10px]">
                         {meta.badge}
                       </span>
                     ) : null}
                   </span>
-                  <span className="flex flex-col items-center gap-1.5 px-1 pb-3 pt-3">
-                    <span className="text-[16px] font-semibold leading-tight text-[#2D2D2D]">{title}</span>
-                    <span className="text-[13px] leading-[1.4] text-[#6B5E53]">
+                  <span className="flex flex-col items-center gap-1 px-1 pb-2 pt-2 sm:gap-1.5 sm:pb-3 sm:pt-3">
+                    <span className={styleCardTitleClass}>{title}</span>
+                    <span className={styleCardBodyClass}>
                       {selectable ? description : copy.unavailableLabel}
                     </span>
                   </span>
                 </button>
-                <div className="mt-auto px-3 pb-3">
+                <div className="mt-auto px-2 pb-2 sm:px-3 sm:pb-3">
                   <button
                     type="button"
                     onClick={onPreview}
-                    className={`flex h-10 w-full items-center justify-center gap-2 rounded-[10px] border bg-white text-[14px] font-medium text-[#2D2D2D] transition-colors hover:bg-[#FAF7F2] ${
+                    className={`${stylePreviewClass} ${
                       selected && selectable ? "border-[#A97659]" : "border-[#DBD6D2]"
                     }`}
                   >
-                    <Eye size={18} strokeWidth={1.75} />
+                    <Eye size={16} strokeWidth={1.75} className="sm:h-[18px] sm:w-[18px]" />
                     {copy.previewLabel}
                   </button>
                 </div>
@@ -170,21 +188,21 @@ export function EverydayChooseStep({
 
       {afterStyle}
 
-      <div className="space-y-3">
+      <div className="space-y-2.5 sm:space-y-3">
         <div className="space-y-1">
           <SectionHeading>{copy.sizeHeading}</SectionHeading>
-          {copy.sizeDescription ? <p className="text-[14px] text-[#6B5E53]">{copy.sizeDescription}</p> : null}
+          {copy.sizeDescription ? <p className="text-[13px] text-[#6B5E53] sm:text-[14px]">{copy.sizeDescription}</p> : null}
         </div>
         <div
-          className={`grid gap-3 ${anyBadge ? "pt-3" : "pt-1"}`}
+          className={`grid ${optionGridGapClass} ${anyBadge ? "pt-2.5 sm:pt-3" : "pt-1"}`}
           style={{ gridTemplateColumns: `repeat(${Math.max(sizes.length, 1)}, minmax(0, 1fr))` }}
         >
           {sizes.map(({ size, meta, price }) => {
             const selectable = isOptionSelectable(meta);
             const selected = selectedSize === size;
             const { w, h } = sizeDims(size);
-            const iconH = Math.round(24 + 26 * (h / tallest));
-            const iconW = Math.round((iconH * w) / h);
+            const iconH = Math.round(20 + 22 * (h / tallest));
+            const iconW = Math.max(8, Math.round((iconH * w) / h));
             return (
               <button
                 key={size}
@@ -192,7 +210,7 @@ export function EverydayChooseStep({
                 disabled={!selectable}
                 aria-pressed={selected}
                 onClick={() => onSize(size)}
-                className={`relative flex min-h-[120px] flex-col items-center justify-center rounded-[10px] bg-white px-2 pb-3 pt-4 text-center transition-all disabled:cursor-not-allowed ${
+                className={`${optionTileClass} ${
                   !selectable
                     ? "border border-[#E8D6C8] opacity-60"
                     : selected
@@ -201,23 +219,23 @@ export function EverydayChooseStep({
                 }`}
               >
                 {selectable ? (
-                  <CornerMark selected={selected} size={20} className={`absolute right-1.5 ${anyBadge ? "top-5" : "top-1.5"}`} />
+                  <CornerMark selected={selected} size={18} className={`absolute right-1 ${anyBadge ? "top-4" : "top-1"} sm:right-1.5 ${anyBadge ? "sm:top-5" : "sm:top-1.5"}`} />
                 ) : null}
                 {meta?.badge ? (
                   // Admin text of any length stays readable: it wraps instead of being cut off.
-                  <span className="absolute left-1/2 top-0 w-max max-w-[calc(100%+6px)] -translate-x-1/2 -translate-y-1/2 rounded-[10px] bg-[#A97659] px-2 py-0.5 text-center text-[9px] font-bold uppercase leading-[1.25] tracking-wide text-white">
+                  <span className="absolute left-1/2 top-0 w-max max-w-[calc(100%+4px)] -translate-x-1/2 -translate-y-1/2 rounded-[8px] bg-[#A97659] px-1.5 py-0.5 text-center text-[8px] font-bold uppercase leading-[1.25] tracking-wide text-white sm:max-w-[calc(100%+6px)] sm:rounded-[10px] sm:px-2 sm:text-[9px]">
                     {meta.badge}
                   </span>
                 ) : null}
-                <span className="flex h-[50px] items-end justify-center" aria-hidden>
+                <span className="flex h-[40px] items-end justify-center sm:h-[50px]" aria-hidden>
                   <span
                     className="block rounded-[1px] border-[1.5px] border-[#2D2D2D] bg-white"
                     style={{ width: iconW, height: iconH }}
                   />
                 </span>
-                <span className="mt-3 text-[15px] font-semibold leading-tight text-[#2D2D2D]">{sizeLabel(size)}</span>
+                <span className={`mt-2 sm:mt-3 ${optionLabelClass}`}>{sizeLabel(size)}</span>
                 {selectable && !showSizePrices ? null : (
-                  <span className="mt-1 text-[16px] font-bold text-[#A97659]">
+                  <span className={optionPriceClass}>
                     {selectable ? formatRupee(price + petsExtra) : copy.outOfStockLabel}
                   </span>
                 )}

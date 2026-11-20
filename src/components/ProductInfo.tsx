@@ -67,7 +67,7 @@ import { trackPixel } from "@/lib/pixel";
 import { ExtraProducts } from "@/components/ExtraProducts";
 import { EverydayChooseStep } from "@/components/everyday/EverydayChooseStep";
 import { EverydayCart, type CartDetail } from "@/components/everyday/EverydayCart";
-import { EverydayProgress, RichText, TrustGlyph } from "@/components/everyday/ui";
+import { EverydayProgress, PrimaryButton, RichText, TrustGlyph } from "@/components/everyday/ui";
 import { BACKGROUNDS, backgroundById } from "@/lib/backgrounds";
 import {
   compareAtPrice,
@@ -125,6 +125,8 @@ import { BundleTierCards } from "@/components/bundle/BundleTierCards";
 import { GreetingCardSection } from "@/components/bundle/GreetingCardSection";
 import { PetDetailsSection } from "@/components/bundle/PetDetailsSection";
 import { PortraitStyleInfographic } from "@/components/PortraitStylePreview";
+import { StandardChooseStep } from "@/components/standard/StandardChooseStep";
+import { StandardAddOnPicker, StandardBackgroundPicker, StandardFramePicker } from "@/components/standard/StandardCustomizeChoices";
 
 
 const PET_OPTIONS = [
@@ -241,6 +243,11 @@ type ProductInfoProps = {
   everydayContent?: EverydayContent;
   /** Live prices from the server, so the first paint never shows the built-in defaults. */
   initialCatalog?: PriceCatalog | null;
+  /**
+   * Standard flow only (Memorial Portrait page): the style, size, pet, frame, background and add-on choices use the
+   * Everyday configurator's compact boxes. The home page leaves it off and keeps the classic boxes.
+   */
+  compactChoices?: boolean;
 };
 
 export function ProductInfo({
@@ -249,9 +256,11 @@ export function ProductInfo({
   flow = "standard",
   everydayContent,
   initialCatalog,
+  compactChoices = false,
 }: ProductInfoProps = {}) {
   // "everyday" = the Everyday three-step design. Multi-Pet and You & Your Pet use it with their own content.
   const everyday = flow !== "standard";
+  const compact = !everyday && compactChoices;
   const configurator: ConfiguratorProduct | null = flow === "standard" ? null : flow;
   const flowProduct: FlowProduct | null = flow === "multi_pet" || flow === "you_and_your_pet" ? flow : null;
   const isMulti = flowProduct === "multi_pet";
@@ -2267,7 +2276,7 @@ export function ProductInfo({
           <span className="text-xl font-medium text-[#1a1a1b] font-inter">Rs. {totalPrice}.00</span>
           {productType === "portrait" && (
             <>
-              <span className="text-[20px] font-medium text-[#A87B62] line-through font-inter opacity-80">Rs. {cutPrice}.00</span>
+              <span className="text-[20px] font-medium text-gray-500 line-through font-inter opacity-80">Rs. {cutPrice}.00</span>
               <span className="bg-[#FF9494] text-white text-[10px] font-bold px-2 py-1 rounded-full tracking-wider">
                 30% OFF
               </span>
@@ -2466,6 +2475,31 @@ export function ProductInfo({
                       />
                     ) : null
                   }
+                />
+              ) : compact ? (
+                <StandardChooseStep
+                  catalog={catalog}
+                  portraitStyle={portraitStyle}
+                  onStyle={choosePortraitStyle}
+                  selectedSize={selectedSize}
+                  onSize={(size) => {
+                    setSelectedSize(size);
+                    window.dispatchEvent(
+                      new CustomEvent("sizeSelectionChanged", {
+                        detail: portraitStyle === "framed" ? "framed_size" : "canvas_size",
+                      })
+                    );
+                  }}
+                  selectedPets={selectedPets}
+                  onPets={(pets) => {
+                    setSelectedPets(pets);
+                    window.dispatchEvent(new CustomEvent("petSelectionChanged", { detail: pets }));
+                  }}
+                  petOptions={PET_OPTIONS}
+                  humanPetImage={humanPetImage}
+                  onPreview={() => setShowStylePreview(true)}
+                  onContinue={handleContinueFromStep1}
+                  footer={<DeliveryEstimate />}
                 />
               ) : (
               <div className="space-y-6">
@@ -2770,6 +2804,15 @@ export function ProductInfo({
                       <label className="block text-base font-bold text-[#1a1a1b] font-inter">
                         1. Frame Color
                       </label>
+                      {compact ? (
+                        <StandardFramePicker
+                          frame={selectedFrame}
+                          onFrame={(frame) => {
+                            setSelectedFrame(frame);
+                            window.dispatchEvent(new CustomEvent("frameSelectionChanged", { detail: frame }));
+                          }}
+                        />
+                      ) : (
                       <div className="grid grid-cols-2 gap-3">
                         <button
                           type="button"
@@ -2808,6 +2851,7 @@ export function ProductInfo({
                           )}
                         </button>
                       </div>
+                      )}
                     </div>
                   )}
 
@@ -2815,6 +2859,16 @@ export function ProductInfo({
                     <label className="block text-base font-bold text-[#1a1a1b] font-inter">
                       {portraitStyle === "framed" ? "2. Background Color" : "1. Background Color"}
                     </label>
+                    {compact ? (
+                      <StandardBackgroundPicker
+                        backgrounds={BACKGROUNDS}
+                        selected={selectedBg}
+                        onSelect={(name) => {
+                          setSelectedBg(name);
+                          window.dispatchEvent(new CustomEvent("backgroundSelectionChanged", { detail: name }));
+                        }}
+                      />
+                    ) : (
                     <div className="flex flex-wrap gap-4">
                       {BACKGROUNDS.map((bg) => (
                         <div key={bg.name} className="flex flex-col items-center gap-1.5">
@@ -2847,12 +2901,21 @@ export function ProductInfo({
                         </div>
                       ))}
                     </div>
+                    )}
                   </div>
 
                   <div className="space-y-3">
                     <label className="block text-base font-bold text-[#1a1a1b] font-inter">
                       {portraitStyle === "framed" ? "3. Add-on Illustration" : "2. Add-on Illustration"}
                     </label>
+                    {compact ? (
+                      <StandardAddOnPicker
+                        addOns={ADD_ONS}
+                        selected={selectedAddOn}
+                        onToggle={(id) => setSelectedAddOn(selectedAddOn === id ? "none" : id)}
+                        price={catalog.halo}
+                      />
+                    ) : (
                     <div className="flex flex-wrap gap-3">
                       {ADD_ONS.map((addon) => (
                         <button
@@ -2884,6 +2947,7 @@ export function ProductInfo({
                         </button>
                       ))}
                     </div>
+                    )}
                   </div>
 
                   <div className="space-y-4">
@@ -3005,6 +3069,11 @@ export function ProductInfo({
                 </>
               )}
 
+              {compact ? (
+                <div className="mt-4">
+                  <PrimaryButton label="Continue" onClick={() => void handleContinueFromStep2()} />
+                </div>
+              ) : (
               <button
                 type="button"
                 onClick={handleContinueFromStep2}
@@ -3012,6 +3081,7 @@ export function ProductInfo({
               >
                 Continue <ArrowRight size={18} />
               </button>
+              )}
               <div className="flex items-center justify-center gap-1.5 mt-3 text-gray-500 bg-gray-50/80 py-2.5 rounded-lg border border-gray-100">
                 <Truck size={14} className="text-[#A87B62]" />
                 <span className="text-[11px] font-medium tracking-wide uppercase">
@@ -3556,7 +3626,7 @@ export function ProductInfo({
                               ? PORTRAIT_STYLE_LABELS[portraitStyle]
                               : PRODUCT_LABELS[productType]}
                           </h3>
-                          <p className="text-[11px] font-bold mt-1 text-[#A87B62]">
+                          <p className="text-[11px] font-bold mt-1 text-gray-500">
                             {formatRs(portraitBaseAmount)}
                           </p>
                         </div>
@@ -3652,7 +3722,7 @@ export function ProductInfo({
                             <p className="text-[11px] leading-snug text-[#6B5E53] mt-0.5">
                               We&apos;ll beautifully wrap your portrait, ready to gift to someone special.
                             </p>
-                            <p className="text-[12px] font-bold text-[#A97659] mt-1">{formatRs(catalog.giftWrap)}</p>
+                            <p className="text-[12px] font-bold text-gray-500 mt-1">{formatRs(catalog.giftWrap)}</p>
                           </div>
                           <button
                             type="button"
@@ -4095,7 +4165,7 @@ export function ProductInfo({
                   </div>
                   <div className="border-t border-dashed border-[#EADFC9]/60 my-2 pt-2 flex justify-between text-sm">
                     <span className="font-bold text-gray-700 uppercase tracking-tight">Total Amount</span>
-                    <span className="font-black text-[#A87B62]">Rs. {sandboxOrderData.amount.toLocaleString()}</span>
+                    <span className="font-black text-gray-500">Rs. {sandboxOrderData.amount.toLocaleString()}</span>
                   </div>
                 </div>
 

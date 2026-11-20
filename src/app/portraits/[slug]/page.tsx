@@ -161,6 +161,7 @@ export default async function PortraitPage({ params }: PortraitPageProps) {
               flow={configurator ?? "standard"}
               everydayContent={everydayContent}
               initialCatalog={catalog}
+              compactChoices
             />
           </div>
 

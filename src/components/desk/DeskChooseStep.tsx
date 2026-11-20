@@ -46,13 +46,13 @@ export function DeskChooseStep({
   const points = desk.infoPoints.filter((point) => point.trim());
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <StepIntro title={copy.title} description={copy.description} />
 
-      <div className="space-y-3">
+      <div className="space-y-2.5 sm:space-y-3">
         <SectionHeading>{desk.petsHeading}</SectionHeading>
         <div
-          className="grid gap-2.5 min-[375px]:gap-3"
+          className="grid gap-2 sm:gap-3"
           role="radiogroup"
           aria-label={desk.petsHeading || "Number of pets"}
           style={{ gridTemplateColumns: `repeat(${Math.max(options.length, 1)}, minmax(0, 1fr))` }}
@@ -70,22 +70,22 @@ export function DeskChooseStep({
                 role="radio"
                 aria-checked={selected}
                 onClick={() => onPetCount(n)}
-                className={`relative flex min-w-0 flex-col overflow-hidden rounded-[12px] bg-[#FEFAF6] p-1 text-center transition-all ${
+                className={`relative flex min-w-0 flex-col overflow-hidden rounded-[10px] bg-[#FEFAF6] p-0.5 text-center transition-all sm:rounded-[12px] sm:p-1 ${
                   selected ? "border border-[#A97659] shadow-[0_0_0_1px_#A97659]" : "border border-[#E3DCD5] hover:border-[#C9B9A8]"
                 }`}
               >
-                <span className="relative block aspect-[4/3] w-full overflow-hidden rounded-[9px] bg-[#F1E7DC]">
+                <span className="relative block aspect-[5/4] w-full overflow-hidden rounded-[8px] bg-[#F1E7DC] sm:aspect-[4/3] sm:rounded-[9px]">
                   <PetsArt prefix={mediaPrefix} pets={n} alt={label} />
-                  <CornerMark selected={selected} size={20} className="absolute right-1.5 top-1.5" />
+                  <CornerMark selected={selected} size={18} className="absolute right-1 top-1 sm:right-1.5 sm:top-1.5" />
                 </span>
-                <span className="flex min-w-0 flex-1 flex-col items-center gap-1 px-1 pb-2.5 pt-2.5">
-                  <span className="break-words text-[15px] font-semibold leading-tight text-[#2D2D2D]">{label}</span>
+                <span className="flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 pb-2 pt-2 sm:gap-1 sm:pb-2.5 sm:pt-2.5">
+                  <span className="break-words text-[12px] font-semibold leading-tight text-[#2D2D2D] sm:text-[15px]">{label}</span>
                   {layout ? (
-                    <span className="break-words text-[12px] leading-[1.3] text-[#6B5E53]">{layout}</span>
+                    <span className="break-words text-[10px] leading-[1.3] text-[#6B5E53] sm:text-[12px]">{layout}</span>
                   ) : null}
                   {chip ? (
                     <span className="mt-auto pt-1">
-                      <span className="inline-flex min-h-[22px] items-center rounded-full bg-[#F9EFE4] px-2 text-[12px] font-semibold leading-tight text-[#A97659]">
+                      <span className="inline-flex min-h-[20px] items-center rounded-full bg-[#F9EFE4] px-1.5 text-[10px] font-semibold leading-tight text-gray-500 sm:min-h-[22px] sm:px-2 sm:text-[12px]">
                         {chip}
                       </span>
                     </span>

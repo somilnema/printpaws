@@ -107,7 +107,7 @@ export function ToggleSection({
           <h3 className="font-inter! text-[16px] font-semibold! leading-tight text-[#2D2D2D]">
             {heading}
             {optionalLabel ? <span className="font-normal text-[#6B5E53]"> {optionalLabel}</span> : null}
-            {aside ? <span className="ml-1.5 font-bold text-[#A97659]">{aside}</span> : null}
+            {aside ? <span className="ml-1.5 font-bold text-gray-500">{aside}</span> : null}
           </h3>
           {description ? <p className="mt-1 text-[14px] leading-snug text-[#6B5E53]">{description}</p> : null}
         </div>
@@ -318,7 +318,7 @@ export function EverydayPersonalizeStep({
             <h3 className="min-w-0 font-inter! text-[16px] font-semibold! leading-tight text-[#2D2D2D]">
               {copy.limitedHeading}
             </h3>
-            <span className="ml-1 shrink-0 text-[16px] font-bold text-[#A97659]">{fill(copy.limitedPrice, { price: premium })}</span>
+            <span className="ml-1 shrink-0 text-[16px] font-bold text-gray-500">{fill(copy.limitedPrice, { price: premium })}</span>
           </div>
           <div className="grid grid-cols-3 gap-3">
             {limited.map((bg) => (
@@ -375,7 +375,7 @@ export function EverydayPersonalizeStep({
             <div className="min-w-0 flex-1">
               <p className="flex flex-wrap items-center gap-x-1.5 text-[16px] leading-tight">
                 <span className="font-semibold text-[#2D2D2D]">{copy.priorityTitle}</span>
-                <span className="font-bold text-[#A97659]">
+                <span className="font-bold text-gray-500">
                   {fill(copy.priorityPrice, { price: formatRupee(catalog.priorityPreview) })}
                 </span>
                 {copy.priorityInfo ? (

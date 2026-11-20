@@ -166,7 +166,7 @@ export function OfferCheckout({
         <div>
           <h1 className="font-playfair text-3xl font-semibold text-cocoa">{name}</h1>
           <p className="mt-2 text-sm text-cocoa/75">{description}</p>
-          <p className="mt-3 text-lg font-bold text-terracotta">{priceLabel}</p>
+          <p className="mt-3 text-lg font-bold text-gray-500">{priceLabel}</p>
         </div>
 
         <label className="block text-sm font-semibold text-cocoa">

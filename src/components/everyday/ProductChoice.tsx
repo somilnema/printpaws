@@ -2,7 +2,14 @@
 
 import { PawPrint, User, Users } from "lucide-react";
 import { useUploadedMedia } from "@/components/SiteMedia";
-import { CornerMark, SectionHeading } from "@/components/everyday/ui";
+import {
+  CornerMark,
+  SectionHeading,
+  optionGridGapClass,
+  optionTileClass,
+  styleCardShellClass,
+  styleGridClass,
+} from "@/components/everyday/ui";
 import { fill, type EverydayContent } from "@/lib/everyday-content";
 import { formatRupee, isOptionSelectable, isOptionVisible, type PriceCatalog } from "@/lib/pricing";
 import { MULTI_PET_COUNTS, petCountNumber, type Composition } from "@/lib/product-order";
@@ -11,8 +18,8 @@ function PriceChip({ included, label }: { included: boolean; label: string }) {
   if (!label) return null;
   return (
     <span
-      className={`inline-flex min-h-[22px] items-center rounded-full px-2.5 text-[12px] font-semibold leading-tight ${
-        included ? "bg-[#E8F3E8] text-[#2E7D32]" : "bg-[#F9EFE4] text-[#A97659]"
+      className={`inline-flex min-h-[20px] items-center rounded-full px-2 text-[11px] font-semibold leading-tight sm:min-h-[22px] sm:px-2.5 sm:text-[12px] ${
+        included ? "bg-[#E8F3E8] text-[#2E7D32]" : "bg-[#F9EFE4] text-gray-500"
       }`}
     >
       {label}
@@ -58,12 +65,12 @@ export function CompositionCards({
   ];
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5 sm:space-y-3">
       <div className="space-y-1">
         <SectionHeading>{flow.choiceHeading}</SectionHeading>
-        {flow.choiceDescription ? <p className="text-[14px] text-[#6B5E53]">{flow.choiceDescription}</p> : null}
+        {flow.choiceDescription ? <p className="text-[13px] text-[#6B5E53] sm:text-[14px]">{flow.choiceDescription}</p> : null}
       </div>
-      <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label={flow.choiceHeading}>
+      <div className={styleGridClass} role="radiogroup" aria-label={flow.choiceHeading}>
         {cards.map((card) => {
           const selected = composition === card.id;
           return (
@@ -73,17 +80,21 @@ export function CompositionCards({
               role="radio"
               aria-checked={selected}
               onClick={() => onComposition(card.id)}
-              className={`relative flex flex-col overflow-hidden rounded-[14px] bg-[#FEFAF6] p-1 text-center transition-all ${
+              className={`${styleCardShellClass} p-0.5 text-center sm:p-1 ${
                 selected ? "border border-[#A97659] shadow-[0_0_0_1px_#A97659]" : "border border-[#E3DCD5] hover:border-[#C9B9A8]"
               }`}
             >
-              <span className="relative block aspect-[4/3] w-full overflow-hidden rounded-[10px] bg-[#F1E7DC]">
+              <span className="relative block aspect-[5/4] w-full overflow-hidden rounded-[8px] bg-[#F1E7DC] sm:aspect-[4/3] sm:rounded-[10px]">
                 <CompositionArt composition={card.id} />
-                <CornerMark selected={selected} size={24} className="absolute right-2 top-2" />
+                <CornerMark selected={selected} size={22} className="absolute right-1.5 top-1.5 sm:right-2 sm:top-2" />
               </span>
-              <span className="flex flex-1 flex-col items-center gap-1.5 px-1.5 pb-3 pt-3">
-                <span className="text-[15px] font-semibold leading-tight text-[#2D2D2D]">{card.title}</span>
-                {card.description ? <span className="text-[13px] leading-[1.4] text-[#6B5E53]">{card.description}</span> : null}
+              <span className="flex flex-1 flex-col items-center gap-1 px-1 pb-2 pt-2 sm:gap-1.5 sm:px-1.5 sm:pb-3 sm:pt-3">
+                <span className="text-[13px] font-semibold leading-tight text-[#2D2D2D] sm:text-[15px]">{card.title}</span>
+                {card.description ? (
+                  <span className="line-clamp-2 text-[11px] leading-[1.35] text-[#6B5E53] sm:line-clamp-none sm:text-[13px] sm:leading-[1.4]">
+                    {card.description}
+                  </span>
+                ) : null}
                 <span className="mt-auto pt-1">
                   <PriceChip included={card.included} label={card.price} />
                 </span>
@@ -116,13 +127,13 @@ export function PetCountCards({
   if (!options.length) return null;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5 sm:space-y-3">
       <div className="space-y-1">
         <SectionHeading>{flow.choiceHeading}</SectionHeading>
-        {flow.choiceDescription ? <p className="text-[14px] text-[#6B5E53]">{flow.choiceDescription}</p> : null}
+        {flow.choiceDescription ? <p className="text-[13px] text-[#6B5E53] sm:text-[14px]">{flow.choiceDescription}</p> : null}
       </div>
       <div
-        className="grid gap-3"
+        className={`grid ${optionGridGapClass}`}
         role="radiogroup"
         aria-label={flow.choiceHeading}
         style={{ gridTemplateColumns: `repeat(${Math.max(options.length, 1)}, minmax(0, 1fr))` }}
@@ -141,7 +152,7 @@ export function PetCountCards({
               aria-checked={selected}
               disabled={!selectable}
               onClick={() => onPets(id)}
-              className={`relative flex min-h-[104px] flex-col items-center justify-center gap-1 rounded-[10px] bg-white px-2 pb-3 pt-4 text-center transition-all disabled:cursor-not-allowed ${
+              className={`${optionTileClass} gap-1 ${
                 !selectable
                   ? "border border-[#E8D6C8] opacity-60"
                   : selected
@@ -149,22 +160,22 @@ export function PetCountCards({
                     : "border border-[#E8D6C8] hover:border-[#C9B9A8]"
               }`}
             >
-              {selectable ? <CornerMark selected={selected} size={20} className="absolute right-1.5 top-1.5" /> : null}
+              {selectable ? <CornerMark selected={selected} size={18} className="absolute right-1 top-1 sm:right-1.5 sm:top-1.5" /> : null}
               {meta?.badge ? (
-                <span className="absolute left-1/2 top-0 w-max max-w-[calc(100%+6px)] -translate-x-1/2 -translate-y-1/2 rounded-[10px] bg-[#A97659] px-2 py-0.5 text-[9px] font-bold uppercase leading-[1.25] tracking-wide text-white">
+                <span className="absolute left-1/2 top-0 w-max max-w-[calc(100%+4px)] -translate-x-1/2 -translate-y-1/2 rounded-[8px] bg-[#A97659] px-1.5 py-0.5 text-center text-[8px] font-bold uppercase leading-[1.25] tracking-wide text-white sm:max-w-[calc(100%+6px)] sm:rounded-[10px] sm:px-2 sm:text-[9px]">
                   {meta.badge}
                 </span>
               ) : null}
-              <span className="text-[26px] font-bold leading-none text-[#A97659]">{petCountNumber(id)}</span>
-              {flow.petsWord ? <span className="text-[14px] font-medium leading-tight text-[#2D2D2D]">{flow.petsWord}</span> : null}
-              <span className="mt-1">
+              <span className="text-[22px] font-bold leading-none text-[#A97659] sm:text-[26px]">{petCountNumber(id)}</span>
+              {flow.petsWord ? <span className="text-[12px] font-medium leading-tight text-[#2D2D2D] sm:text-[14px]">{flow.petsWord}</span> : null}
+              <span className="mt-0.5 sm:mt-1">
                 {selectable ? (
                   <PriceChip
                     included={included}
                     label={included ? flow.includedLabel : fill(flow.upgradeLabel, { price: formatRupee(surcharge) })}
                   />
                 ) : (
-                  <span className="text-[12px] font-semibold text-[#8B7B6B]">{content.step1.outOfStockLabel}</span>
+                  <span className="text-[11px] font-semibold text-[#8B7B6B] sm:text-[12px]">{content.step1.outOfStockLabel}</span>
                 )}
               </span>
             </button>

@@ -56,17 +56,17 @@ export function MethodCards({
               role="radio"
               aria-checked={selected}
               onClick={() => onMethod(id)}
-              className={`relative flex min-h-[120px] flex-col items-center gap-1.5 rounded-[10px] bg-white px-2 pb-3 pt-4 text-center transition-all ${
+              className={`relative flex min-h-[96px] flex-col items-center gap-1 rounded-[10px] bg-white px-1.5 pb-2.5 pt-3 text-center transition-all sm:min-h-[120px] sm:gap-1.5 sm:px-2 sm:pb-3 sm:pt-4 ${
                 selected ? "border border-[#A97659] bg-[#FEFAF6] shadow-[0_0_0_1px_#A97659]" : "border border-[#E8D6C8] hover:border-[#C9B9A8]"
               }`}
             >
-              <CornerMark selected={selected} size={18} className="absolute right-1.5 top-1.5" />
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F9EFE4] text-[#A97659]">
-                <Icon size={20} strokeWidth={1.75} />
+              <CornerMark selected={selected} size={18} className="absolute right-1 top-1 sm:right-1.5 sm:top-1.5" />
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F9EFE4] text-[#A97659] sm:h-9 sm:w-9">
+                <Icon size={18} strokeWidth={1.75} className="sm:h-5 sm:w-5" />
               </span>
-              <span className="text-[13px] font-semibold leading-tight text-[#2D2D2D]">{copy.title}</span>
+              <span className="text-[12px] font-semibold leading-tight text-[#2D2D2D] sm:text-[13px]">{copy.title}</span>
               {copy.description ? (
-                <span className="text-[11.5px] leading-snug text-[#6B5E53]">{copy.description}</span>
+                <span className="line-clamp-2 text-[11px] leading-snug text-[#6B5E53] sm:text-[11.5px]">{copy.description}</span>
               ) : null}
             </button>
           );

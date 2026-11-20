@@ -198,9 +198,9 @@ function ExtraRow({
         ) : null}
         <p className="mt-1 flex items-baseline gap-1.5 leading-none">
           {content.cart.showCompareAt && product.compareAt > product.price ? (
-            <span className="text-[13px] text-[#9B8B7D] line-through">{formatRupee(product.compareAt)}</span>
+            <span className="text-[13px] text-gray-400 line-through">{formatRupee(product.compareAt)}</span>
           ) : null}
-          <span className="text-[15px] font-bold text-[#A97659]">{formatRupee(product.price)}</span>
+          <span className="text-[15px] font-bold text-gray-500">{formatRupee(product.price)}</span>
         </p>
       </div>
       <Toggle on={selected} onToggle={onToggle} label={copy.label} />
@@ -269,7 +269,7 @@ export function EverydayCart(props: EverydayCartProps) {
                   <p className="mt-1 text-[13px] text-[#6B5E53]">
                     {props.summaryLine || `${props.styleLabel} · ${props.sizeLabel}`}
                   </p>
-                  <p className="mt-1.5 text-[18px] font-semibold text-[#A97659]">{formatRupee(props.itemPrice)}</p>
+                  <p className="mt-1.5 text-[18px] font-semibold text-gray-500">{formatRupee(props.itemPrice)}</p>
                 </div>
               </div>
 
@@ -388,7 +388,7 @@ export function EverydayCart(props: EverydayCartProps) {
                         <p className="mt-1 line-clamp-2 break-words text-[12px] leading-snug text-[#6B5E53]">{line.note}</p>
                       ) : null}
                     </div>
-                    <p className="shrink-0 text-right text-[15px] font-bold leading-tight text-[#A97659]">
+                    <p className="shrink-0 text-right text-[15px] font-bold leading-tight text-gray-500">
                       {formatRupee(line.price)}
                       {props.qty > 1 ? <span className="text-[12px] font-semibold text-[#6B5E53]"> × {props.qty}</span> : null}
                     </p>
@@ -445,7 +445,7 @@ export function EverydayCart(props: EverydayCartProps) {
                     {copy.giftDescription ? (
                       <p className="mt-0.5 text-[12px] leading-snug text-[#6B5E53]">{copy.giftDescription}</p>
                     ) : null}
-                    <p className="mt-1 text-[15px] font-bold text-[#A97659]">
+                    <p className="mt-1 text-[15px] font-bold text-gray-500">
                       {formatRupee(catalog.giftWrap)}
                       {props.qty > 1 ? <span className="text-[12px] font-semibold text-[#6B5E53]"> × {props.qty}</span> : null}
                     </p>
